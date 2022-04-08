@@ -1,0 +1,91 @@
+; Minimal DSR for PCode system
+; Power up routine sets up single file buffer in VDP
+; XOP call for subroutine >10 (sector I/O) is handled in pcodedisk.pas
+; Assemble with:
+;
+; python3 ~/bin/xas99.py -R -b pcodedisk.a99
+
+pcode_sub_10	equ >000a
+vdpwa   	equ >8c02
+vdpwd   	equ >8c00
+nfiles		equ 1		; file buffers reserved in VDP ram
+
+	aorg >4000
+
+	byte >AA, >02
+        data >0000              ; no program
+	data pwrup_list
+	data >0000              ; program list
+	data dsr_list
+	data sub_list
+	data >0000              ; ISR list
+        data >0000
+	
+;	Power-up list
+
+pwrup_list:
+	data >0000
+        data pwrup
+        data >0000
+
+	.defm dsrname
+	data dsr
+	byte >04
+	text #1
+	even
+	.endm
+
+dsr_list:
+	data !next
+	.dsrname 'DSK1'
+!next:
+	data !next
+	.dsrname 'DSK2'
+!next
+	data >0000
+	.dsrname 'DSK3'
+
+sub_list:
+	data >0000
+	data sub_10
+	byte >01, >10
+
+dsr:
+	; TODO: should set error in PAB - but this is never called anyway
+	inct r11
+	b *r11
+
+sub_10:
+	xop @pcode_sub_10, 0
+	inct r11
+	b *r11
+
+pwrup:
+	mov @>8370, r0
+	ci r0, >3fff
+	jne pwrup_done
+
+	li r0, >3def - 6 - (nfiles * 518)
+	mov r0, @>8370
+	inc r0
+	ori r0, >4000
+	swpb r0
+	movb r0, @vdpwa
+	swpb r0
+	movb r0, @vdpwa
+
+	li r1, 5
+	li r0, header_data
+!l1
+	movb *r0+, @vdpwd
+	dec r1
+	jne -!l1
+	movb r1, @>8350
+
+pwrup_done:
+	b *r11
+
+header_data:
+	byte >aa, >3f, >ff, >13, nfiles	;  file buffers with CRU base >1300
+
+	end

@@ -1,0 +1,122 @@
+; DSR for disk simulation
+; XOP calls are handled in disksim.pas
+; Assemble with:
+;
+; python3 ~/bin/xas99.py -R -b disksim.a99
+
+dsk_pwrup    	equ  >0000
+dsk_dsr 	equ  >0001
+dsk_sub_files 	equ  >0002
+dsk_sub_10	equ  >0003
+dsk_sub_11	equ  >0004
+dsk_sub_12	equ  >0005
+dsk_sub_13	equ  >0006
+dsk_sub_14	equ  >0007
+dsk_sub_15	equ  >0008
+dsk_sub_16	equ  >0009
+
+	aorg >4000
+
+	byte >AA, >02
+	data >0000		; no program
+	data dsk_pwrup_list
+	data >0000		; program list
+	data dsk_dsr_list
+	data dsk_sub_list
+	data >0000		; ISR list
+	data >0000
+
+;	Power-up list
+	
+dsk_pwrup_list:
+	data >0000
+	data pwrup
+	data >0000
+
+	.defm dsrname
+	data dsr
+	byte >04
+	text #1
+	even
+	.endm
+
+dsk_dsr_list:
+	data !next
+	.dsrname 'DSK0'
+!next:
+	data !next
+	.dsrname 'DSK1'
+!next:
+	data !next
+	.dsrname 'DSK2'
+!next:
+	data >0000
+	.dsrname 'DSK3'
+	
+dsk_sub_list:
+	data !next
+	data sub_files
+	byte >05
+	text 'FILES'
+	even
+!next:
+	data !next
+	data sub_10
+	byte >01, >10
+!next:
+	data !next
+	data sub_11
+	byte >01, >11
+!next:
+	data !next
+	data sub_12
+	byte >01, >12
+!next:
+	data !next
+	data sub_13
+	byte >01, >13
+!next:
+	data !next
+	data sub_14
+	byte >01, >14
+!next:
+	data !next
+	data sub_15
+	byte >01, >15
+!next:
+	data >0000
+	data sub_16
+	byte >01, >16
+
+pwrup:
+	xop  @dsk_pwrup, 0
+	b    *r11
+
+        .defm xopcall
+	xop  @#1, 0
+	inct r11
+	b    *r11
+       .endm
+
+dsr:
+	.xopcall dsk_dsr
+
+sub_files:
+	.xopcall dsk_sub_files
+
+sub_10:
+	.xopcall dsk_sub_10
+sub_11
+	.xopcall dsk_sub_11
+sub_12:
+	.xopcall dsk_sub_12
+sub_13:
+	.xopcall dsk_sub_13
+sub_14:
+	.xopcall dsk_sub_14
+sub_15:
+	.xopcall dsk_sub_15
+sub_16:
+	.xopcall dsk_sub_16
+
+        end

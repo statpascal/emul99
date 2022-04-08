@@ -1,0 +1,24 @@
+The ROM files use the names as they are configured in the "cfg" files in the
+"bin" directory.
+
+Console ROM/GROMs (required):
+
+ 24576 Apr 15  1996 994AGROM.Bin
+  8192 Apr 15  1996 994aROM.Bin
+
+DSR ROM of DS/SD diskette controller (optional):
+
+  8192 Apr 15  1996 Disk.Bin
+
+GROMs and DSR ROMs of the P-code card (optional):
+
+  6144 May  7  2016 pcode_grom0.u11
+  6144 May  7  2016 pcode_grom1.u13
+  6144 May  7  2016 pcode_grom2.u14
+  6144 May  7  2016 pcode_grom3.u16
+  6144 May  7  2016 pcode_grom4.u19
+  6144 May  7  2016 pcode_grom5.u20
+  6144 May  7  2016 pcode_grom6.u21
+  6144 May  7  2016 pcode_grom7.u22
+  4096 Jul 19  2009 pcode_rom0.u1
+  8192 Jul 19  2009 pcode_rom1.u18
