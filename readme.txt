@@ -1,6 +1,6 @@
 ti99.pas
 
-ti99.pas is a simulator for the TI 99/4A home computer, implemented in the
+ti99.pas is a simulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
 compiled with the Free Pascal Compiler under Linux.
@@ -10,7 +10,7 @@ ti99.pas provides the following features:
 - emulation of console with 32K extension
 - P-code card with optional 80 column display
 - several disk systems:
-  * DS/SD floppy controller with original DSR ROM using 90/180 KByte images
+  * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
   * Program/data files in TIFILES format in host system directory
   * DSR for P-code system with disk images of up to 16 MByte
 - cassette input/output using WAV files
@@ -107,7 +107,7 @@ Moreover, an internal 80x24 screen image is maintained at memory address
 >2000.  The simulator provides a flag to use this image instead of the
 output created by the VDP (see ucsd.cfg) to display 80 columns of text.
 
-A simple tool (ucsddiskman) can iist the contents of a UCSD disk image and
+A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
 following options:
 
@@ -122,7 +122,7 @@ Overclocking the system (cpufreq setting) can also be desirable.
 
 Cassette I/O
 
-The simulator can read and write WAV files (22.050 Hz, unsigned 8 bit, mono)
+The simulator can read and write WAV files (22050 Hz, unsigned 8 bit, mono)
 that can be played to or read from a real machine. Because there is no
 mechanism to set the position of the tape in the user interface, two
 different WAV files are used for input and output (see e.g. exbasic.cfg). 
@@ -132,14 +132,14 @@ later changes do not have any effect on a running session.
 One can store multiple programs and/or data files in an output WAV
 file; they have to be loaded again in the same order.
 
-There is no attempt to reconstruct recordings from old cassette tapes - the
-simulator will consider any input exceeding the ReadThreshold (see tape.pas)
-as a toggle of the cassette input.
+There is no attempt to reconstruct bad recordings from old cassette tapes -
+the simulator will consider any input exceeding the ReadThreshold (see
+tape.pas) as a toggle of the cassette input.
 
 
 Implementation Notes
 
-The implementation is rather concise (about 5.000 lines of Pascal source
+The implementation is rather concise (about 5000 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -172,7 +172,7 @@ Known Bugs and Limitations
 - The directory based disk DSR does not provide sector based
   access and cannot read directory information. Software requiring this may
   use the original disk controller DSR.
-. TI's GROM address counter jumps to the beginning of the respective GROM when
+- TI's GROM address counter jumps to the beginning of the respective GROM when
   6K is reached. This behaviour is implemented in "grom.pas" but may be
   incompatible with larger 3rd party GROMs.
 - Comparing the performance of a BASIC program with that of a real machine, 
@@ -199,5 +199,6 @@ The dummy ROM uses a 5x8 font from X11 which is governed by the MIT license.
 License
 
 Copyright (C) 2022 Michael Thomas
+
 ti99.pas is licensed under the GNU General Public License version 2 - see
 the file "COPYING" in this directory for details.
