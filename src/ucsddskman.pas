@@ -351,6 +351,8 @@ procedure main;
                     help;
                 closeAllMappings
             end
+        else
+            help
     end;
 
 begin
