@@ -62,24 +62,24 @@ type
         tv_nsec: int64
     end;
 
-function clock_gettime (clockid: clockid_t; var res: timespec): int32; external;
-function clock_nanosleep (clockid: clockid_t; flags: int32; var request, remain: timespec): int32; external;
-function usleep (usec: uint32): int32; external;
-function time (tloc: ptr_time_t): time_t; external;
-function localtime (timep: ptr_time_t): ptr_tm; external;
+function clock_gettime (clockid: clockid_t; var res: timespec): int32; cdecl; external;
+function clock_nanosleep (clockid: clockid_t; flags: int32; var request, remain: timespec): int32; cdecl; external;
+function usleep (usec: uint32): int32; cdecl; external;
+function time (tloc: ptr_time_t): time_t; cdecl; external;
+function localtime (timep: ptr_time_t): ptr_tm; cdecl; external;
 
-function system (command: pchar): int64; external;
+function system (command: pchar): int64; cdecl; external;
 
-function fopen (pathname, mode: pchar): fileptr; external;
-function fclose (stream: fileptr): int64; external;
-function fread (ptr: pointer; size, nmemb: int64; stream: fileptr): int64; external;
-function fwrite (ptr: pointer; size, nmemb: int64; stream: fileptr): int64; external;
+function fopen (pathname, mode: pchar): fileptr; cdecl; external;
+function fclose (stream: fileptr): int64; cdecl; external;
+function fread (ptr: pointer; size, nmemb: int64; stream: fileptr): int64; cdecl; external;
+function fwrite (ptr: pointer; size, nmemb: int64; stream: fileptr): int64; cdecl; external;
 
-function fork: pid_t; external;
-function waitpid (pid: pid_t; var wstatus: integer; options: integer): pid_t; external;
+function fork: pid_t; cdecl; external;
+function waitpid (pid: pid_t; var wstatus: integer; options: integer): pid_t; cdecl; external;
 
-function htons (n: uint16): uint16; external;
-function ntohs (n: uint16): uint16; external;
+function htons (n: uint16): uint16; cdecl; external;
+function ntohs (n: uint16): uint16; cdecl; external;
 
 const
     O_RDONLY = 0;
@@ -92,10 +92,10 @@ const
     MAP_PRIVATE = 2;
     MAP_SHARED_VALIDATE = 3;
 
-function open (pathname: pchar; flags: int32): int32; external;
-function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; external;
-function munmap (addr: pointer; length: int64): int32; external;
-procedure  perror (s: pchar); external;
+function open (pathname: pchar; flags: int32): int32; cdecl; external;
+function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
+function munmap (addr: pointer; length: int64): int32; cdecl; external;
+procedure  perror (s: pchar); cdecl; external;
 
 implementation
 
