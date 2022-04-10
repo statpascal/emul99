@@ -23,9 +23,9 @@ installed. E.g., under Debian 11, this can be achieved with
 
 apt-get install fpc gtk+3 libsdl2-dev
 
-and under Ubuntu 21 with
+and under Ubuntu 21/Linux Mint with
 
-sudo apt install fp-compiler libsdl2-dev libgtk-3-dev gcc
+sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
 Executing the build script "compile-fpc.sh" generates the binaries "ti99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
