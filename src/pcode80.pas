@@ -46,26 +46,24 @@ procedure renderPcodeScreen (cr: PCairoT);
         cairo_paint (cr);
         cairo_set_source_rgb (cr, 0, 1, 0);
         for y := 0 to Height - 1 do
-            begin
-                for x := 0 to Width - 1 do
-                    begin
-                        case screenPtr^ of
-                            0:
-                                begin
-                                    cairo_rectangle (cr, hMargin + hSpacing * x, vMargin + FontSize + 9 + vSpacing * pred (y), hSpacing, vSpacing - 4);
-                                    cairo_fill (cr);
-                                end;
-                            32..127:
-                                begin
-                                    buf [0] := chr (screenPtr^);
-                                    cairo_move_to (cr, hMargin + hSpacing * x, vMargin + FontSize + vSpacing * y);
-                                    cairo_show_text (cr, addr (buf [0]));
-                                    cairo_stroke (cr);
-                                end
-                        end;
-                        inc (screenPtr)
+            for x := 0 to Width - 1 do
+                begin
+                    case screenPtr^ of
+                        0:
+                            begin
+                                cairo_rectangle (cr, hMargin + hSpacing * x, vMargin + FontSize + 9 + vSpacing * pred (y), hSpacing, vSpacing - 4);
+                                cairo_fill (cr)
+                            end;
+                        32..127:
+                            begin
+                                buf [0] := chr (screenPtr^);
+                                cairo_move_to (cr, hMargin + hSpacing * x, vMargin + FontSize + vSpacing * y);
+                                cairo_show_text (cr, addr (buf [0]));
+                                cairo_stroke (cr)
+                            end
                     end;
-            end;
+                    inc (screenPtr)
+                end
     end;
     
 end.

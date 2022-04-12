@@ -85,14 +85,14 @@ procedure loadConfigFile (fn: string);
 			    	fdcSetDiskImage (2, value);
 			    FdcDisk3:
 			    	fdcSetDiskImage (3, value);
-			    PcodeDsrLow: begin writeln (value);
-			        pcodeRomFilenames.dsrLow := value; end;
-			    PcodeDsrHigh: begin writeln (value);
-			        pcodeRomFilenames.dsrHigh := value; end;
+			    PcodeDsrLow: 
+			        pcodeRomFilenames.dsrLow := value;
+			    PcodeDsrHigh:
+			        pcodeRomFilenames.dsrHigh := value;
 			    PcodeGrom:
 			        begin
 			            if pcodeGromCount < 8 then
-  			    	        pcodeRomFilenames.groms [pcodeGromCount] := value; writeln (pcodeGromCount, ' ', value);
+  			    	        pcodeRomFilenames.groms [pcodeGromCount] := value;
  			    	    inc (pcodeGromCount)
  			    	end;
 			    PcodeScreen80:

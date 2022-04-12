@@ -207,7 +207,6 @@ procedure vdpRenderScreen;
                 end;
             var
                 i: 0..15;
-                
             begin
                 for i := 15 downto 8 * ord (not spriteSize4) do
                     if odd (pattern shr i) then 

@@ -130,6 +130,7 @@ procedure fillKeyMap;
             addKeyMap (FuncChars [i], false, true, FuncKeys [i]);
             
         addKeyMap ('=', false, false, KeyEqual);
+        addKeyMap ('+', true, false, KeyEqual);
         addKeyMap (' ', false, false, KeySpace);
 
         addKeyMap ('.', false, false, KeyPoint);

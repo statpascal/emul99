@@ -27,6 +27,8 @@ and under Ubuntu 21/Linux Mint with
 
 sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
+Development is mainly done under openSUSE Tumbleweed.
+
 Executing the build script "compile-fpc.sh" generates the binaries "ti99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
 in the "bin" directory. Changing to the "bin" directory and executing
@@ -56,7 +58,7 @@ files with the GROMs (6 KB each), a 4 KB file with the lower part of the DSR
 ROM and an 8 KB file with the two upper banks. 
 
 The directory "roms" contains a file "roms.txt" showing the file names and
-their sizes (as they are expected by the various configuration files).
+their sizes as they are expected by the various configuration files.
 
 Multiple GROM bases within the console are not supported. Cartridge ROMs
 can be bank switched and inverted. For a bank switched ROM, either multiple
@@ -104,8 +106,8 @@ to create a disk image of maximal size. A UCSD file system can then be
 added from within the P-code sytem with the Filer.
 
 Moreover, an internal 80x24 screen image is maintained at memory address
->2000.  The simulator provides a flag to use this image instead of the
-output created by the VDP (see ucsd.cfg) to display 80 columns of text.
+>2000. The simulator provides a flag to use this image instead of the
+output created by the VDP (see ucsd80.cfg) to display 80 columns of text.
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
@@ -156,10 +158,10 @@ get the required exact timing for cassette operations.
 This approach is sufficient to run the "Don't mess with Texas" megademo but
 the output of the recent Copper demo is rather distorted.
 
-The DSRs for the special P-code (pcodedisk.a99) and host system
-(disksim.a99) disk simulation need to transform control to the simulator at
-some point.  This is done via an "XOP 0" instruction, specifying the
-requested operation as a dummy source address.
+The DSRs for the P-code (pcodedisk.a99) and host system (disksim.a99) disk
+simulation need to transform control to the simulator at some point. This
+is done via an "XOP 0" instruction, specifying the requested operation as a
+dummy source address.
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the

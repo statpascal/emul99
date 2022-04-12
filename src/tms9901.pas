@@ -41,7 +41,7 @@ procedure tms9901Reset;
         timerMode := false;
         clockReg := 0;
         readReg := 0;
-        decrementer := 0;
+        decrementer := 0
     end;
     
 procedure leaveTimerMode;
@@ -69,7 +69,7 @@ function tms9901ReadBit (addr: TTms9901CRUAddress): TCRUBit;
                 15:
                     tms9901ReadBit := ord (timerInterrupt);	 (* TODO: invert bit? *)
                 27:
-                    tms9901ReadBit := cruTapeInput;
+                    tms9901ReadBit := cruTapeInput
                 else
                     tms9901ReadBit := cruBit [addr]
             end
@@ -84,7 +84,7 @@ function tms9901ReadBit (addr: TTms9901CRUAddress): TCRUBit;
                 3..10:
                     tms9901ReadBit := ord (readKeyboard (addr, 4 * cruBit [20] + 2 * cruBit [19] + cruBit [18]));
                 27:
-                    tms9901ReadBit := cruTapeInput;
+                    tms9901ReadBit := cruTapeInput
                 else
                     tms9901ReadBit := cruBit [addr]
             end
@@ -125,7 +125,7 @@ procedure tms9901WriteBit (addr: TTms9901CRUAddress; value: TCRUBit);
                 22, 23:
                     setCassetteMotor (addr = 22, value = 1);
                 25:
-                    cruTapeOutput (value);
+                    cruTapeOutput (value)
             end
     end;
     
@@ -166,7 +166,7 @@ procedure handleTimer (cycles: int64);
                     end
             end
         else
-            lastCycles := cycles;
+            lastCycles := cycles
     end;
     
 begin

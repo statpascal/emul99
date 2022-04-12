@@ -120,7 +120,7 @@ procedure writeCart (addr, w: uint16);
     begin
         activeCartBank := (addr shr 1) and (cartBanks - 1);
         if cartROMInverted then
-            activeCartBank := cartBanks - 1 - activeCartBank;
+            activeCartBank := cartBanks - 1 - activeCartBank
     end;
     
 function readCart (addr: uint16): uint16;
@@ -233,7 +233,7 @@ function readMemory (addr: uint16): uint16;
         with memoryMap [addr shr 1] do
             begin
                readMemory := reader (addr and $fffe);
-               inc (waitStates, readWaitstates);
+               inc (waitStates, readWaitstates)
            end 
     end;
     
@@ -277,7 +277,7 @@ procedure loadCartROM (bank: uint8; filename: string);
 	        cartBanks := 1;
 	        while cartBanks <= bank do
 	    	    cartBanks := cartBanks shl 1
-	    end;
+	    end
     end;
     
 procedure setCartROMInverted (f: boolean);
@@ -301,7 +301,7 @@ function readCru (addr: TCruAddress): TCruBit;
 	        PcodeCardCruAddress:
 	            readCru := readPcodeCardCru (addr shl 1)
 	        else
-  		    readCru := 0;
+  		    readCru := 0
 	    end
     end;
 

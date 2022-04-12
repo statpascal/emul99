@@ -1,5 +1,5 @@
 ; Minimal DSR for PCode system
-; Power up routine sets up single file buffer in VDP
+; Power up routine sets up single file buffer in VDP RAM
 ; XOP call for subroutine >10 (sector I/O) is handled in pcodedisk.pas
 ; Assemble with:
 ;

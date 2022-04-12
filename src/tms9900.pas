@@ -381,7 +381,7 @@ procedure executeFormat5 (var instruction: TInstruction);
 	    Op_SRC:
 	        val := uint16 ((val shl 16 or val) shr count);
 	    Op_SRL:
-	        val := val shr count;
+	        val := val shr count
 	end;
 	
 	writeRegister (instruction.w, val);
@@ -394,12 +394,10 @@ procedure executeFormat6 (var instruction: TInstruction);
 	writeResultOpcodes: set of TOpcode = [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB];
     var
 	srcaddr, srcval, result, status: uint16;
-	writeResult: boolean;
     begin
 	srcaddr := getSourceAddress (instruction);
 	(* TODO: B, BL do not need val - really read? *)
 	srcval := readMemory (srcaddr);
-	writeResult := instruction.opcode in writeResultOpcodes;
 	status := 0;
         case instruction.opcode of
             Op_ABS:
@@ -440,11 +438,11 @@ procedure executeFormat6 (var instruction: TInstruction);
             Op_X:
                 executeInstruction (srcval)
         end;
-	if writeResult then
+	if instruction.opcode in writeResultOpcodes then
 	    writeMemory (srcaddr, result);
 	if (instruction.opcode = Op_INV) or (instruction.opcode = Op_NEG) then
 	    status := getWordStatus (result);
-	updateStatusBits (statusMask [instruction.opcode], status);
+	updateStatusBits (statusMask [instruction.opcode], status)
     end;
 
 procedure executeFormat7 (var instruction: TInstruction);
@@ -494,7 +492,7 @@ procedure executeFormat8_1 (var instruction: TInstruction);
 	        cpu.st := cpu.st and $fff0 or instruction.imm and $000f;
 	    Op_LWPI:
 	        cpu.wp := instruction.imm
-        end;
+        end
     end;
 
 procedure executeFormat8_2 (var instruction: TInstruction);
@@ -552,7 +550,7 @@ procedure executeFormat9 (var instruction: TInstruction);
 				    begin
 				        st := st or Status_OV;
 				        dec (cycles, instruction.cycles - 16)
-				    end;
+				    end
 			    end
 		    end
 	    end
@@ -572,7 +570,7 @@ procedure executeInstruction (instr: uint16);
         prevPC := uint16 (cpu.pc - 2);
         prevCycles := cycles;
         
-        getInstruction (instr, instruction);
+        decodeInstruction (instr, instruction);
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cycles, instruction.cycles + getWaitStates);
 

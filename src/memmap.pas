@@ -38,7 +38,7 @@ function createMapping (fn: string): pointer;
         if newMapping.fd <> -1 then
             begin
                 newMapping.size := getFileSize (fn);
-                newMapping.p := mmap (nil, newMapping.size, PROT_READ or PROT_WRITE, MAP_SHARED, newMapping.fd, 0);
+                newMapping.p := mmap (nil, newMapping.size, PROT_READ or PROT_WRITE, MAP_SHARED, newMapping.fd, 0)
             end;
         
         if newMapping.p <> nil then

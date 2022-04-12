@@ -199,7 +199,7 @@ procedure extractFile (dsk: TDiskImagePtr; fn, fnout: string);
     begin
         filePtr := getFilePtr (dsk, fn);
         if filePtr <> nil then
-            if filePtr^.kind <> 3 then
+            if filePtr^.kind <> KindText then
                 writeln (fn, ' is not a text file')
             else
                 dumpTextFile (dsk, filePtr, fnout)
@@ -209,7 +209,7 @@ procedure extractFile (dsk: TDiskImagePtr; fn, fnout: string);
     
 function compressString (s: string): string;
     var 
-        i, n: integer;
+        i, n: int64;
     begin
         n := 0;
         while (succ (n) < length (s)) and (s [succ (n)] = ' ') do
@@ -217,6 +217,8 @@ function compressString (s: string): string;
         for i := succ (n) to length (s) do
             if not (s [i] in [#9, #32..#127])  then
                 warning ('Invalid character #' + decimalstr (ord (s [i])) + ' in file');
+        if n + 32 > 255 then
+            n := 255 - 32;
         if n > 2 then 
             s := chr ($10) + chr (n + 32) + copy (s, succ (n), length (s) - n) + chr ($0d)
         else
@@ -263,6 +265,8 @@ procedure appendTextFile (dsk: TDiskImagePtr; fn, fnin: string);
             begin
                 readln (f, s);
                 s := compressString (s);
+                if length (s) > PageSize then
+                    errorExit ('Line too long: ' + decimalstr (length (s)) + ' characters');
                 if pageCount + length (s) > PageSize then
                     begin
                         fillChar (dstPtr^, PageSize - pageCount, 0);

@@ -21,7 +21,7 @@ type
 	instr, source, dest, imm: uint16
     end;
     
-procedure getInstruction (instr: uint16; var result: TInstruction);
+procedure decodeInstruction (instr: uint16; var result: TInstruction);
 function disassembleInstruction (var instruction: TInstruction; addr: uint16): string;
 
 
@@ -44,7 +44,7 @@ var
     instructionData: array [TOpcode] of TInstructionData;
     decodedInstruction: array [0..MaxInstruction] of TInstruction;
 
-procedure getInstruction (instr: uint16; var result: TInstruction);
+procedure decodeInstruction (instr: uint16; var result: TInstruction);
     begin
         result := decodedInstruction [instr]
     end;
