@@ -278,7 +278,7 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
         else
             begin
                 renderscreen (tiImage, bitmap);
-                cairo_scale (cr, 4, 4);
+                cairo_scale (cr, getWindowScaleWidth, getWindowScaleHeight);
                 cairo_set_source_surface (cr, bitmap, 0, 0);
                 cairo_paint (cr)
             end;
@@ -322,7 +322,7 @@ procedure main;
         if usePcode80 then
             gtk_widget_set_size_request (drawingArea, getPcodeScreenWidth, getPcodeScreenHeight)
         else
-            gtk_widget_set_size_request (drawingArea, 4 * RenderWidth, 4 * RenderHeight);
+            gtk_widget_set_size_request (drawingArea, getWindowScaleWidth * RenderWidth, getWindowScaleHeight * RenderHeight);
         bitmap := cairo_image_surface_create (1, RenderWidth, RenderHeight);
 
         g_signal_connect (window, 'destroy', addr (windowClosed), nil);

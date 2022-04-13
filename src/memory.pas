@@ -66,10 +66,6 @@ function readNull (addr: uint16): uint16;
 	readNull := 0
     end;
     
-procedure writeConsoleROM (addr,  w: uint16);
-    begin
-    end;
-    
 function readConsoleROM (addr: uint16): uint16;
     begin
         readConsoleROM := ntohs (memW [addr shr 1])
@@ -190,13 +186,12 @@ procedure configure32KExtension;
 
 procedure configureMiniMemory;
     begin    
-        writeln ('Enabling RAM at >7000');
   	setMemoryMap ($7000, $7ffe, writeRAM, 4, readRAM, 4)
     end;
 
 procedure configureBaseMemory;
     begin
-	setMemoryMap ($0000, $1ffe, writeConsoleROM, 0, readConsoleROM, 0);
+	setMemoryMap ($0000, $1ffe, writeNull, 0, readConsoleROM, 0);
         setMemoryMap ($2000, $3ffe, writeNull, 4, readNull, 4);
 	setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
 	setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);

@@ -5,6 +5,8 @@ interface
 procedure loadConfigFile (fn: string);
 
 function usePcode80: boolean;
+function getWindowScaleHeight: uint8;
+function getWindowScaleWidth: uint8;
 
 implementation
 
@@ -12,17 +14,19 @@ uses memory, tms9900, fdccard, disksim, tape, pcodecard, pcodedisk, tools, sysut
 
 var 
     pcode80: boolean;
+    scaleWidth, scaleHeight: uint8;
 
 procedure loadConfigFile (fn: string);
     type
         TConfigKey = record
 	    key, value: string
 	end;
-        TKeyType = (CpuFreq, Mem32KExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, Invalid);
+        TKeyType = (CpuFreq, Mem32KExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
-             ('cpu_freq', 'mem_32k_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', '');
-    	MaxKeys = 30;
+             ('cpu_freq', 'mem_32k_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', '');
+    	MaxKeys = 50;
+    	MaxConfigLevel = 10;
     var
         keyCount: 0..MaxKeys;
         keys: array [1..MaxKeys] of TConfigKey;
@@ -114,6 +118,10 @@ procedure loadConfigFile (fn: string);
 			        setCassetteInput (value);
 			    CassOut:
 			        setCassetteOutput (value);
+			    WindowScaleWidth:
+			        scaleWidth := n;
+			    WindowScaleHeight:
+			        scaleHeight := n;
 			    Invalid:
 			        writeln ('Invalid config entry: ', key, ' = ', value)
 			end
@@ -122,7 +130,7 @@ procedure loadConfigFile (fn: string);
 	        initPCodeCard (pcodeRomFilenames)
 	end;
 	
-    procedure loadConfigKeys;
+    procedure loadConfigKeys (fn: string; level: uint8);
         var
             f: text;
             s: string;
@@ -138,11 +146,18 @@ procedure loadConfigFile (fn: string);
 		            key := trim (copy (s, 1, pred (p)));
 		            value := trim (copy (s, succ (p), length (s) - p));
 		            if (key <> '') and (value <> '') then 
-		                inc (keyCount)
+		                if upcase (key) = 'INCLUDE' then
+		                    loadConfigKeys (value, succ (level))
+		                else
+  		                    inc (keyCount)
 		        end
 	    end;
 	
         begin
+            if not fileExists (fn) then
+	        errorExit ('config file ' + fn + ' not found');
+	    if level > maxConfigLevel then
+	        errorExit ('Configuration files nested too deep - recursive inclusion?');
        	    assign (f, fn);
     	    reset (f);
     	    while not eof (f) do
@@ -156,16 +171,26 @@ procedure loadConfigFile (fn: string);
     
     begin
         pcode80 := false;
-        if not fileExists (fn) then
-	    errorExit ('config file ' + fn + ' not found');
+        scaleWidth := 4;
+        scaleHeight := 4;
         keyCount := 0;
-        loadConfigKeys;
+        loadConfigKeys (fn, 1);
         evaluateKeys
     end;
     
 function usePcode80: boolean;
     begin
     	usePcode80 := pcode80
+    end;
+    
+function getWindowScaleHeight: uint8;
+    begin
+        getWindowScaleHeight := scaleHeight
+    end;
+    
+function getWindowScaleWidth: uint8;
+    begin
+        getWindowScaleWidth := scaleWidth
     end;
 
 end.
