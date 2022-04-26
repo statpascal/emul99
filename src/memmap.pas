@@ -22,13 +22,12 @@ type
         next: TMappingNodePtr
     end;
         
-var
-    mappings: TMappingNodePtr;
+const
+    mappings: TMappingNodePtr = nil;
     
 function createMapping (fn: string): pointer;
     var
         newMapping: TMappingNode;
-        ptr: TMappingNodePtr;
     begin
         newMapping.fn := fn;
         newMapping.fd := open (addr (fn [1]), O_RDWR);
@@ -38,17 +37,19 @@ function createMapping (fn: string): pointer;
         if newMapping.fd <> -1 then
             begin
                 newMapping.size := getFileSize (fn);
-                newMapping.p := mmap (nil, newMapping.size, PROT_READ or PROT_WRITE, MAP_SHARED, newMapping.fd, 0)
+                newMapping.p := mmap (nil, newMapping.size, PROT_READ or PROT_WRITE, MAP_SHARED, newMapping.fd, 0);
+                if newMapping.p <> nil then
+                    begin
+                        new (mappings);
+                        mappings^ := newMapping;
+                    end
             end;
-        
-        if newMapping.p <> nil then
+        if newMapping.p = nil then
             begin
-                new (ptr);
-                ptr^ := newMapping;
-                mappings := ptr
-            end
-        else
-            perror ('');
+                perror (addr (fn [1]));
+                if newMapping.fd <> -1 then
+                    fdclose (newMapping.fd)
+            end;
         createMapping := newMapping.p
     end;
     
@@ -68,17 +69,15 @@ function getMappingSize (p: pointer): int64;
 procedure closeAllMappings;
     var
         ptr: TMappingNodePtr;
-        dummy: int32;
     begin
         while mappings <> nil do
             begin
-                dummy := munmap (mappings^.p, mappings^.size);
+                munmap (mappings^.p, mappings^.size);
+                fdclose (mappings^.fd);
                 ptr := mappings;
                 mappings := mappings^.next;         
                 dispose (ptr)
             end
     end;
 
-begin
-    mappings := nil
 end.            

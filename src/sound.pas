@@ -78,7 +78,7 @@ procedure initVolume;
 (*$POINTERMATH ON*)
 procedure getSamples (buffer: TSampleDataPtr; len: uint32);
     const
-	generatorCounter: array [0..ToneGenerators ] of int32 = (0, 0, 0, 0);
+	generatorCounter: array [0..ToneGenerators] of int32 = (0, 0, 0, 0);
 	generatorOutput: array [0..ToneGenerators] of -1..1 = (1, 1, 1, 1);
 	
     procedure updateNoiseCounter;

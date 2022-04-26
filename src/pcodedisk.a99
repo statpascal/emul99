@@ -8,7 +8,7 @@
 pcode_sub_10	equ >000a
 vdpwa   	equ >8c02
 vdpwd   	equ >8c00
-nfiles		equ 1		; file buffers reserved in VDP ram
+nfiles		equ 2		; file buffers reserved in VDP ram
 
 	aorg >4000
 
@@ -41,7 +41,7 @@ dsr_list:
 !next:
 	data !next
 	.dsrname 'DSK2'
-!next
+!next:
 	data >0000
 	.dsrname 'DSK3'
 

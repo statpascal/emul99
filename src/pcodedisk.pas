@@ -75,12 +75,9 @@ procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);
     end;
 
 procedure initPcodeDisk (dsrFilename: string);
-    var 
-        i: TDiskDrive;
     begin
         load (dsrRom, sizeof (dsrRom), dsrFilename);
-        for i := 1 to NumberDrives do
-            diskSectors [i] := 0;
+        fillChar (diskSectors, sizeof (diskSectors), 0)
     end;
     
 end.

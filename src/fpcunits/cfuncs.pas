@@ -93,9 +93,10 @@ const
     MAP_SHARED_VALIDATE = 3;
 
 function open (pathname: pchar; flags: int32): int32; cdecl; external;
+function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;
-procedure  perror (s: pchar); cdecl; external;
+procedure perror (s: pchar); cdecl; external;
 
 implementation
 

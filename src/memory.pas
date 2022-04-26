@@ -27,7 +27,7 @@ procedure loadCartGROM (filename: string);
 
 implementation
 
-uses tms9901, vdp, sound, grom, fdccard, disksim, pcodecard, pcodedisk, tools, cfuncs;
+uses tms9901, vdp, sound, grom, fdccard, disksim, pcodecard, pcodedisk, tools, cfuncs, serial;
 
 const
     MaxCardBanks = 64;
@@ -66,29 +66,24 @@ function readNull (addr: uint16): uint16;
 	readNull := 0
     end;
     
-function readConsoleROM (addr: uint16): uint16;
-    begin
-        readConsoleROM := ntohs (memW [addr shr 1])
-    end;
-
-procedure writeRAM (addr, w: uint16);
+procedure writeMemW (addr, w: uint16);
     begin
 	memW [addr shr 1] := htons (w)
     end;
 
-function readRAM (addr: uint16): uint16;
+function readMemW (addr: uint16): uint16;
     begin
-	readRAM := ntohs (memW [addr shr 1])
+	readMemW := ntohs (memW [addr shr 1])
     end;
 
 procedure writePAD (addr, w: uint16);
     begin
-	writeRAM (addr or $8300, w)
+	writeMemW (addr or $8300, w)
     end;
 
 function readPAD (addr: uint16): uint16;
     begin
-	readPAD := readRAM (addr or $8300)
+	readPAD := readMemW (addr or $8300)
     end;
 
 procedure writeSound (addr, w: uint16);
@@ -144,7 +139,9 @@ function readDsrROM (addr: uint16): uint16;
             PcodeDiskCruAddress:
                 readDsrRom := readPcodeDisk (addr);
 	    PcodeCardCruAddress:
-	        readDsrRom := readPcodeCard (addr)
+	        readDsrRom := readPcodeCard (addr);
+            SerialSimCruAddress:
+                readDsrRom := readSerial (addr)
 	    else
 	        readDsrRom := 0
 	end
@@ -180,30 +177,27 @@ procedure setMemoryMap (startAddr, endAddr: uint16; writeFunc: TMemoryWriter; wr
 
 procedure configure32KExtension;
     begin
-        setMemoryMap ($2000, $3ffe, writeRAM, 4, readRAM, 4);
-        setMemoryMap ($a000, $fffe, writeRAM, 4, readRAM, 4)
+        setMemoryMap ($2000, $3ffe, writeMemW, 4, readMemW, 4);
+        setMemoryMap ($a000, $fffe, writeMemW, 4, readMemW, 4)
     end;
 
 procedure configureMiniMemory;
     begin    
-  	setMemoryMap ($7000, $7ffe, writeRAM, 4, readRAM, 4)
+  	setMemoryMap ($7000, $7ffe, writeMemW, 4, readMemW, 4)
     end;
 
 procedure configureBaseMemory;
     begin
-	setMemoryMap ($0000, $1ffe, writeNull, 0, readConsoleROM, 0);
-        setMemoryMap ($2000, $3ffe, writeNull, 4, readNull, 4);
+	setMemoryMap ($0000, $1ffe, writeNull, 0, readMemW, 0);
+        setMemoryMap ($2000, $fffe, writeNull, 4, readNull, 4);
 	setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
 	setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);
 	setMemoryMap ($8000, $83fe, writePAD, 0, readPAD, 0);
 	setMemoryMap ($8400, $85fe, writeSound, 4, readNull, 4);
-	setMemoryMap ($8600, $87fe, writeNull, 4, readNull, 4);
 	setMemoryMap ($8800, $8bfe, writeNull, 4, readVDP, 4);
 	setMemoryMap ($8c00, $8ffe, writeVDP, 4, readNull, 4);
-	setMemoryMap ($9000, $97fe, writeNull, 4, readNull, 4);	(* Speech *)
 	setMemoryMap ($9800, $9bfe, writeNull, 4, readGROM, 4);
 	setMemoryMap ($9c00, $9ffe, writeGROM, 23, readNull, 4);
-        setMemoryMap ($a000, $fffe, writeNull, 4, readNull, 4);
 	    
         fillChar (mem, sizeof (mem), 0);
         fillChar (groms, sizeof (groms), 0);

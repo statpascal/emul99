@@ -4,7 +4,7 @@ interface
 
 function readDiskSim (addr: uint16): uint16;
 
-procedure initDiskSim (dsrFilename, directory: string);
+procedure initDiskSim (dsrFileName, directory: string);
 
 procedure diskSimPowerUpRoutine;
 procedure diskSimDsrRoutine;
@@ -26,50 +26,32 @@ const
 
 implementation
 
-uses memory, vdp, tools, cfuncs, math, sysutils;
+uses memory, vdp, pab, tools, cfuncs, math, sysutils;
 
 const
     SectorSize = 256;
     MaxSectors = 4 * 360;       (* DS/DD floppy *)
     MaxFiles = 16;
     EofMarker = $ff;
+    TiFilesVariable = $80;
+    TiFilesProtected = $08;
+    TiFilesInternal = $02;
+    TiFilesProgram = $01;
+    TiFilesMagic: array [0..7] of char = (#07, 'T', 'I', 'F', 'I', 'L', 'E', 'S');
 
 type 
-    TOperation = (E_Open, E_Close, E_Read, E_Write, E_Rewind, E_Load, E_Save, E_Delete, E_Scratch, E_Status);
-    TRecordType = (E_Fixed, E_Variable);
-    TDataType = (E_Display, E_Internal);
-    TOperationMode = (E_Update, E_Output, E_Input, E_Append);
-    TAccessType = (E_Sequential, E_Relative);
-    TErrorType = (E_NoError, E_WriteProtection, E_BadAttribute, E_IllegalOpcode, E_MemoryFull, E_PastEOF, E_DeviceError, E_FileError);
-
-    TPab = record
-        operation: TOperation;
-        errType: uint8;
-        vdpBuffer: uint16;
-        recLength, numChars: uint8;
-        recSize: uint16;
-        status: uint8;
-        nameSize: uint8;
-        name: array [0..255] of char
-    end;
-    TPabPtr = ^TPab;
-    
-    TDecodedPab = record
-        devicename, filename: string;
-        operation: TOperation;
-        errorCode: TErrorType;
-        recordType: TRecordType;
-        dataType: TDataType;
-        operationMode: TOperationMode;
-        accessType: TAccessType;
-        vdpBuffer: uint16;
-        recordLength, numChars: uint8;
-        recordNumber: uint16;
-        status: uint8
+    TTiFilesHeader = record
+        magic: array [0..7] of uint8;
+        totalNumberOfSectors: uint16;
+        flags, recordsPerSector, eofOffset, recordLength: uint8;
+        level3Records: uint16;
+        fileName: array [0..9] of uint8;
+        mxt: uint8;
+        padding: array [27..127] of uint8
     end;
     
     TFileBuffer = record
-        devicename, filename, simulatorFilename: string;
+        deviceName, fileName, simulatorFileName: string;
         open: boolean;
 
         recordType: TRecordType;
@@ -83,31 +65,19 @@ type
         
         eofPosition, sectorPosition: 0..255;            (* Variable only *)
         currentSector: 0..MaxSectors;
-        
+
+        header: TTiFilesHeader;
         sectors: array [0..MaxSectors - 1, 0..255] of uint8;
     end;
     
-    TTiFilesHeader = record
-        magic: array [0..7] of uint8;
-        totalNumberOfSectors: uint16;
-        flags, recordsPerSector, eofOffset, recordLength: uint8;
-        level3Records: uint16;
-        filename: array [0..9] of uint8;
-        mxt: uint8;
-        padding: array [27..127] of uint8
-    end;
-    
-const
-    TiFilesVariable = $80;
-    TiFilesProtected = $08;
-    TiFilesInternal = $02;
-    TiFilesProgram = $01;
-
 var
+    dsrRom: array [$4000..$5fff] of uint8;
+    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
+    
     files: array [1..MaxFiles] of TFileBuffer;
     fileDirectory: string;
 
-function makeSimulatorFilename (device, filename: string): string;
+function makeHostFileName (pab: TPabPtr): string;
     const
         n = 3;
         s1: array [1..n] of char = ('.', '/', '\');
@@ -116,28 +86,31 @@ function makeSimulatorFilename (device, filename: string): string;
         i: int64;
         j: 1..n + 1;
         res: string;
+        fileName: string;
     begin
+        fileName := getFileName (pab);
         res := fileDirectory + '/';
         i := 1;
-        for i := 1 to length (filename) do
+        for i := 1 to length (fileName) do
             begin
                 j := 1;
-                while (j <= n) and (filename [i] <> s1 [j]) do
+                while (j <= n) and (fileName [i] <> s1 [j]) do
                     inc (j);
                 if j <= n then
                     res := res + s2 [j]
                 else
-                    res := res + filename [i]
+                    res := res + fileName [i]
             end;
-        makeSimulatorFilename := res
+        makeHostFileName := res
     end;    
     
-procedure diskSimSubFiles (numberOfFiles: int8);
+procedure diskSimSubFiles (numberOfFiles: uint8);
     const
         fileBufferAreaHeader: array [1..5] of uint8 = ($aa, $3f, $ff, DiskSimCruAddress div 256, 0);
     var
         fileBufferBegin: uint16;
     begin
+//        writeln ('CALL FILES (', numberOfFiles, ')');
         fileBufferBegin := $3DEF - numberOfFiles * 518 - 5;
         writeMemory ($8370, fileBufferBegin - 1);
         fileBufferAreaHeader [5] := numberOfFiles;
@@ -151,67 +124,15 @@ procedure diskSimPowerUpRoutine;
             diskSimSubFiles (3)
     end;        
     
-procedure dumpPabOperation (var decodedPab: TDecodedPab);    
-    const
-        operationString: array [TOperation] of string = ('Open', 'Close', 'Read', 'Write', 'Rewind', 'Load', 'Save', 'Delete', 'Scratch', 'Status');
-        recordTypeString: array [TRecordType] of string = ('Fixed', 'Variable');
-        dataTypeString: array [TDataType] of string = ('Display', 'Internal');
-        operationModeString: array [TOperationMode] of string = ('Update', 'Output', 'Input', 'Append');
-        accessTypeString: array [TAccessType] of string = ('Sequential', 'Relative');
-    begin
-        with decodedPab do
-            begin
-                writeln ('Device:            ', devicename);
-                writeln ('File:              ', filename);
-                writeln ('Operation:         ', operationString [operation]);
-                writeln ('Record type:       ', recordTypeString [recordType]);
-                writeln ('Data type::        ', dataTypeString [dataType]);
-                writeln ('Operation mode:    ', operationModeString [operationMode]);
-                writeln ('Access type:       ', accessTypeString [accessType]);
-                writeln ('Record length      ', recordLength);
-                writeln ('Number of char:    ', numChars);
-                writeln ('Recod #/File size: ', recordNumber);
-                writeln
-            end
-    end;
-    
-procedure decodePab (pab: TPabPtr; var decodedPab: TDecodedPab);
-    var
-        i: uint8;
-        pointFound: boolean;
-    begin
-        decodedPab.devicename := '';
-        decodedPab.filename := '';
-        pointFound := false;
-        for i := 0 to pred (pab^.nameSize) do
-            if pointFound then
-                decodedPab.fileName := decodedPab.fileName + pab^.name [i]
-            else if pab^.name [i] <> '.' then
-                decodedPab.devicename := decodedPab.devicename + pab^.name [i]
-            else
-                pointFound := true;
-                
-        decodedPab.operation := pab^.operation;
-        decodedPab.errorCode := E_NoError;
-        decodedPab.recordType := TRecordType (ord (pab^.errType and $10 <> 0));
-        decodedPab.dataType := TDataType (ord (pab^.errType and $08 <> 0));
-        decodedPab.operationMode := TOperationMode ((pab^.errType shr 1) and $03);
-        decodedPab.accessType := TAccessType (odd (pab^.errType));
-        decodedPab.vdpBuffer := ntohs (pab^.vdpBuffer);
-        decodedPab.recordLength := pab^.recLength;
-        decodedPab.numChars := pab^.numChars;
-        decodedPab.recordNumber := ntohs (pab^.recSize);
-        decodedPab.status := 0
-        
-    end;
-    
-function findFile (devicename, filename: string): uint8;
+function findFile (pab: TPabPtr): uint8;
     var 
         i: 1..MaxFiles;
+        deviceName, fileName: string;
     begin
+        decodeNames (pab, deviceName, fileName);
         findFile := 0;
         for i := 1 to MaxFiles do
-            if files [i].open and (devicename = files [i].devicename) and (filename = files [i].filename) then
+            if files [i].open and (deviceName = files [i].deviceName) and (fileName = files [i].fileName) then
                 findFile := i    
     end;
     
@@ -224,18 +145,14 @@ function findFreeFile: uint8;
             if not files [i].open then
                 findFreeFile := i
     end;
-    
 
-const
-    TiFilesMagic: array [0..7] of char = (#07, 'T', 'I', 'F', 'I', 'L', 'E', 'S');
-
-procedure initTiFilesHeader (var header: TTiFilesHeader; filename: string);
+procedure initTiFilesHeader (var header: TTiFilesHeader; fileName: string);
     begin
         fillChar (header, sizeof (header), 0);
         move (TiFilesMagic, header.magic, sizeof (TiFilesMagic));
-        fillchar (header.filename, sizeof (header.filename), ' ');
-        if length (filename) > 0 then
-            move (filename [1], header.filename, min (sizeof (header.filename), length (filename)));
+        fillchar (header.fileName, sizeof (header.fileName), ' ');
+        if length (fileName) > 0 then
+            move (fileName [1], header.fileName, min (sizeof (header.fileName), length (fileName)));
     end;
     
 function checkTiFilesHeader (var header: TTiFilesHeader): boolean;
@@ -246,43 +163,37 @@ function checkTiFilesHeader (var header: TTiFilesHeader): boolean;
 (*$POINTERMATH ON*)    
 function saveTiFiles (var fileBuffer: TFileBuffer): boolean;
     var
-        header: TTiFilesHeader;
-        p: ^uint8;
         contentBytes, bytesWritten: int64;
     begin
-        initTiFilesHeader (header, fileBuffer.filename);
-        header.totalNumberOfSectors := htons (fileBuffer.maxSector + 1);
-        header.recordLength := fileBuffer.recordLength;
+        initTiFilesHeader (fileBuffer.header, fileBuffer.fileName);
+        fileBuffer.header.totalNumberOfSectors := htons (fileBuffer.maxSector + 1);
+        fileBuffer.header.recordLength := fileBuffer.recordLength;
         if fileBuffer.recordType = E_Fixed then 
             begin
-                header.recordsPerSector := SectorSize div fileBuffer.recordLength;
-                header.level3Records := fileBuffer.maxRecord;
-                header.eofOffset := ((fileBuffer.maxRecord mod header.recordsPerSector) * fileBuffer.recordLength) and $ff;
+                fileBuffer.header.recordsPerSector := SectorSize div fileBuffer.recordLength;
+                fileBuffer.header.level3Records := fileBuffer.maxRecord;
+                fileBuffer.header.eofOffset := ((fileBuffer.maxRecord mod fileBuffer.header.recordsPerSector) * fileBuffer.recordLength) and $ff;
             end
         else 
             begin
-                header.eofOffset := fileBuffer.eofPosition;
-                header.level3Records := ntohs (header.totalNumberOfSectors);
-                header.recordsPerSector := (SectorSize - 1) div fileBuffer.recordLength;
-                header.flags := $80
+                fileBuffer.header.eofOffset := fileBuffer.eofPosition;
+                fileBuffer.header.level3Records := ntohs (fileBuffer.header.totalNumberOfSectors);
+                fileBuffer.header.recordsPerSector := (SectorSize - 1) div fileBuffer.recordLength;
+                fileBuffer.header.flags := $80
             end;
         if fileBuffer.dataType = E_Internal then
-            header.flags := header.flags or $02;
+            fileBuffer.header.flags := fileBuffer.header.flags or $02;
         
-        contentBytes := sizeof (header) + ntohs (header.totalNumberOfSectors) * SectorSize;
-        getMem (p, contentBytes);
-        move (header, p [0], sizeof (header));
-        move (fileBuffer.sectors, p [sizeof (header)], ntohs (header.totalNumberOfSectors) * SectorSize);
-        saveBlock (p^, contentBytes, fileBuffer.simulatorFilename, bytesWritten);
-        freeMem (p, contentBytes);
+        contentBytes := sizeof (TTiFilesHeader) + ntohs (fileBuffer.header.totalNumberOfSectors) * SectorSize;
+        saveBlock (fileBuffer.header, contentBytes, fileBuffer.simulatorFileName, bytesWritten);
         saveTiFiles := contentBytes = bytesWritten        
     end;
     
-function loadTiFilesHeader (var header: TTiFilesHeader; simulatorFilename: string): boolean;
+function loadTiFilesHeader (var header: TTiFilesHeader; simulatorFileName: string): boolean;
     var 
         bytesRead: int64;
     begin
-        loadBlock (header, sizeof (header), 0, simulatorFilename, bytesRead);
+        loadBlock (header, sizeof (header), 0, simulatorFileName, bytesRead);
         loadTiFilesHeader := (bytesRead = sizeof (header)) and checkTiFilesHeader (header)
     end;
 
@@ -290,14 +201,14 @@ procedure loadTiFilesContent (var fileBuffer: TFileBuffer);
     var
         bytesRead: int64;
     begin
-        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFilename, bytesRead)
+        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFileName, bytesRead)
     end;
     
-procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorType);
+procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorCode);
     var
         header: TTiFilesHeader;
     begin
-        if not loadTiFilesHeader (header, fileBuffer.simulatorFilename) then
+        if not loadTiFilesHeader (header, fileBuffer.simulatorFileName) then
             errorCode := E_FileError
         else if ((fileBuffer.recordType = E_Variable) <> (header.flags and TiFilesVariable <> 0)) or
                 ((fileBuffer.dataType = E_Internal) <> (header.flags and TiFilesInternal <> 0)) or
@@ -318,22 +229,21 @@ procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorType);
             end
     end;
 
-procedure diskSimDsrOpen (var decodedPab: TDecodedPab);
+procedure diskSimDsrOpen (pab: TPabPtr);
 
     procedure initFileBuffer (var fileBuffer: TFileBuffer);
         begin
             with fileBuffer do
                 begin
-                    devicename := decodedPab.devicename;
-                    filename := decodedPab.filename;
-                    simulatorFilename := makeSimulatorFilename (devicename, filename);
+                    decodeNames (pab, deviceName, fileName);
+                    simulatorFileName := makeHostFileName (pab);
                     open := true;
-                    recordType := decodedPab.recordType;
-                    dataType := decodedPab.dataType;
-                    operationMode := decodedPab.operationMode;
-                    accessType := decodedPab.accessType;
+                    recordType := getRecordType (pab);
+                    dataType := getDataType (pab);
+                    operationMode := getOperationmode (pab);
+                    accessType := getAccessType (pab);
                     maxSector := 0;
-                    recordLength := decodedPab.recordLength;
+                    recordLength := getRecordLength (pab);
                     maxRecord := 0;
                     activeRecord := 0;
                     eofPosition := 0;
@@ -349,22 +259,24 @@ procedure diskSimDsrOpen (var decodedPab: TDecodedPab);
     procedure createFile (var f: TFileBuffer; readOldContent: boolean);
         begin
             initFileBuffer (f);
-            if decodedPab.recordLength = 0 then
-                 decodedPab.recordLength := 80;
-            f.recordLength := decodedPab.recordLength
+            if getRecordLength (pab) = 0 then
+                setRecordLength (pab, 80);
+            f.recordLength := getRecordLength (pab)
         end;
         
     procedure openInput (var fileBuffer: TFileBuffer);
+        var 
+            errorCode: TErrorCode;
         begin
             initFileBuffer (fileBuffer);
-            (* TODO: Error status *)
-            loadTiFiles (fileBuffer, decodedPab.errorCode);
-            decodedPab.recordLength := fileBuffer.recordLength
+            loadTiFiles (fileBuffer, errorCode);
+            setErrorCode (pab, errorCode);
+            setRecordLength (pab, fileBuffer.recordLength)
         end;
         
     procedure openUpdate (var fileBuffer: TFileBuffer);
         begin
-            if fileExists (fileBuffer.simulatorFilename) then
+            if fileExists (fileBuffer.simulatorFileName) then
                 openInput (fileBuffer)
             else
                 createFile (fileBuffer, false)
@@ -389,16 +301,15 @@ procedure diskSimDsrOpen (var decodedPab: TDecodedPab);
         
     var
         filenr: 0..MaxFiles;
-        
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
             filenr := findFreeFile;
         if filenr = 0 then
-            decodedPab.errorCode := E_FileError
+            setErrorCode (pab, E_FileError)
         else
             begin
-                case decodedPab.operationMode of
+                case getOperationMode (pab) of
                     E_Output:
                         openOutput (files [filenr]);
                     E_Update:
@@ -408,18 +319,18 @@ procedure diskSimDsrOpen (var decodedPab: TDecodedPab);
                     E_Append:
                         openAppend (files [filenr])
                 end;
-                if decodedPab.errorCode <> E_NoError then
+                if getErrorCode (pab) <> E_NoError then
                     files [filenr].open := false
             end
     end;
     
-procedure diskSimDsrClose (var decodedPab: TDecodedPab);
+procedure diskSimDsrClose (pab: TPabPtr);
     var
         filenr: 0..MaxFiles;
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
-            decodedPab.errorCode := E_FileError
+            setErrorCode (pab,  E_FileError)
         else 
             with files [filenr] do
                 begin
@@ -431,13 +342,13 @@ procedure diskSimDsrClose (var decodedPab: TDecodedPab);
                                     eofPosition := sectorposition
                                 end;
                             if not saveTiFiles (files [filenr]) then
-                                decodedPab.errorCode := E_FileError
+                                setErrorCode (pab,  E_FileError)
                         end;
                     open := false
                 end
     end;
     
-procedure diskSimDsrRead (var decodedPab: TDecodedPab);
+procedure diskSimDsrRead (pab: TPabPtr);
 
     procedure readFixedRecord (var fileBuffer: TFileBuffer);
         var
@@ -445,15 +356,15 @@ procedure diskSimDsrRead (var decodedPab: TDecodedPab);
             sectorNumber: uint16;
             sectorOffset: uint8;
         begin
-            if decodedPab.recordNumber > fileBuffer.maxRecord then
-                decodedPab.errorCode := E_PastEOF
+            if getRecordNumber (pab) > fileBuffer.maxRecord then
+                setErrorCode (pab, E_PastEOF)
             else
                 begin
                     recsSector := SectorSize div fileBuffer.recordLength;
-                    sectorNumber := decodedPab.recordNumber div recsSector;
-                    sectorOffset := (decodedPab.recordNumber mod recsSector) * fileBuffer.recordLength;
-                    move (fileBuffer.sectors [sectorNumber][sectorOffset], getVdpRamPtr (decodedPab.vdpBuffer)^, fileBuffer.recordLength);
-                    decodedPab.numChars := fileBuffer.recordLength
+                    sectorNumber := getRecordNumber (pab) div recsSector;
+                    sectorOffset := (getRecordNumber (pab)  mod recsSector) * fileBuffer.recordLength;
+                    move (fileBuffer.sectors [sectorNumber][sectorOffset], getVdpRamPtr (getBufferAddress (pab))^, fileBuffer.recordLength);
+                    setNumChars (pab, fileBuffer.recordLength)
                 end
         end;
         
@@ -465,18 +376,18 @@ procedure diskSimDsrRead (var decodedPab: TDecodedPab);
                 begin
                     if sectors [currentSector, sectorPosition] = EofMarker then
                         if currentSector >= maxSector then
-                            decodedPab.errorCode := E_PastEOF
+                            setErrorCode (pab, E_PastEOF)
                         else
                             begin
                                 inc (currentSector);
                                 sectorPosition := 0
                             end;
-                    if decodedPab.errorCode = E_NoError then
+                    if getErrorCode (pab) = E_NoError then
                         begin
                             length := sectors [currentSector, sectorPosition];
-                            move (sectors [currentSector, sectorPosition + 1], getVdpRamPtr (decodedPab.vdpBuffer)^, length);
+                            move (sectors [currentSector, sectorPosition + 1], getVdpRamPtr (getBufferAddress (pab))^, length);
                             inc (sectorPosition, length + 1);
-                            decodedPab.numChars := length
+                            setNumChars (pab, length)
                         end
                 end
         end;
@@ -485,20 +396,20 @@ procedure diskSimDsrRead (var decodedPab: TDecodedPab);
         filenr: 0..MaxFiles;
         
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
-            decodedPab.errorCode := E_FileError
+            setErrorCode (pab, E_FileError)
         else begin
-            files [filenr].activeRecord := decodedPab.recordNumber;
+            files [filenr].activeRecord := getRecordNumber (pab);
             if files [filenr].recordType = E_Fixed then
                 readFixedRecord (files [filenr])
             else
                 readVariableRecord (files [filenr]);
-            decodedPab.recordNumber := files [filenr].activeRecord + 1
+            setRecordNumber (pab, files [filenr].activeRecord + 1)
         end
     end;
     
-procedure diskSimDsrWrite (var decodedPab: TDecodedPab);
+procedure diskSimDsrWrite (pab: TPabPtr);
     
     procedure writeFixedRecord (var f: TFileBuffer);
         var
@@ -507,14 +418,14 @@ procedure diskSimDsrWrite (var decodedPab: TDecodedPab);
             sectorOffset: uint8;
         begin
             recsSector := SectorSize div f.recordLength;
-            sectorNumber := decodedPab.recordNumber div recsSector;
-            sectorOffset := (decodedPab.recordNumber mod recsSector) * f.recordLength;
+            sectorNumber := getRecordNumber (pab) div recsSector;
+            sectorOffset := (getRecordNumber (pab) mod recsSector) * f.recordLength;
             if sectorNumber >= MaxSectors then
-                decodedPab.errorCode := E_MemoryFull
+                setErrorCode (pab, E_MemoryFull)
             else
                 begin
-                    move (getVdpRamPtr (decodedPab.vdpBuffer)^, f.sectors [sectorNumber][sectorOffset], f.recordLength);
-                    f.activeRecord := decodedPab.recordNumber;
+                    move (getVdpRamPtr (getBufferAddress (pab))^, f.sectors [sectorNumber][sectorOffset], f.recordLength);
+                    f.activeRecord := getRecordNumber (pab);
                     if f.activeRecord > f.maxRecord then
                         f.maxRecord := f.activeRecord;
                     if sectorNumber > f.maxSector then
@@ -525,10 +436,10 @@ procedure diskSimDsrWrite (var decodedPab: TDecodedPab);
                 
     procedure writeVariableRecord (var f: TFileBuffer);
         begin
-            if decodedPab.numChars + 1 >= SectorSize - f.sectorPosition then
+            if getNumChars (pab) + 1 >= SectorSize - f.sectorPosition then
                 if f.maxSector + 1 >= MaxSectors then
                     begin
-                        decodedPab.errorCode := E_MemoryFull;
+                        setErrorCode (pab, E_MemoryFull);
                         exit
                     end
                 else 
@@ -537,37 +448,38 @@ procedure diskSimDsrWrite (var decodedPab: TDecodedPab);
                         inc (f.maxSector);
                         f.sectorPosition := 0
                     end;
-            f.sectors [f.maxSector][f.sectorPosition] := decodedPab.numChars;
-            move (getVdpRamPtr (decodedPab.vdpBuffer)^, f.sectors [f.maxSector][f.sectorPosition + 1], decodedPab.numChars);
-            inc (f.sectorPosition, decodedPab.numChars + 1)
+            f.sectors [f.maxSector][f.sectorPosition] := getNumChars (pab);
+            move (getVdpRamPtr (getBufferAddress (pab))^, f.sectors [f.maxSector][f.sectorPosition + 1], getNumChars (pab));
+            inc (f.sectorPosition, succ (getNumChars (pab)))
         end;
 
     var
         filenr: 0..MaxFiles;
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
-            decodedPab.errorCode := E_FileError
-        else begin
-            if decodedPab.recordType = E_Fixed then
-                writeFixedRecord (files [filenr])
-            else
-                writeVariableRecord (files [filenr]);
-            decodedPab.recordNumber := files [filenr].activeRecord + 1
-        end;
+            setErrorCode (pab, E_FileError)
+        else 
+            begin
+                if getRecordType (pab) = E_Fixed then
+                    writeFixedRecord (files [filenr])
+                else
+                    writeVariableRecord (files [filenr]);
+                setRecordNumber (pab, succ (files [filenr].activeRecord))
+            end
     end;
     
-procedure diskSimDsrRewind (var decodedPab: TDecodedPab);
+procedure diskSimDsrRewind (pab: TPabPtr);
     var
         filenr: 0..MaxFiles;
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
-            decodedPab.errorCode := E_FileError
+            setErrorCode (pab, E_FileError)
         else 
             with files [filenr] do
                 if files [filenr].operationMode = E_Append then
-                    decodedPab.errorCode := E_FileError
+                    setErrorCode (pab, E_FileError)
                 else
                     begin
                         activeRecord := 0;
@@ -576,183 +488,149 @@ procedure diskSimDsrRewind (var decodedPab: TDecodedPab);
                     end
     end;
     
-procedure diskSimDsrLoad (var decodedPab: TDecodedPab);
+procedure diskSimDsrLoad (pab: TPabPtr);
     var 
         fn: string;
         bytesRead: int64;
         header: TTiFilesHeader;
     begin
-        fn := makeSimulatorFilename (decodedPab.deviceName, decodedPab.filename);
+        fn := makeHostFileName (pab);
         loadBlock (header, sizeof (header), 0, fn, bytesRead);
-        loadBlock (getVdpRamPtr (decodedPab.vdpBuffer)^, decodedPab.recordNumber, sizeof (header) * ord (checkTiFilesHeader (header)), fn, bytesRead);
+        loadBlock (getVdpRamPtr (getBufferAddress (pab))^, getRecordNumber (pab), sizeof (header) * ord (checkTiFilesHeader (header)), fn, bytesRead);
         if bytesRead = 0 then
-            decodedPab.errorCode := E_FileError
+            setErrorCode (pab, E_FileError)
     end;
 
-procedure diskSimDsrSave (var decodedPab: TDecodedPab);
+procedure diskSimDsrSave (pab: TPabPtr);
     var
         buf: array [0..16384 + sizeof (TTiFilesHeader)] of uint8;
         header: TTiFilesHeader absolute buf;
         bytesWritten: int64;
         sectors: uint16;
     begin
-        initTiFilesHeader (header, decodedPab.filename);
-        sectors := decodedPab.recordNumber div SectorSize;
+        initTiFilesHeader (header, getFileName (pab));
+        sectors := getRecordNumber (pab) div SectorSize;
         header.flags := TiFilesProgram;
-        header.eofOffset := decodedPab.recordNumber mod SectorSize;
+        header.eofOffset := getRecordNumber (pab) mod SectorSize;
         if header.eofOffset <> 0 then
             inc (sectors);
         header.totalNumberOfSectors := htons (sectors);
-        move (getVdpRamPtr (decodedPab.vdpBuffer)^, buf [sizeof (TTiFilesHeader)], decodedPab.recordNumber);
-        saveBlock (buf, sizeof (TTiFilesHeader) + decodedPab.recordNumber, makeSimulatorFilename (decodedPab.devicename, decodedPab.filename), bytesWritten);
-        if bytesWritten <> sizeof (TTiFilesHeader) + decodedPab.recordNumber then
-            decodedPab.errorCode := E_FileError
+        move (getVdpRamPtr (getBufferAddress (pab))^, buf [sizeof (TTiFilesHeader)], getRecordNumber (pab));
+        saveBlock (buf, sizeof (TTiFilesHeader) + getRecordNumber (pab), makeHostFileName (pab), bytesWritten);
+        if bytesWritten <> sizeof (TTiFilesHeader) + getRecordNumber (pab) then
+            setErrorCode (pab, E_FileError)
     end;
     
-procedure diskSimDsrDelete (var decodedPab: TDecodedPab);
+procedure diskSimDsrDelete (pab: TPabPtr);
     var
         filenr: 0..MaxFiles;
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr <> 0 then
             files [filenr].open := false;
-        deleteFile (makeSimulatorFilename (decodedPab.devicename, decodedPab.filename))
+        deleteFile (makeHostFileName (pab))
     end;
     
-procedure diskSimDsrScratch (var decodedPab: TDecodedPab);
+procedure diskSimDsrUnsupported (pab: TPabPtr);
     begin
-        decodedPab.errorCode := E_BadAttribute
+        setErrorCode (pab, E_IllegalOpcode);
+        writeln ('Disksim: Unsupported operation ', pab^.operation, ' requested')
     end;
     
-procedure diskSimDsrStatus (var decodedPab: TDecodedPab);
-    const
-        (* Status flags *)
-        FileNotFound = $80;
-        WriteProtected = $40;
-        FileInternal = $10;
-        FileProgram = $08;
-        FileVariable = $04;
-        MemoryFull = $02;
-        EOFReached = $01;
+procedure diskSimDsrStatus (pab: TPabPtr);
     var 
         filenr: 0..MaxFiles;
         header: TTiFilesHeader;
+        status: uint8;
         
-    procedure transferFlag (tiFilesFlag, statusFlag: uint8);
+    function checkFlag (tiFilesFlag: uint8): uint8;
         begin
-            if header.flags and tiFilesFlag <> 0 then
-                decodedPab.status := decodedPab.status or statusFlag
+            checkFlag := ord (header.flags and tiFilesFlag <> 0)
         end;
         
     begin
-        filenr := findFile (decodedPab.devicename, decodedPab.filename);
+        filenr := findFile (pab);
         if filenr = 0 then
-            begin
-                if not loadTiFilesHeader (header, makeSimulatorFilename (decodedPab.devicename, decodedPab.filename)) then
-                    decodedPab.status := FileNotFound
-                else 
-                    begin
-                        transferFlag (TiFilesProgram, FileProgram);
-                        transferFlag (TiFilesProtected, WriteProtected);
-                        transferFlag (TiFilesInternal, Fileinternal);
-                        transferFlag (TiFilesVariable, FileVariable)
-                    end
-            end
+            if loadTiFilesHeader (header, makeHostFileName (pab)) then
+                status := PabStatusFileProgram * checkFlag (TiFilesProgram) + PabStatusWriteProtected * checkFlag (TiFilesProtected) +
+                          PabStatusFileInternal * checkFlag (TiFilesInternal) + PabStatusFileVariable * checkFlag (TiFilesVariable)
+            else 
+                status := PabStatusFileNotFound
         else
             with files [filenr] do
                 begin
-                    decodedPab.status := FileInternal * ord (dataType);
+                    status := PabStatusFileInternal * ord (dataType);
                     if recordType = E_Variable then
                         begin
-                            decodedPab.status := decodedPab.status or FileVariable;
+                            status := status or PabStatusFileVariable;
                             if (currentSector > maxSector) or (sectors [currentSector, sectorPosition] = EofMarker) then
-                                decodedPab.status := decodedPab.status or EofReached
+                                status := status or PabStatusEofReached
                         end
                     else
-                        if decodedPab.recordNumber > maxRecord then
-                            decodedPab.status := decodedPab.status or EofReached
-                end
+                        if getRecordNumber (pab) > maxRecord then
+                            status := status or PabStatusEofReached
+                end;
+        setStatus (pab, status)
     end;
     
 procedure diskSimDsrRoutine;
+    const dsrOperation: array [TOperation] of procedure (pab: TPabPtr) = (
+        diskSimDsrOpen, diskSimDsrClose, diskSimDsrRead, diskSimDsrWrite, diskSimDsrRewind, diskSimDsrLoad, diskSimDsrSave, diskSimDsrDelete, diskSimDsrUnsupported, diskSimDsrStatus, diskSimDsrUnsupported, diskSimDsrUnsupported);
     var
         pab: TPabPtr;
-        decodedPab: TDecodedPab;
     begin
-        pab := TPabPtr (getVdpRamPtr (readMemory ($8356) - 14));
-        decodePab (pab, decodedPab);
-//        dumpPabOperation (decodedPab);
-        case decodedPab.operation of
-            E_Open:
-                diskSimDsrOpen (decodedPab);
-            E_Close:
-                diskSimDsrClose (decodedPab);
-            E_Read:
-                diskSimDsrRead (decodedPab);
-            E_Write:
-                diskSimDsrWrite (decodedPab);
-            e_Rewind:
-                diskSimDsrRewind (decodedPab);
-            E_Load:
-                diskSimDsrLoad (decodedPab);
-            E_Save:
-                diskSimDsrSave (decodedPab);
-            E_Delete:
-                diskSimDsrDelete (decodedPab);
-            E_Scratch:
-                diskSimDsrScratch (decodedPab);
-            E_Status:
-                begin
-                    diskSimDsrStatus (decodedPab);
-                    pab^.status := decodedPab.status
-                end;
-        end;
-        pab^.recLength := decodedPab.recordLength;
-        pab^.recSize := htons (decodedPab.recordNumber);
-        pab^.errType := (pab^.errType and $1F) or (ord (decodedPab.errorCode) shl 5);
-        pab^.numChars := decodedPab.numChars
+        pab := TPabPtr (getVdpRamPtr (readMemory ($8356) - readMemory ($8354) - 10));
+        dsrOperation [getOperation (pab)] (pab)
     end;
 
 procedure diskSimSubFilesBasic;
     begin
-        writeln ('Not implemented yet')
+        writeln ('Files: Not implemented yet')
     end;
 
 procedure diskSimSubSectorIO;
     begin
-        writeln ('Disk sector IO not supported for files in a directory')
+        writeln ('>10 Sector IO: not implemented yet')
     end;    
 
 procedure diskSimSubFormatDisk;
     begin
-        writeln ('Not implemented yet')
+        writeln ('>11 Format Disk: not implemented yet')
     end;
     
 procedure diskSimSubProtectFile;
     begin
-        writeln ('Not implemented yet')
+        writeln ('>12 File Protection: not implemented yet')
     end;
     
 procedure diskSimSubRenameFile;
     begin
-        writeln ('Not implemented yet')
+        writeln ('>13 Rename File: not implemented yet')
     end;
     
 procedure diskSimSubFileInput;
     begin
-        writeln ('Not implemented yet')
+        writeln ('>14 File Sector Input: not implemented yet')
     end;
     
 procedure diskSimSubFileOutput;
     begin
-        writeln ('Not implemented yet')
+        writeln ('>15 File Sector Output: not implemented yet')
     end;
     
 procedure diskSimSubNumberOfFiles;
+    var
+        n: uint8;
     begin
-        writeln ('Not implemented yet')
+        n := getMemoryPtr ($834c)^;
+        if (n >= 1) and (n <= 16) then
+            begin
+                diskSimSubFiles (n);
+                getMemoryPtr ($8350)^ := 0
+            end
+        else
+            getMemoryPtr ($8350)^ := 2;	// TODO: Bad attribute - check if correct error code
     end;
-    
 
 procedure initFileBuffers;
     var
@@ -761,24 +639,20 @@ procedure initFileBuffers;
         for i := 1 to MaxFiles do
             with files [i] do
                 begin
-                    filename := '';
-                    devicename := '';
+                    fileName := '';
+                    deviceName := '';
                     open := false
                 end
     end;
 
-var    
-    dsrRom: array [$4000..$5fff] of uint8;
-    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
-    
 function readDiskSim (addr: uint16): uint16;
     begin
         readDiskSim := htons (dsrRomW [addr shr 1])
     end;
 
-procedure initDiskSim (dsrFilename, directory: string);
+procedure initDiskSim (dsrFileName, directory: string);
     begin
-        load (dsrRom, sizeof (dsrRom), dsrFilename);
+        load (dsrRom, sizeof (dsrRom), dsrFileName);
         initFileBuffers;
         fileDirectory := directory;
     end;

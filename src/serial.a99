@@ -1,0 +1,90 @@
+; DSR for serial/parallel IO
+; Assemble with:
+;
+; python3 ~/bin/xas99.py -R -b serial.a99
+
+serial_pwrup 	equ >000b
+serial_dsr	equ >000c
+
+	aorg >4000
+
+	byte >AA, >02
+        data >0000              ; no program
+	data pwrup_list
+	data >0000              ; program list
+	data dsr_list
+	data >0000		; subprograms
+	data >0000              ; ISR list
+        data >0000
+	
+;	Power-up list
+
+pwrup_list:
+	data >0000
+        data pwrup
+        data >0000
+
+dsr_list:
+        data !next
+	data dsr
+	byte >05
+	text 'RS232'
+	even
+
+!next:
+	data !next
+	data dsr
+	byte >07
+	text 'RS232/1'
+	even
+
+!next:
+	data !next
+	data dsr
+	byte >07
+	text 'RS232/2'
+	even
+!next:
+	data !next
+	data dsr
+	byte >03
+	text 'PIO'
+	even
+!next:
+	data !next
+	data dsr
+	byte >05
+	text 'PIO/1'
+	even
+
+!next:
+	data !next
+	data dsr
+	byte >05
+	text 'PIO/2'
+	even
+
+!next:
+	data !next
+	data dsr
+	byte >07
+	text 'RS232/3'
+	even
+
+!next:
+	data >0000
+	data dsr
+	byte >07
+	text 'RS232/4'
+	even
+
+pwrup:
+	xop @serial_pwrup, 0
+	b *r11
+
+dsr:
+	xop @serial_dsr, 0
+	inct r11
+	b *r11
+
+	end

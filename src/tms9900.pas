@@ -28,7 +28,6 @@ var
     cycles: int64;
     cpuFreq: uint32;
     statusMask: array [TOpcode] of uint16;		(* Status bits affected by instruction *)
-    oddParity: array [uint8] of boolean;
     
 procedure initOpcodeStatus;
     type
@@ -63,17 +62,6 @@ procedure initOpcodeStatus;
                         statusMask [j] := status
     end;
         
-procedure initParityTable;
-    var
-        bit: 0..7;
-        j: uint8;
-    begin    
-        oddParity [0] := false;
-        for bit := 0 to 7 do
-            for j := 1 shl bit to pred (1 shl (bit + 1)) do
-                oddParity [j] := not oddParity [j - (1 shl bit)]
-    end;
-        
 procedure updateStatusBits (mask, val: uint16);
     begin
 	cpu.st := (cpu.st and not mask) or (val and mask)
@@ -95,7 +83,7 @@ function getWordStatus (w: uint16): uint16;
     
 function getByteStatus (b: uint8): uint16;
     begin
-	getByteStatus := getWordStatus (b shl 8) or Status_OP * ord (oddParity [b])
+	getByteStatus := getWordStatus (b shl 8) or Status_OP * ord (oddParity (b))
     end;
     
 function compare (u1, u2: uint16; s1, s2: int16): uint16;
@@ -110,7 +98,7 @@ function compare16 (a, b: uint16): uint16;
 
 function compare8 (a, b: uint8): uint16;
     begin
-        compare8 := compare (a, b, int8 (a), int8 (b)) or Status_OP * ord (oddParity [a])
+        compare8 := compare (a, b, int8 (a), int8 (b)) or Status_OP * ord (oddParity (a))
     end;
     
 function addStatus (a, b, res, signMask: uint16; isSub: boolean): uint16;
@@ -623,6 +611,5 @@ procedure stopCpu;
     end;
 
 begin
-    initOpcodeStatus;
-    initParityTable
+    initOpcodeStatus
 end.

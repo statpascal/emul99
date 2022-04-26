@@ -18,6 +18,7 @@ procedure loadBlock (var dest; size, offset: int64; filename: string; var bytesR
 procedure saveBlock (var src; size: int64; filename: string; var bytesWritten: int64);
 
 function crc16 (var data; size: int64): uint16;
+function oddParity (val: uint8): boolean;
 
 function getHighLow (val: uint16; highByte: boolean): uint8;
 procedure setHighLow (var val: uint16; highByte: boolean; b: uint8);
@@ -160,6 +161,11 @@ function crc16 (var data; size: int64): uint16;
         crc16 := crc
     end;
     
+function oddParity (val: uint8): boolean;
+    begin
+        oddParity := odd ($6996 shr ((val xor (val shr 4)) and $0f))
+    end;
+
 function getHighLow (val: uint16; highByte: boolean): uint8;
     begin
         getHighLow := (val shr (ord (highByte) * 8)) and $ff;

@@ -139,6 +139,15 @@ the simulator will consider any input exceeding the ReadThreshold (see
 tape.pas) as a toggle of the cassette input.
 
 
+Serial/Parallel I/O
+
+An experimental implementation of an RS232/PIO interface is implemented. 
+Output should work reasonably well while input - especially into the P-Code
+system - may fail.  Different files can be configured for the input and
+output of each device (see serial.cfg).  Under Linux it should be possible
+to use device files or named pipes.
+
+
 Implementation Notes
 
 The implementation is rather concise (about 5000 lines of Pascal source

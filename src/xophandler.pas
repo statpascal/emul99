@@ -9,10 +9,9 @@ procedure handleXop (op: uint16; var cpu: TTMS9900);
 
 implementation
 
-uses disksim, pcodedisk;
+uses disksim, pcodedisk, serial;
 
 const
-    (* Simulated disk in host file system directory *)
     DiskSimPowerUp = 0;
     DiskSimDSR = 1;
     DiskSimSubFiles = 2;
@@ -23,8 +22,9 @@ const
     DiskSimSub14 = 7;
     DiskSimSub15 = 8;
     DiskSimSub16 = 9;
-    (* Subroutine >10 for pcode disk simulation *)
     PCodeDiskSub10 = 10;
+    SerialPowerUp = 11;
+    SerialDSR = 12;
     
 procedure handleXop (op: uint16; var cpu: TTMS9900);
     begin
@@ -50,7 +50,11 @@ procedure handleXop (op: uint16; var cpu: TTMS9900);
             DiskSimSub16:
                diskSimSubNumberOfFiles;
             PCodeDiskSub10:
-               pcodeDiskSubSectorIO 
+               pcodeDiskSubSectorIO;
+            SerialPowerUp:
+                serialSimPowerup;
+            SerialDSR:
+                serialSimDSR;
             else
                 writeln ('XOP handler: unknown op ', op)
         end
