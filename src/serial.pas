@@ -199,7 +199,7 @@ procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDire
         with serialFiles [serialPort, direction] do
             begin
                 fn := filename;
-                fd := open (addr (fn [1]), O_RDWR or O_CREAT)
+                fd := open (addr (fn [1]), O_RDWR or O_CREAT, &644)
             end
     end;
     

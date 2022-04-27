@@ -30,7 +30,7 @@ function createMapping (fn: string): pointer;
         newMapping: TMappingNode;
     begin
         newMapping.fn := fn;
-        newMapping.fd := open (addr (fn [1]), O_RDWR);
+        newMapping.fd := open (addr (fn [1]), O_RDWR, &644);
         newMapping.p := nil;
         newMapping.next := mappings;
         

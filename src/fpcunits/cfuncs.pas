@@ -93,7 +93,7 @@ const
     MAP_PRIVATE = 2;
     MAP_SHARED_VALIDATE = 3;
 
-function open (pathname: pchar; flags: int32): int32; cdecl; external;
+function open (pathname: pchar; flags, mode: int32): int32; cdecl; external;
 function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
 function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
 function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
