@@ -153,7 +153,7 @@ Under Linux a named pipe can be used e.g. for input. This is useful to
 feed data into the P-code system by reading from device REMIN: - the end of
 the input can be signalled by sending the byte 0x03 (Ctrl-C) to the pipe
 which will set EOF for the REMIN: device. Note that this does not yet work
-the "Transfer" option of the "Filer."
+with the "Transfer" option of the "Filer."
 
 
 Implementation Notes
