@@ -141,11 +141,18 @@ tape.pas) as a toggle of the cassette input.
 
 Serial/Parallel I/O
 
-An experimental implementation of an RS232/PIO interface is implemented. 
+An experimental implementation of an RS232/PIO interface is provided. 
 Output should work reasonably well while input - especially into the P-Code
-system - may fail.  Different files can be configured for the input and
-output of each device (see serial.cfg).  Under Linux it should be possible
-to use device files or named pipes.
+system - may fail or not be interruptable yet.  Different files can be
+configured for the input and output of each device (see serial.cfg).
+
+When the end of an input file is reached, the DSR simulates a press of the
+"Clear" key resulting in the return of error code 6 (device error).
+
+Under Linux a named pipe can be used e.g. for input. This is useful to
+feed data into the P-code system by reading from device REMIN: - the end of
+the input can be signalled by sending the byte 0x03 (Ctrl-C) to the pipe
+which will set EOF for REMIN:
 
 
 Implementation Notes
