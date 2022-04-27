@@ -85,6 +85,7 @@ const
     O_RDONLY = 0;
     O_WRONLY = 1;
     O_RDWR = 2;
+    O_CREAT = 64;
     PROT_READ = 1;
     PROT_WRITE = 2;
     PROT_EXEC = 4;
@@ -93,6 +94,8 @@ const
     MAP_SHARED_VALIDATE = 3;
 
 function open (pathname: pchar; flags: int32): int32; cdecl; external;
+function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
+function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
 function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;

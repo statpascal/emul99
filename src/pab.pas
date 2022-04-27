@@ -77,6 +77,8 @@ procedure dumpPabOperation (pab: TPabPtr);
         writeln ('Record length      ', getRecordLength (pab));
         writeln ('Number of char:    ', getNumChars (pab));
         writeln ('Recod #/File size: ', getRecordNumber (pab));
+        writeln ('Status:            ', getStatus (pab));
+        writeln ('Error code:        ', getErrorCode (pab));
         writeln
     end;
     
