@@ -32,7 +32,7 @@ procedure sdlCallback (userdata, stream: pointer; len: int32); export;
 
 procedure startSound;
     const
-        BufferSize = 2048;
+        BufferSize = 512;
     var 
         desired, obtained: SDL_AudioSpec;
     begin

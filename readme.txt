@@ -158,7 +158,7 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (about 5000 lines of Pascal source
+The implementation is rather concise (about 5300 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -175,10 +175,11 @@ get the required exact timing for cassette operations.
 This approach is sufficient to run the "Don't mess with Texas" megademo but
 the output of the recent Copper demo is rather distorted.
 
-The DSRs for the P-code (pcodedisk.a99) and host system (disksim.a99) disk
-simulation need to transform control to the simulator at some point. This
-is done via an "XOP 0" instruction, specifying the requested operation as a
-dummy source address.
+The DSRs for the simulated devices (serial, host and special P-Code disk
+system) need to transform control to the simulator at some point. This is
+done via an "XOP 0" instruction, specifying the requested operation as a
+dummy source address. The simulated TMS9900 dispatches these XOP calls in
+the file "xophandler.pas."
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the
@@ -196,8 +197,10 @@ Known Bugs and Limitations
   incompatible with larger 3rd party GROMs.
 - Comparing the performance of a BASIC program with that of a real machine, 
   the simulator is about 10% too fast. 
-- The noise generator seems to be too shrill; it is probably not yet done
-  correctly.
+- The sound generator is sampled about 870 times per second and it is
+  assumed that the settings remain unchanged during the sampling interval.
+  Changes occuring during that interval should be recorded with a CPU
+  timestamp and handled when generating output.
 - The recent "Copper Demo" does not work well at all.
 
 
