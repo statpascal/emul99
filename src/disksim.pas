@@ -163,7 +163,7 @@ function checkTiFilesHeader (var header: TTiFilesHeader): boolean;
 (*$POINTERMATH ON*)    
 function saveTiFiles (var fileBuffer: TFileBuffer): boolean;
     var
-        contentBytes, bytesWritten: int64;
+        contentBytes: int64;
     begin
         initTiFilesHeader (fileBuffer.header, fileBuffer.fileName);
         fileBuffer.header.totalNumberOfSectors := htons (fileBuffer.maxSector + 1);
@@ -183,25 +183,18 @@ function saveTiFiles (var fileBuffer: TFileBuffer): boolean;
             end;
         if fileBuffer.dataType = E_Internal then
             fileBuffer.header.flags := fileBuffer.header.flags or $02;
-        
         contentBytes := sizeof (TTiFilesHeader) + ntohs (fileBuffer.header.totalNumberOfSectors) * SectorSize;
-        saveBlock (fileBuffer.header, contentBytes, fileBuffer.simulatorFileName, bytesWritten);
-        saveTiFiles := contentBytes = bytesWritten        
+        saveTiFiles := saveBlock (fileBuffer.header, contentBytes, fileBuffer.simulatorFileName) = contentBytes
     end;
     
 function loadTiFilesHeader (var header: TTiFilesHeader; simulatorFileName: string): boolean;
-    var 
-        bytesRead: int64;
     begin
-        loadBlock (header, sizeof (header), 0, simulatorFileName, bytesRead);
-        loadTiFilesHeader := (bytesRead = sizeof (header)) and checkTiFilesHeader (header)
+        loadTiFilesHeader := (loadBlock (header, sizeof (header), 0, simulatorFileName) = sizeof (header)) and checkTiFilesHeader (header)
     end;
 
 procedure loadTiFilesContent (var fileBuffer: TFileBuffer);
-    var
-        bytesRead: int64;
     begin
-        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFileName, bytesRead)
+        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFileName)
     end;
     
 procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorCode);
@@ -491,13 +484,11 @@ procedure diskSimDsrRewind (pab: TPabPtr);
 procedure diskSimDsrLoad (pab: TPabPtr);
     var 
         fn: string;
-        bytesRead: int64;
         header: TTiFilesHeader;
     begin
         fn := makeHostFileName (pab);
-        loadBlock (header, sizeof (header), 0, fn, bytesRead);
-        loadBlock (getVdpRamPtr (getBufferAddress (pab))^, getRecordNumber (pab), sizeof (header) * ord (checkTiFilesHeader (header)), fn, bytesRead);
-        if bytesRead = 0 then
+        loadBlock (header, sizeof (header), 0, fn);
+        if loadBlock (getVdpRamPtr (getBufferAddress (pab))^, getRecordNumber (pab), sizeof (header) * ord (checkTiFilesHeader (header)), fn) = 0 then
             setErrorCode (pab, E_FileError)
     end;
 
@@ -505,7 +496,6 @@ procedure diskSimDsrSave (pab: TPabPtr);
     var
         buf: array [0..16384 + sizeof (TTiFilesHeader)] of uint8;
         header: TTiFilesHeader absolute buf;
-        bytesWritten: int64;
         sectors: uint16;
     begin
         initTiFilesHeader (header, getFileName (pab));
@@ -516,8 +506,7 @@ procedure diskSimDsrSave (pab: TPabPtr);
             inc (sectors);
         header.totalNumberOfSectors := htons (sectors);
         move (getVdpRamPtr (getBufferAddress (pab))^, buf [sizeof (TTiFilesHeader)], getRecordNumber (pab));
-        saveBlock (buf, sizeof (TTiFilesHeader) + getRecordNumber (pab), makeHostFileName (pab), bytesWritten);
-        if bytesWritten <> sizeof (TTiFilesHeader) + getRecordNumber (pab) then
+        if saveBlock (buf, sizeof (TTiFilesHeader) + getRecordNumber (pab), makeHostFileName (pab))  <> sizeof (TTiFilesHeader) + getRecordNumber (pab) then
             setErrorCode (pab, E_FileError)
     end;
     
@@ -652,7 +641,7 @@ function readDiskSim (addr: uint16): uint16;
 
 procedure initDiskSim (dsrFileName, directory: string);
     begin
-        load (dsrRom, sizeof (dsrRom), dsrFileName);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFileName);
         initFileBuffers;
         fileDirectory := directory;
     end;

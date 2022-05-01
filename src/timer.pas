@@ -7,7 +7,7 @@ type
     
 function getCurrentTime: TNanoTimestamp;
 procedure nanoSleep (duration: TNanoTimestamp);
-function sleepUntil (time: TNanoTimestamp): TNanoTimestamp;
+procedure sleepUntil (time: TNanoTimestamp);
 
 
 implementation
@@ -19,10 +19,9 @@ const
     
 function getCurrentTime: TNanoTimestamp;
     var
-        dummy: integer;
         t: timespec;
     begin
-        dummy := clock_gettime (Clock_Monotonic, t);
+        clock_gettime (Clock_Monotonic, t);
         getCurrentTime := t.tv_sec * second + t.tv_nsec
     end;
     
@@ -31,22 +30,20 @@ procedure nanoSleep (duration: TNanoTimestamp);
         request, remain: timespec;
         result: integer;
     begin
-        request.tv_sec := duration div second;
-        request.tv_nsec := duration mod second;
-        repeat
-            result := clock_nanosleep (Clock_Monotonic, 0, request, remain);
-            request := remain
-        until result <> EINTR
+        if duration > 0 then
+            begin
+                request.tv_sec := duration div second;
+                request.tv_nsec := duration mod second;
+                repeat
+                    result := clock_nanosleep (Clock_Monotonic, 0, request, remain);
+                    request := remain
+                until result <> EINTR
+            end;
     end;
     
-function sleepUntil (time: TNanoTimestamp): TNanoTimestamp;
-    var
-        timeWait: TNanoTimestamp;
+procedure sleepUntil (time: TNanoTimestamp);
     begin
-        timeWait := time - getCurrentTime;
-        if timeWait > 0 then
-            nanoSleep (timeWait);
-        sleepUntil := timeWait;
+        nanoSleep (time - getCurrentTime)
     end;
     
 end.

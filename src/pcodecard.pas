@@ -74,10 +74,10 @@ procedure initPcodeCard (filenames: TPcodeRomFilenames);
     begin
         with filenames do
             begin
-                load (pcodeDsrLow, sizeof (pcodeDsrLow), dsrLow);
-                load (pcodeDsrHigh, sizeof (pcodeDsrHigh), dsrHigh);
+                loadBlock (pcodeDsrLow, sizeof (pcodeDsrLow), 0, dsrLow);
+                loadBlock (pcodeDsrHigh, sizeof (pcodeDsrHigh), 0, dsrHigh);
                 for i := 0 to 7 do
-                    load (pcodeGrom.data [i * $2000], $2000, groms [i])
+                    loadBlock (pcodeGrom.data [i * $2000], $2000, 0, groms [i])
             end
     end;
 

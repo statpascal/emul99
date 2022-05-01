@@ -348,8 +348,6 @@ procedure vdpRenderScreen;
                     end
             end;
        
-        const
-            SpriteModes: set of TVideoMode = [StandardMode, MultiColorMode, BitmapMode, BitmapMultiColorMode];
         var
             scanline: uint8;
             time: TNanoTimestamp;
@@ -372,7 +370,7 @@ procedure vdpRenderScreen;
                         multiColorMode:
                             drawMultiColorMode (scanline)
                     end;
-                    if videoMode in SpriteModes then
+                    if videoMode <> TextMode then
                         drawSprites (scanline);
                     sleepUntil (time + scanline * ScanlineTime)
                 end

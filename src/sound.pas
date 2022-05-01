@@ -81,13 +81,14 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
         i: uint32;
         j: 0..ToneGenerators;
     begin
-        fillChar (buffer^, len, 0);
+        for i := 0 to pred (len div 2) do
+            buffer [i] := 0;
         for j := 0 to ToneGenerators do 
             if attenuator [j] <> MaxAttenuator then
                 for i := 0 to pred (len div 2) do
                     begin
                         dec (generatorCounter [j]);
-                        if (generatorCounter [j] <= 0) then
+                        if generatorCounter [j] <= 0 then
                             if j = NoiseGenerator then
                                 begin
                                     generatorCounter [NoiseGenerator] := toneDivider [NoiseGenerator - ord (toneDivider [NoiseGenerator] = $100)];

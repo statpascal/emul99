@@ -33,7 +33,7 @@ procedure initOpcodeStatus;
     type
         TOpcodeSet = set of TOpcode;
     const 
-        Entries = 8;
+        Entries = 6;
         opcodeStatus: array [1..Entries] of record opcodes: TOpcodeSet; status: uint16 end = (
             (opcodes: [Op_A, Op_AI, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_NEG, Op_S, Op_SLA];
              status:  Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV),
@@ -46,20 +46,19 @@ procedure initOpcodeStatus;
             (opcodes: [Op_LDCR, Op_SRA, Op_SRC, Op_SRL];
              status:  Status_LGT + Status_AGT + Status_EQ + Status_C),
             (opcodes: [Op_COC, Op_CZC, Op_TB];
-             status:  Status_EQ),
-            (opcodes: [Op_ABS];
-             status:  Status_LGT + Status_AGT + Status_EQ + Status_OV),
-            (opcodes: [Op_DIV];
-             status:  Status_OV));
+             status:  Status_EQ));
     var
         i: 1..Entries;
         j: TOpcode;
     begin
+        fillChar (statusMask, sizeof (statusMask), 0);
         for i := 1 to Entries do
             with opcodeStatus [i] do
                 for j := Op_LI to Op_SOCB do
                     if j in opcodes then
-                        statusMask [j] := status
+                        statusMask [j] := status;
+	statusMask [Op_ABS] := Status_LGT + Status_AGT + Status_EQ + Status_OV;
+	statusMask [Op_DIV] := Status_OV
     end;
         
 procedure updateStatusBits (mask, val: uint16);
@@ -120,7 +119,7 @@ procedure add8 (var status: uint16; a, b: uint8; var result: uint8; isSub: boole
     
 function readRegister (reg: uint8): uint16;
     begin
-	readRegister := readMemory (cpu.wp + 2 * reg)
+	readRegister := readMemory (uint16 (cpu.wp + 2 * reg))
     end;
 
 procedure writeRegister (reg: uint8; val: uint16);
@@ -140,7 +139,7 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
     begin
 	case T of
 	    0:
-		getGeneralAddress := cpu.wp + 2 * reg;
+		getGeneralAddress := uint16 (cpu.wp + 2 * reg);
 	    1:
 		getGeneralAddress := readRegister (reg);
 	    2:

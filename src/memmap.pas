@@ -10,13 +10,13 @@ procedure closeAllMappings;
 
 implementation
 
-uses tools, cfuncs;
+uses tools, fileop;
 
 type
     TMappingNodePtr = ^TMappingNode;
     TMappingNode = record
         fn: string;
-        fd: int32;
+        fd: TFileHandle;
         p: pointer;
         size: int64;
         next: TMappingNodePtr
@@ -30,14 +30,14 @@ function createMapping (fn: string): pointer;
         newMapping: TMappingNode;
     begin
         newMapping.fn := fn;
-        newMapping.fd := open (addr (fn [1]), O_RDWR, &644);
+        newMapping.fd := fileOpen (fn, true, false);
         newMapping.p := nil;
         newMapping.next := mappings;
         
-        if newMapping.fd <> -1 then
+        if newMapping.fd <> InvalidFileHandle then
             begin
-                newMapping.size := getFileSize (fn);
-                newMapping.p := mmap (nil, newMapping.size, PROT_READ or PROT_WRITE, MAP_SHARED, newMapping.fd, 0);
+                newMapping.size := fileSize (newMapping.fd);
+                newMapping.p := fileMap (newMapping.fd, 0, newMapping.size);
                 if newMapping.p <> nil then
                     begin
                         new (mappings);
@@ -46,9 +46,9 @@ function createMapping (fn: string): pointer;
             end;
         if newMapping.p = nil then
             begin
-                perror (addr (fn [1]));
-                if newMapping.fd <> -1 then
-                    fdclose (newMapping.fd)
+                printError ('Memory mapping of ' + fn + ' failed');
+                if newMapping.fd <> InvalidFileHandle then
+                    fileClose (newMapping.fd)
             end;
         createMapping := newMapping.p
     end;
@@ -72,8 +72,8 @@ procedure closeAllMappings;
     begin
         while mappings <> nil do
             begin
-                munmap (mappings^.p, mappings^.size);
-                fdclose (mappings^.fd);
+                fileUnmap (mappings^.p, mappings^.size);
+                fileClose (mappings^.fd);
                 ptr := mappings;
                 mappings := mappings^.next;         
                 dispose (ptr)

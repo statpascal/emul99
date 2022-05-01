@@ -76,7 +76,7 @@ procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);
 
 procedure initPcodeDisk (dsrFilename: string);
     begin
-        load (dsrRom, sizeof (dsrRom), dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
         fillChar (diskSectors, sizeof (diskSectors), 0)
     end;
     

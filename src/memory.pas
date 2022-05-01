@@ -241,26 +241,26 @@ function getWaitStates: uint8;
 
 procedure loadConsoleRom (filename: string);
     begin
-        load (mem [0], MaxAddress, filename)
+        loadBlock (mem [0], MaxAddress, 0, filename)
     end;
     
 procedure loadConsoleGroms (filename: string);
     begin
-        load (groms.data [0], MaxAddress, filename)
+        loadBlock (groms.data [0], MaxAddress, 0, filename)
     end;
 
 procedure loadCartROM (bank: uint8; filename: string);
     var
         size: int64;
     begin
-        size := getfilesize (filename);
+        size := getFileSize (filename);
         if (bank = 0) and (size > sizeof (cart [0])) then
             begin
-                load (cart [0], size, filename);
+                loadBlock (cart [0], size, 0, filename);
                 bank := (size - 1) div sizeof (cart [9])
             end
         else
-            load (cart [bank], sizeof (cart [bank]), filename);
+            loadBlock (cart [bank], sizeof (cart [bank]), 0, filename);
         if bank >= cartBanks then
     	    begin
 	        cartBanks := 1;
@@ -276,7 +276,7 @@ procedure setCartROMInverted (f: boolean);
 
 procedure loadCartGROM (filename: string);
     begin
-        load (groms.data [$6000], succ (MaxAddress - $6000), filename)
+        loadBlock (groms.data [$6000], succ (MaxAddress - $6000), 0, filename)
     end;
 
 function readCru (addr: TCruAddress): TCruBit;

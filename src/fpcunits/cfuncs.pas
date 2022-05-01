@@ -86,6 +86,9 @@ const
     O_WRONLY = 1;
     O_RDWR = 2;
     O_CREAT = 64;
+    SEEK_SET = 0;
+    SEEK_CUR = 1;
+    SEEK_END = 2;
     PROT_READ = 1;
     PROT_WRITE = 2;
     PROT_EXEC = 4;
@@ -93,9 +96,10 @@ const
     MAP_PRIVATE = 2;
     MAP_SHARED_VALIDATE = 3;
 
-function open (pathname: pchar; flags, mode: int32): int32; cdecl; external;
+function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external; external 'libc' name 'open';
 function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
 function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
+function lseek (fd: int32; offset: int64; whence: int32): int64; cdecl; external;
 function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;

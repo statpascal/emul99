@@ -44,7 +44,7 @@ procedure renderPcodeScreen (cr: PCairoT);
         cairo_set_font_size (cr, FontSize);
         cairo_set_source_rgb (cr, 0, 0, 0);
         cairo_paint (cr);
-        cairo_set_source_rgb (cr, 0, 1, 0);
+        cairo_set_source_rgb (cr, 1, 1, 0.4);
         for y := 0 to Height - 1 do
             for x := 0 to Width - 1 do
                 begin

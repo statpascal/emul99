@@ -10,12 +10,9 @@ function decimalstr (v: int64): string;
 
 function trim (s: string): string;
 
-function getFilesize (filename: string): int64;
-
-procedure load (var dest; size: int64; filename: string);
-
-procedure loadBlock (var dest; size, offset: int64; filename: string; var bytesRead: int64);
-procedure saveBlock (var src; size: int64; filename: string; var bytesWritten: int64);
+function loadBlock (var dest; size, offset: int64; fileName: string): int64;
+function saveBlock (var src; size: int64; fileName: string): int64;
+function getFileSize (fileName: string): int64;
 
 function crc16 (var data; size: int64): uint16;
 function oddParity (val: uint8): boolean;
@@ -28,7 +25,7 @@ procedure errorExit (s: string);
 
 implementation
 
-uses sysutils;
+uses fileop;
 
 function swap16 (u: uint16): uint16;
     begin
@@ -72,74 +69,50 @@ function trim (s: string): string;
 	    trim := ''
     end; 
     
-function getFilesize (filename: string): int64;
+function loadBlock (var dest; size, offset: int64; fileName: string): int64;
     var
-        f: file;
-    begin
-        (*$I-*)
-        assign (f, filename);
-        reset (f, 1);
-        getFilesize := filesize (f);
-        close (f);
-        (*$I+*)
-        if IOResult <> 0 then
-            getFilesize := -1;
-    end;
-    
-procedure load (var dest; size: int64; filename: string);
-    var
-        f: file;
-        fsize, read: int64;
-    begin
-        if fileexists (filename) then
-            begin
-                read := 0; 
-                fsize := 0;
-                (*$I-*)
-                assign (f, filename);
-                reset (f, 1);
-                fsize := filesize (f);
-                if fsize > size then
-                    writeln ('Problem loadiing ', filename, ': has ', fsize, ' bytes but only ', size, ' bytes expected')
-                else 
-                    size := fsize;
-                blockread (f, dest, size, read);
-                close (f);
-                (*$I+*)
-                if (read <> size) or (IOResult <> 0) then
-                    writeln ('Problem loading ', filename, ': got only ', read, ' of ', size, ' bytes')
-            end
-        else
-            writeln ('File ', filename, ' not found')
-    end;
-    
-procedure loadBlock (var dest; size, offset: int64; filename: string; var bytesRead: int64);
-    var
-        f: file;
+        handle: TFileHandle;
+        bytesRead: int64;
     begin
         bytesRead := 0;
-        assign (f, filename);
-        (*$I-*)
-        reset (f, 1);
-        seek (f, offset);
-        blockRead (f, dest, size, bytesRead);
-        close (f);
-        (*$I+*)
-        IOResult
+        handle := fileOpen (fileName, false, false);
+        if handle = InvalidFileHandle then
+            writeln ('File ', fileName, ': cannot open')
+        else
+            begin
+                fileSeek (handle, offset);
+                bytesRead := fileRead (handle, addr (dest), size);
+                fileClose (handle)
+            end;
+        loadBlock := bytesRead
     end;
     
-procedure saveBlock (var src; size: int64; filename: string; var bytesWritten: int64);
+function saveBlock (var src; size: int64; fileName: string): int64;
     var 
-        f: file;
+        handle: TFileHandle;
+        bytesWritten: int64;
     begin
         bytesWritten := 0;
-        assign (f, filename);
-        (*$I-*)
-        rewrite (f, 1);
-        blockWrite (f, src, size, bytesWritten);
-        close (f);
-        (*$I+*)
-        IOResult    
+        handle := fileOpen (fileName, true, true);
+        if handle = InvalidFileHandle then
+            writeln ('File ', fileName, ': cannot open')
+        else
+            begin
+                bytesWritten := fileWrite (handle, addr (src), size);
+                if bytesWritten <> size then
+                    writeln  ('Problem saving ', fileName, ': only ', bytesWritten, ' of ', size, ' bytes written');
+                fileClose (handle)
+            end;
+        saveBlock := bytesWritten
+    end;
+
+function getFileSize (fileName: string): int64;
+    var
+        handle: TFileHandle;
+    begin
+        handle := fileOpen (fileName, false, false);
+        getFileSize := fileSize (handle);
+        fileClose (handle)
     end;
                 
 (*$POINTERMATH ON*)

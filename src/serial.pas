@@ -22,7 +22,7 @@ const
     
 implementation
 
-uses vdp, memory, pab, tools, cfuncs, sysutils;
+uses vdp, memory, pab, tools, fileop, cfuncs;
 
 type
     TSerialModifiers = record
@@ -31,16 +31,12 @@ type
         pa: (_N, _E, _O);
         tw, ch, cr, lf, ec, nu: boolean
     end;
-    TSerialFile = record
-        fd: int32;
-        fn: string
-    end;
 
 var
     dsrRom: array [$4000..$5fff] of uint8;
     dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
     
-    serialFiles: array [TSerialPort, TSerialPortDirection] of TSerialFile;
+    serialFiles: array [TSerialPort, TSerialPortDirection] of TFileHandle;
     
 procedure serialSimPowerup;
     begin
@@ -83,64 +79,61 @@ procedure openSerialPort (pab: TPabPtr);
         setRecordNumber (pab, 0);
     end;
     
-procedure writeSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; serialPort: TSerialPort);
+procedure writeSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFileHandle);
     const
         displayBytes: array [1..8] of uint8 = ($0d, $0a, 0, 0, 0, 0, 0, 0);
     begin
-        with serialFiles [serialPort, PortOut] do
-            if fd = -1 then
-                setErrorCode (pab, E_DeviceError)
-            else
-                begin
-                    if getDataType (pab) = E_Internal then
-                        fdwrite (fd, addr (pab^.numChars), 1);
-                    fdwrite (fd, getVdpRamPtr (getBufferAddress (pab)), getNumChars (pab));
-                    if (getDataType (pab) = E_Display) and (getRecordType (pab) = E_Variable) then 
-                         begin
-                            if not modifiers.cr then
-                                fdwrite (fd, addr (displayBytes [1]), 1);
-                            if modifiers.nu then
-                                fdwrite (fd, addr (displayBytes [3]), 6);
-                            if not modifiers.lf then
-                                fdwrite (fd, addr (displayBytes [2]), 1)
-                        end
-                end
+        if handle = InvalidFileHandle then
+            setErrorCode (pab, E_DeviceError)
+        else
+            begin
+                if getDataType (pab) = E_Internal then
+                    fileWrite (handle, addr (pab^.numChars), 1);
+                fileWrite (handle, getVdpRamPtr (getBufferAddress (pab)), getNumChars (pab));
+                if (getDataType (pab) = E_Display) and (getRecordType (pab) = E_Variable) then 
+                    begin
+                        if not modifiers.cr then
+                            fileWrite (handle, addr (displayBytes [1]), 1);
+                        if modifiers.nu then
+                            fileWrite (handle, addr (displayBytes [3]), 6);
+                        if not modifiers.lf then
+                            fileWrite (handle, addr (displayBytes [2]), 1)
+                    end
+            end
     end;
     
-procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; serialPort: TSerialPort);
+procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFileHandle);
     var
         count, numChars, ch: uint8;
         done: boolean;
         vdpBuffer: TMemoryPtr;
     begin
-        with serialFiles [serialPort, PortIn] do
-            if fd = -1 then
-                setErrorCode (pab, E_DeviceError)
-            else
-                begin
-                    if getDataType (pab) = E_Internal then
-                        fdread (fd, addr (numChars), 1)
+        if handle = InvalidFileHandle then
+            setErrorCode (pab, E_DeviceError)
+        else
+            begin
+                if getDataType (pab) = E_Internal then
+                    fileRead (handle, addr (numChars), 1)
+                else
+                    numChars := getRecordLength (pab);
+                vdpBuffer := getVdpRamPtr (getBufferAddress (pab));
+                done := false; 
+                count := 0;
+                while (count < numChars) and not done do
+                    if fileRead (handle, addr (ch), 1) > 0 then
+                        begin
+                            vdpBuffer^ := ch;
+                            inc (vdpBuffer);
+                            inc (count)
+                        end
                     else
-                        numChars := getRecordLength (pab);
-                    vdpBuffer := getVdpRamPtr (getBufferAddress (pab));
-                    done := false; 
-                    count := 0;
-                    while (count < numChars) and not done do
-                        if fdread (fd, addr (ch), 1) > 0 then
-                            begin
-                                vdpBuffer^ := ch;
-                                inc (vdpBuffer);
-                                inc (count)
-                            end
-                        else
-                            begin
-                                setErrorCode (pab, E_DeviceError);
-                                pab^.status := pab^.status or PabStatusEOFReached;
-                                done := true
-                            end;
-                    setNumChars (pab, count);
-//                    setRecordNumber (pab, succ (getRecordNumber (pab)))
-                end;
+                        begin
+                            setErrorCode (pab, E_DeviceError);
+                            pab^.status := pab^.status or PabStatusEOFReached;
+                            done := true
+                        end;
+                setNumChars (pab, count)
+            end
     end;
     
 (*$POINTERMATH ON*)    
@@ -164,9 +157,9 @@ procedure serialSimDSR;
             E_Open:
                 openSerialPort (pab);
             E_Write:
-                writeSerialPort (pab, modifiers, serialPort);
+                writeSerialPort (pab, modifiers, serialFiles [serialPort, PortOut]);
             E_Read:
-                readSerialPort (pab, modifiers, serialPort);
+                readSerialPort (pab, modifiers, serialFiles [serialPort, PortIn]);
             E_Close:
                 ;
             e_Load:
@@ -188,19 +181,15 @@ procedure initSerial (dsrFilename: string);
         i: TSerialPort;
         j: TSerialPortDirection;
     begin
-        load (dsrRom, sizeof (dsrRom), dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
         for i := RS232_1 to PIO_2 do
             for j := PortIn to PortOut do
-                serialFiles [i, j].fd := -1
+                serialFiles [i, j] := -1
     end;
     
-procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDirection; filename: string);
+procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDirection; fileName: string);
     begin
-        with serialFiles [serialPort, direction] do
-            begin
-                fn := filename;
-                fd := open (addr (fn [1]), O_RDWR or O_CREAT, &644)
-            end
+        serialFiles [serialPort, direction] := fileOpen (fileName, true, direction = PortOut)
     end;
     
 end.

@@ -417,7 +417,7 @@ function readFdcCardCru (addr: TCruR12Address): TCruBit;
 
 procedure fdcInitCard (dsrFilename: string);
     begin
-        load (dsrRom, sizeof (dsrRom), dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
         activeCommand := CmdNone;
         activeDisk := 0;
         stepDirection := 1;

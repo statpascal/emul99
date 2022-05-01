@@ -32,16 +32,8 @@ uses tools;
 const
     MaxInstruction = 65535;
 
-type
-    TInstructionData = record
-	instructionFormat: TInstructionFormat;
-	cycles: uint8;
-	instructionString: string
-    end;
-
 var
-    opcodeTable: array [0..MaxInstruction] of TOpcode;
-    instructionData: array [TOpcode] of TInstructionData;
+    instructionString: array [TOpcode] of string;
     decodedInstruction: array [0..MaxInstruction] of TInstruction;
 
 procedure decodeInstruction (instr: uint16; var result: TInstruction);
@@ -49,7 +41,7 @@ procedure decodeInstruction (instr: uint16; var result: TInstruction);
         result := decodedInstruction [instr]
     end;
 
-procedure prepareInstruction (instr: uint16; var result: TInstruction);
+procedure createInstruction (instr: uint16; opcode: TOpcode; instructionFormat: TInstructionFormat; cycles: uint8; var result: TInstruction);
     const 
         ExtraCycles: array [0..3] of uint8 = (0, 4, 8, 6);
 
@@ -71,11 +63,11 @@ procedure prepareInstruction (instr: uint16; var result: TInstruction);
     begin
 	fillchar (result, sizeof (result), 0);
 	result.instr := instr;
-	result.opcode := opcodeTable [instr];
-	result.instructionFormat := instructionData [result.opcode].instructionFormat;
-	result.cycles := instructionData [result.opcode].cycles;
+	result.opcode := opcode;
+	result.instructionFormat := instructionFormat;
+	result.cycles := cycles;
 	
-	case result.instructionFormat of
+	case instructionFormat of
 	    Format1:
 	        begin
 	            decodeGeneralSource;
@@ -155,7 +147,7 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         while length (res) < 22 do
             res := res + ' ';
         
-        res := res + instructionData [instruction.opcode].instructionString;
+        res := res + instructionString [instruction.opcode];
         while length (res) < 27 do
             res := res + ' ';
         case instruction.instructionFormat of
@@ -183,102 +175,87 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         disassembleInstruction := res
     end;        
 
-
-procedure createDecoderData;
-
-    procedure enterData (opcode: TOpcode; base: uint16; instructionString: string; instructionFormat: TInstructionFormat; cycles: uint8);
-        const
-            opcodeBits: array [TInstructionFormat] of uint8 = (4, 8, 8, 6, 6, 8, 10, 16, 12, 12, 12, 6);
-        var
-            i: uint16;
-        begin
-            instructionData [opcode].instructionFormat := instructionFormat;
-            instructionData [opcode].instructionString := instructionString;
-            instructionData [opcode].cycles := cycles;
-            for i := 0 to pred (1 shl (16 - opcodeBits [instructionFormat])) do
-                opcodeTable [base + i] := opcode
-        end;
-
+procedure enterData (opcode: TOpcode; base: uint16; instString: string; instructionFormat: TInstructionFormat; cycles: uint8);
+    const
+        opcodeBits: array [TInstructionFormat] of uint8 = (4, 8, 8, 6, 6, 8, 10, 16, 12, 12, 12, 6);
     var
-        instr: 0..MaxInstruction;
-        
+        i: uint16;
     begin
-        fillChar (opcodeTable, sizeof (opcodeTable), ord (Op_IVLD));
-        enterData (Op_IVLD, $0000, 'IVLD', Format7, 6);
-        enterData (Op_LI, $0200, 'LI', Format8, 12);
-        enterData (Op_AI, $0220, 'AI', Format8, 14);
-        enterData (Op_ANDI, $0240, 'ANDI', Format8, 14);
-        enterData (Op_ORI, $0260, 'ORI', Format8, 14);
-        enterData (Op_CI, $0280, 'CI', Format8, 14);
-        enterData (Op_STWP, $02a0, 'STWP', Format8_2, 8);
-        enterData (Op_STST, $02c0, 'STST', Format8_2, 8);
-        enterData (Op_LWPI, $02e0, 'LWPI', Format8_1, 10);
-        enterData (Op_LIMI, $0300, 'LIMI', Format8_1, 16);
-        enterData (Op_IDLE, $0340, 'IDLE', Format7, 12);
-        enterData (Op_RSET, $0360, 'RSET', Format7, 12);
-        enterData (Op_RTWP, $0380, 'RTWP', Format7, 14);
-        enterData (Op_CKON, $03a0, 'CKON', Format7, 12);
-        enterData (Op_CKOF, $03c0, 'CKOF', Format7, 12);
-        enterData (Op_LREX, $03e0, 'LREX', Format7, 12);
-        enterData (Op_BLWP, $0400, 'BLWP', Format6, 26);
-        enterData (Op_B, $0440, 'B', Format6, 8);
-        enterData (Op_X, $0480, 'X', Format6, 8);
-        enterData (Op_CLR, $04c0, 'CLR', Format6, 10);
-        enterData (Op_NEG, $0500, 'NEG', Format6, 12);
-        enterData (Op_INV, $0540, 'INV', Format6, 10);
-        enterData (Op_INC, $0580, 'INC', Format6, 10);
-        enterData (Op_INCT, $05c0, 'INCT', Format6, 10);
-        enterData (Op_DEC, $0600, 'DEC', Format6, 10);
-        enterData (Op_DECT, $0640, 'DECT', Format6, 10);
-        enterData (Op_BL, $0680, 'BL', Format6, 12);
-        enterData (Op_SWPB, $06c0, 'SWPB', Format6, 10);
-        enterData (Op_SETO, $0700, 'SETO', Format6, 10);
-        enterData (Op_ABS, $0740, 'ABS', Format6, 14);
-        enterData (Op_SRA, $0800, 'SRA', Format5, 12);
-        enterData (Op_SRL, $0900, 'SRL', Format5, 12);
-        enterData (Op_SLA, $0a00, 'SLA', Format5, 12);
-        enterData (Op_SRC, $0b00, 'SRC', Format5, 12);
-        enterData (Op_JMP, $1000, 'JMP', Format2, 8);
-        enterData (Op_JLT, $1100, 'JLT', Format2, 8);
-        enterData (Op_JLE, $1200, 'JLE', Format2, 8);
-        enterData (Op_JEQ, $1300, 'JEQ', Format2, 8);
-        enterData (Op_JHE, $1400, 'JHE', Format2, 8);
-        enterData (Op_JGT, $1500, 'JGT', Format2, 8);
-        enterData (Op_JNE, $1600, 'JNE', Format2, 8);
-        enterData (Op_JNC, $1700, 'JNC', Format2, 8);
-        enterData (Op_JOC, $1800, 'JOC', Format2, 8);
-        enterData (Op_JNO, $1900, 'JNO', Format2, 8);
-        enterData (Op_JL, $1a00, 'JL', Format2, 8);
-        enterData (Op_JH, $1b00, 'JH', Format2, 8);
-        enterData (Op_JOP, $1c00, 'JOP', Format2, 8);
-        enterData (Op_SBO, $1d00, 'SBO', Format2_1, 12);
-        enterData (Op_SBZ, $1e00, 'SBZ', Format2_1, 12);
-        enterData (Op_TB, $1f00, 'TB', Format2_1, 12);
-        enterData (Op_COC, $2000, 'COC', Format3, 14);
-        enterData (Op_CZC, $2400, 'CZC', Format3, 14);
-        enterData (Op_XOR, $2800, 'XOR', Format3, 14);
-        enterData (Op_XOP, $2c00, 'XOP', Format9, 36);
-        enterData (Op_LDCR, $3000, 'LDCR', Format4, 20);
-        enterData (Op_STCR, $3400, 'STCR', Format4, 42);
-        enterData (Op_MPY, $3800, 'MPY', Format9, 52);
-        enterData (Op_DIV, $3c00, 'DIV', Format9, 108);
-        enterData (Op_SZC, $4000, 'SZC', Format1, 14);
-        enterData (Op_SZCB, $5000, 'SZCB', Format1, 14);
-        enterData (Op_S, $6000, 'S', Format1, 14);
-        enterData (Op_SB, $7000, 'SB', Format1, 14);
-        enterData (Op_C, $8000, 'C', Format1, 14);
-        enterData (Op_CB, $9000, 'CB', Format1, 14);
-        enterData (Op_A, $a000, 'A', Format1, 14);
-        enterData (Op_AB, $b000, 'AB', Format1, 14);
-        enterData (Op_MOV, $c000, 'MOV', Format1, 14);
-        enterData (Op_MOVB, $d000, 'MOVB', Format1, 14);
-        enterData (Op_SOC, $e000, 'SOC', Format1, 14);
-        enterData (Op_SOCB, $f000, 'SOCB', Format1, 14);
-        
-        for instr := 0 to MaxInstruction do
-            prepareInstruction (instr, decodedInstruction [instr])
+        instructionString [opcode] := instString;
+        for i := 0 to pred (1 shl (16 - opcodeBits [instructionFormat])) do
+            createInstruction (base + i, opcode, instructionFormat, cycles, decodedInstruction [base + i])
     end;
 
 begin
-    createDecoderData
+    fillChar (decodedInstruction, sizeof (decodedInstruction), 0);
+    enterData (Op_IVLD, $0000, 'IVLD', Format7, 6);
+    enterData (Op_LI, $0200, 'LI', Format8, 12);
+    enterData (Op_AI, $0220, 'AI', Format8, 14);
+    enterData (Op_ANDI, $0240, 'ANDI', Format8, 14);
+    enterData (Op_ORI, $0260, 'ORI', Format8, 14);
+    enterData (Op_CI, $0280, 'CI', Format8, 14);
+    enterData (Op_STWP, $02a0, 'STWP', Format8_2, 8);
+    enterData (Op_STST, $02c0, 'STST', Format8_2, 8);
+    enterData (Op_LWPI, $02e0, 'LWPI', Format8_1, 10);
+    enterData (Op_LIMI, $0300, 'LIMI', Format8_1, 16);
+    enterData (Op_IDLE, $0340, 'IDLE', Format7, 12);
+    enterData (Op_RSET, $0360, 'RSET', Format7, 12);
+    enterData (Op_RTWP, $0380, 'RTWP', Format7, 14);
+    enterData (Op_CKON, $03a0, 'CKON', Format7, 12);
+    enterData (Op_CKOF, $03c0, 'CKOF', Format7, 12);
+    enterData (Op_LREX, $03e0, 'LREX', Format7, 12);
+    enterData (Op_BLWP, $0400, 'BLWP', Format6, 26);
+    enterData (Op_B, $0440, 'B', Format6, 8);
+    enterData (Op_X, $0480, 'X', Format6, 8);
+    enterData (Op_CLR, $04c0, 'CLR', Format6, 10);
+    enterData (Op_NEG, $0500, 'NEG', Format6, 12);
+    enterData (Op_INV, $0540, 'INV', Format6, 10);
+    enterData (Op_INC, $0580, 'INC', Format6, 10);
+    enterData (Op_INCT, $05c0, 'INCT', Format6, 10);
+    enterData (Op_DEC, $0600, 'DEC', Format6, 10);
+    enterData (Op_DECT, $0640, 'DECT', Format6, 10);
+    enterData (Op_BL, $0680, 'BL', Format6, 12);
+    enterData (Op_SWPB, $06c0, 'SWPB', Format6, 10);
+    enterData (Op_SETO, $0700, 'SETO', Format6, 10);
+    enterData (Op_ABS, $0740, 'ABS', Format6, 14);
+    enterData (Op_SRA, $0800, 'SRA', Format5, 12);
+    enterData (Op_SRL, $0900, 'SRL', Format5, 12);
+    enterData (Op_SLA, $0a00, 'SLA', Format5, 12);
+    enterData (Op_SRC, $0b00, 'SRC', Format5, 12);
+    enterData (Op_JMP, $1000, 'JMP', Format2, 8);
+    enterData (Op_JLT, $1100, 'JLT', Format2, 8);
+    enterData (Op_JLE, $1200, 'JLE', Format2, 8);
+    enterData (Op_JEQ, $1300, 'JEQ', Format2, 8);
+    enterData (Op_JHE, $1400, 'JHE', Format2, 8);
+    enterData (Op_JGT, $1500, 'JGT', Format2, 8);
+    enterData (Op_JNE, $1600, 'JNE', Format2, 8);
+    enterData (Op_JNC, $1700, 'JNC', Format2, 8);
+    enterData (Op_JOC, $1800, 'JOC', Format2, 8);
+    enterData (Op_JNO, $1900, 'JNO', Format2, 8);
+    enterData (Op_JL, $1a00, 'JL', Format2, 8);
+    enterData (Op_JH, $1b00, 'JH', Format2, 8);
+    enterData (Op_JOP, $1c00, 'JOP', Format2, 8);
+    enterData (Op_SBO, $1d00, 'SBO', Format2_1, 12);
+    enterData (Op_SBZ, $1e00, 'SBZ', Format2_1, 12);
+    enterData (Op_TB, $1f00, 'TB', Format2_1, 12);
+    enterData (Op_COC, $2000, 'COC', Format3, 14);
+    enterData (Op_CZC, $2400, 'CZC', Format3, 14);
+    enterData (Op_XOR, $2800, 'XOR', Format3, 14);
+    enterData (Op_XOP, $2c00, 'XOP', Format9, 36);
+    enterData (Op_LDCR, $3000, 'LDCR', Format4, 20);
+    enterData (Op_STCR, $3400, 'STCR', Format4, 42);
+    enterData (Op_MPY, $3800, 'MPY', Format9, 52);
+    enterData (Op_DIV, $3c00, 'DIV', Format9, 108);
+    enterData (Op_SZC, $4000, 'SZC', Format1, 14);
+    enterData (Op_SZCB, $5000, 'SZCB', Format1, 14);
+    enterData (Op_S, $6000, 'S', Format1, 14);
+    enterData (Op_SB, $7000, 'SB', Format1, 14);
+    enterData (Op_C, $8000, 'C', Format1, 14);
+    enterData (Op_CB, $9000, 'CB', Format1, 14);
+    enterData (Op_A, $a000, 'A', Format1, 14);
+    enterData (Op_AB, $b000, 'AB', Format1, 14);
+    enterData (Op_MOV, $c000, 'MOV', Format1, 14);
+    enterData (Op_MOVB, $d000, 'MOVB', Format1, 14);
+    enterData (Op_SOC, $e000, 'SOC', Format1, 14);
+    enterData (Op_SOCB, $f000, 'SOCB', Format1, 14)
 end.
