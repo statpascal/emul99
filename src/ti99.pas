@@ -205,9 +205,7 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
         j: integer;
     begin
         event := p;
-(*
-        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
-*)
+//        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
         keyval := event^.keyval;
         windowKeyEvent := false;
         for j := 1 to KeyMapCount do
@@ -297,51 +295,47 @@ procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
         gtk_main_quit
     end;
 
-procedure main;
-    var
-        argv: argvector;
-        argc: integer;
-        window, drawingArea: PGtkWidget;
-        bitmap: PCairoSurface;
-    begin
-        if ParamCount >= 1 then
-            loadConfigFile (ParamStr (1))
-        else
-            loadConfigFile ('ti99.cfg');
-        fillChar (tiImage, sizeof (tiImage), 0);
-        preparePalette;
-        
-        argc := 0;
-        argv := nil;
-        gtk_init (argc, argv);
-        window := gtk_window_new (GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_title (window, 'TI 99/4A Simulator');
-        gtk_widget_add_events (window, GDK_KEY_PRESS_MASK);
-        drawingArea := gtk_drawing_area_new;
-        gtk_container_add (window, drawingArea);
-        if usePcode80 then
-            gtk_widget_set_size_request (drawingArea, getPcodeScreenWidth, getPcodeScreenHeight)
-        else
-            gtk_widget_set_size_request (drawingArea, getWindowScaleWidth * RenderWidth, getWindowScaleHeight * RenderHeight);
-        bitmap := cairo_image_surface_create (1, RenderWidth, RenderHeight);
-
-        g_signal_connect (window, 'destroy', addr (windowClosed), nil);
-        g_signal_connect (window, 'key_press_event', addr (windowKeyEvent), nil);
-        g_signal_connect (window, 'key_release_event', addr (windowKeyEvent), nil);
-        g_signal_connect (drawingArea, 'draw', addr (drawCallback), bitmap);
-        gtk_widget_show_all (window);
-
-        fillKeyMap;
-        setVDPCallback (screenCallback);    
-        startThreads;
-        g_timeout_add (20, addr (checkScreenUpdate), window);
-        
-        gtk_main;
-
-        stopThreads;
-        closeAllMappings
-    end;
-
+var
+    argv: argvector;
+    argc: integer;
+    window, drawingArea: PGtkWidget;
+    bitmap: PCairoSurface;
+    
 begin
-    main
+    if ParamCount >= 1 then
+        loadConfigFile (ParamStr (1))
+    else
+        loadConfigFile ('ti99.cfg');
+    fillChar (tiImage, sizeof (tiImage), 0);
+    preparePalette;
+    
+    argc := 0;
+    argv := nil;
+    gtk_init (argc, argv);
+    window := gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title (window, 'TI 99/4A Simulator');
+    gtk_widget_add_events (window, GDK_KEY_PRESS_MASK);
+    drawingArea := gtk_drawing_area_new;
+    gtk_container_add (window, drawingArea);
+    if usePcode80 then
+        gtk_widget_set_size_request (drawingArea, getPcodeScreenWidth, getPcodeScreenHeight)
+    else
+        gtk_widget_set_size_request (drawingArea, getWindowScaleWidth * RenderWidth, getWindowScaleHeight * RenderHeight);
+    bitmap := cairo_image_surface_create (1, RenderWidth, RenderHeight);
+
+    g_signal_connect (window, 'destroy', addr (windowClosed), nil);
+    g_signal_connect (window, 'key_press_event', addr (windowKeyEvent), nil);
+    g_signal_connect (window, 'key_release_event', addr (windowKeyEvent), nil);
+    g_signal_connect (drawingArea, 'draw', addr (drawCallback), bitmap);
+    gtk_widget_show_all (window);
+
+    fillKeyMap;
+    setVDPCallback (screenCallback);    
+    startThreads;
+    g_timeout_add (20, addr (checkScreenUpdate), window);
+    
+    gtk_main;
+
+    stopThreads;
+    closeAllMappings
 end.

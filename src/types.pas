@@ -8,9 +8,6 @@ const
     NumberDrives = 3;
 
 type
-    TTMS9900 = record
-        pc, wp, st: uint16;
-    end;
     TCruAddress = 0..MaxCruAddress;
     TCruR12Address = 0..2 * MaxCruAddress;
     TCruBit = 0..1;

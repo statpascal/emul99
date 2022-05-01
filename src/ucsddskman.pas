@@ -338,27 +338,23 @@ procedure help;
         writeln ('ucsddsk image-name add ucsd-file local-file')
     end;
     
-procedure main;
-    var
-        p: TDiskImagePtr;
-    begin
-        p := createMapping (ParamStr (1)); 
-        if p <> nil then
-            begin
-                if ParamStr (2) = 'list' then
-                    listDir (p)
-                else if ParamStr (2) = 'extract' then
-                    extractFile (p, ParamStr (3), ParamStr (4))
-                else if ParamStr (2) = 'add' then
-                    addFile (p, ParamStr (3), ParamStr (4))
-                else
-                    help;
-                closeAllMappings
-            end
-        else
-            help
-    end;
-
+var
+    p: TDiskImagePtr;
+    
 begin
-    main
+    p := createMapping (ParamStr (1)); 
+    if p <> nil then
+        begin
+            if ParamStr (2) = 'list' then
+                listDir (p)
+            else if ParamStr (2) = 'extract' then
+                extractFile (p, ParamStr (3), ParamStr (4))
+            else if ParamStr (2) = 'add' then
+                addFile (p, ParamStr (3), ParamStr (4))
+            else
+                help;
+            closeAllMappings
+        end
+    else
+        help
 end.

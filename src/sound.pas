@@ -13,7 +13,7 @@ procedure soundWriteData (b: uint8);
 
 implementation
 
-uses tools, math;
+uses math;
 
 const
     ToneGenerators = 3;

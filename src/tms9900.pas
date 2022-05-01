@@ -21,9 +21,9 @@ const
     Status_OV  = $0800;
     Status_OP  = $0400;
     Status_X   = $0200;
-
+    
 var
-    cpu: TTMS9900;
+    pc, wp, st: uint16;
     cpuStopped: boolean;
     cycles: int64;
     cpuFreq: uint32;
@@ -63,7 +63,7 @@ procedure initOpcodeStatus;
         
 procedure updateStatusBits (mask, val: uint16);
     begin
-	cpu.st := (cpu.st and not mask) or (val and mask)
+	st := (st and not mask) or (val and mask)
     end;
 
 function getWordStatus (w: uint16): uint16;
@@ -119,18 +119,18 @@ procedure add8 (var status: uint16; a, b: uint8; var result: uint8; isSub: boole
     
 function readRegister (reg: uint8): uint16;
     begin
-	readRegister := readMemory (uint16 (cpu.wp + 2 * reg))
+	readRegister := readMemory (uint16 (wp + 2 * reg))
     end;
 
 procedure writeRegister (reg: uint8; val: uint16);
     begin
-	writeMemory (uint16 (cpu.wp + 2 * reg), val)
+	writeMemory (uint16 (wp + 2 * reg), val)
     end;
 
 function readInstruction: uint16;
     begin
-    	readInstruction := readMemory (cpu.pc);
-    	cpu.pc := uint16 (cpu.pc + 2)
+    	readInstruction := readMemory (pc);
+    	pc := uint16 (pc + 2)
     end;
 
 function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: boolean): uint16;
@@ -139,12 +139,12 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
     begin
 	case T of
 	    0:
-		getGeneralAddress := uint16 (cpu.wp + 2 * reg);
+		getGeneralAddress := uint16 (wp + 2 * reg);
 	    1:
 		getGeneralAddress := readRegister (reg);
 	    2:
 	        begin
-	            addr := readInstruction;	(* fill in address for disassembler *)
+	            addr := readInstruction;	// fill in address for tracing
  		    if reg = 0 then
 	 	        getGeneralAddress := addr
 		    else
@@ -171,11 +171,11 @@ function getDestAddress (var instruction: TInstruction): uint16;
 
 procedure performContextSwitch (newWP, newPC: uint16);
     begin
-	writeMemory (newWP + 26, cpu.wp);
-	writeMemory (newWP + 28, cpu.pc);
-	writeMemory (newWP + 30, cpu.st);
-	cpu.wp := newWP;
-	cpu.pc := newPC and $fffe
+	writeMemory (newWP + 26, wp);
+	writeMemory (newWP + 28, pc);
+	writeMemory (newWP + 30, st);
+	wp := newWP;
+	pc := newPC and $fffe
     end;
 
 procedure executeInstruction (instr: uint16); forward;
@@ -252,7 +252,7 @@ procedure executeFormat2 (var instruction: TInstruction);
             (flags: Status_OP;              val: true)		(* JOP *)
         );
     begin
-        with JumpCondition [instruction.opcode], cpu do
+        with JumpCondition [instruction.opcode] do
 	    if (st and flags <> 0) = val then
 		begin
   		    inc (cycles, 2);
@@ -271,7 +271,7 @@ procedure executeFormat2_1 (var instruction: TInstruction);
 	    Op_SBZ:
 	        writeCru (addr, 0);
 	    Op_TB:
-	        cpu.st := (cpu.st and not Status_EQ) or (Status_EQ * readCru (addr))
+	        st := (st and not Status_EQ) or (Status_EQ * readCru (addr))
 	end
     end;
 
@@ -396,11 +396,11 @@ procedure executeFormat6 (var instruction: TInstruction);
                         dec (cycles, 2)
                 end;
             Op_B:
-                cpu.pc := srcaddr and $fffe;
+                pc := srcaddr and $fffe;
             Op_BL:
                 begin
-                    writeRegister (11, cpu.pc);
-                    cpu.pc := srcaddr and $fffe
+                    writeRegister (11, pc);
+                    pc := srcaddr and $fffe
                 end;
             Op_BLWP:
                 performContextSwitch (srcval, readMemory (srcaddr + 2));
@@ -434,17 +434,16 @@ procedure executeFormat6 (var instruction: TInstruction);
 
 procedure executeFormat7 (var instruction: TInstruction);
     begin
-        with cpu do 
-	    case instruction.opcode of
-		Op_RTWP:
-		    begin
-		    	st := readRegister (15);
-		    	pc := readRegister (14) and $fffe;
-		    	wp := readRegister (13) and $fffe;
-		    end;
-		Op_RSET:
-		    st := st and $ff0
-	    end
+        case instruction.opcode of
+   	    Op_RTWP:
+	        begin
+		    st := readRegister (15);
+		    pc := readRegister (14) and $fffe;
+		    wp := readRegister (13) and $fffe;
+   	        end;
+ 	    Op_RSET:
+	        st := st and $ff0
+	end
     end;
 
 procedure executeFormat8 (var instruction: TInstruction);
@@ -476,9 +475,9 @@ procedure executeFormat8_1 (var instruction: TInstruction);
         instruction.imm := readInstruction;
         case instruction.opcode of
 	    Op_LIMI:
-	        cpu.st := cpu.st and $fff0 or instruction.imm and $000f;
+	        st := st and $fff0 or instruction.imm and $000f;
 	    Op_LWPI:
-	        cpu.wp := instruction.imm
+	        wp := instruction.imm
         end
     end;
 
@@ -486,9 +485,9 @@ procedure executeFormat8_2 (var instruction: TInstruction);
     begin
         case instruction.opcode of
             Op_STST:
-	        writeRegister (instruction.w, cpu.st);
+	        writeRegister (instruction.w, st);
    	    Op_STWP:
-	        writeRegister (instruction.w, cpu.wp)
+	        writeRegister (instruction.w, wp)
         end
     end;
 
@@ -500,46 +499,45 @@ procedure executeFormat9 (var instruction: TInstruction);
 	srcaddr := getSourceAddress (instruction);
 	(* Simulator hook for XOP 0 *)
 	if (instruction.opcode = Op_XOP) and (instruction.D = 0) then
-   	    handleXop (srcaddr, cpu)
+   	    handleXop (srcaddr)
 	else
 	    begin	
 		srcval := readMemory (srcaddr);
-		with cpu do 
-		    case instruction.opcode of
-			Op_XOP:
-			    begin
-				oldWP := wp;
-				wp := readMemory ($0040 + 2 * instruction.D);
-				writeRegister (11, srcaddr);
-				writeRegister (13, oldWP);
-				writeRegister (14, pc);
-				writeRegister (15, st);
-				pc := readMemory ($0042 + 2 * instruction.D) and $fffe;
-				st := st or Status_X
-			    end;
-			Op_MPY:
-			    begin
-				product := srcval * readRegister (instruction.D);
-				writeRegister (instruction.D, product shr 16);
-				writeRegister (instruction.D + 1, uint16 (product))
-			    end;
-			Op_DIV:
-			    begin
-				dividend := readRegister (instruction.D);
-				if srcval > dividend then 
-				    begin
-					dividend := dividend shl 16 + readRegister (instruction.D + 1);
-					writeRegister (instruction.D, dividend div srcval);
-					writeRegister (instruction.D + 1, dividend mod srcval);
-					st := st and not Status_OV
-				    end
-				else
-				    begin
-				        st := st or Status_OV;
-				        dec (cycles, instruction.cycles - 16)
-				    end
-			    end
-		    end
+		case instruction.opcode of
+		    Op_XOP:
+		        begin
+		            oldWP := wp;
+                            wp := readMemory ($0040 + 2 * instruction.D);
+                            writeRegister (11, srcaddr);
+                            writeRegister (13, oldWP);
+                            writeRegister (14, pc);
+                            writeRegister (15, st);
+                            pc := readMemory ($0042 + 2 * instruction.D) and $fffe;
+                            st := st or Status_X
+                        end;
+                    Op_MPY:
+                        begin
+                            product := srcval * readRegister (instruction.D);
+                            writeRegister (instruction.D, product shr 16);
+                            writeRegister (instruction.D + 1, uint16 (product))
+                        end;
+                    Op_DIV:
+                        begin
+                            dividend := readRegister (instruction.D);
+                            if srcval > dividend then 
+                                begin
+                                    dividend := dividend shl 16 + readRegister (instruction.D + 1);
+                                    writeRegister (instruction.D, dividend div srcval);
+                                    writeRegister (instruction.D + 1, dividend mod srcval);
+                                    st := st and not Status_OV
+                                end
+                            else
+                                begin
+                                    st := st or Status_OV;
+                                    dec (cycles, instruction.cycles - 16)
+                                end
+                        end
+                end
 	    end
     end;
 
@@ -554,7 +552,7 @@ procedure executeInstruction (instr: uint16);
 	prevPC: uint16;
 	prevCycles: int64;
     begin
-        prevPC := uint16 (cpu.pc - 2);
+        prevPC := uint16 (pc - 2);
         prevCycles := cycles;
         
         decodeInstruction (instr, instruction);
@@ -568,8 +566,8 @@ procedure handleInterrupt (level: uint8);
     begin
 	performContextSwitch (readMemory (4 * level), readMemory (4 * level + 2));
 	inc (cycles, 22);
-	if cpu.st and $000f > 0 then
-	    dec (cpu.st)
+	if st and $000f > 0 then
+	    dec (st)
     end;
 
 procedure setCpuFrequency (freq: uint32);
@@ -590,7 +588,7 @@ procedure runCpu;
         cpuStopped := false;
     	cycles := 0;
     	cycleTime := (1000 * 1000 * 1000) div cpuFreq;
-        cpu.st := 0;
+        st := 0;
     	performContextSwitch (readMemory (0), readMemory (2));
     	
     	time := getCurrentTime;
@@ -599,7 +597,7 @@ procedure runCpu;
   	        executeInstruction (readInstruction);
 		sleepUntil (time + cycles * cycleTime);
   	        handleTimer (cycles);
-		if (cpu.st and $000f >= 1) and tms9901IsInterrupt then 
+		if (st and $000f >= 1) and tms9901IsInterrupt then 
   	            handleInterrupt (1)
 	    end
     end;

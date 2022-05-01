@@ -23,11 +23,6 @@ implementation
 var
     keyboardMatrix: array [3..10, 0..7] of boolean;
 
-procedure initKeyboard;
-    begin
-        fillChar (keyboardMatrix, sizeof (keyboardMatrix), true)    
-    end;
-    
 function readKeyboard (addr, col: uint8): boolean;
     begin
         readKeyboard := keyboardMatrix [addr, col]
@@ -49,5 +44,5 @@ procedure releaseKey (key: TKeys);
     end;
     
 begin
-    initKeyboard
+    fillChar (keyboardMatrix, sizeof (keyboardMatrix), true)    
 end.

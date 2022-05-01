@@ -186,28 +186,6 @@ procedure configureMiniMemory;
   	setMemoryMap ($7000, $7ffe, writeMemW, 4, readMemW, 4)
     end;
 
-procedure configureBaseMemory;
-    begin
-	setMemoryMap ($0000, $1ffe, writeNull, 0, readMemW, 0);
-        setMemoryMap ($2000, $fffe, writeNull, 4, readNull, 4);
-	setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
-	setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);
-	setMemoryMap ($8000, $83fe, writePAD, 0, readPAD, 0);
-	setMemoryMap ($8400, $85fe, writeSound, 4, readNull, 4);
-	setMemoryMap ($8800, $8bfe, writeNull, 4, readVDP, 4);
-	setMemoryMap ($8c00, $8ffe, writeVDP, 4, readNull, 4);
-	setMemoryMap ($9800, $9bfe, writeNull, 4, readGROM, 4);
-	setMemoryMap ($9c00, $9ffe, writeGROM, 23, readNull, 4);
-	    
-        fillChar (mem, sizeof (mem), 0);
-        fillChar (groms, sizeof (groms), 0);
-        fillChar (cart, sizeof (cart), 0);
-        activeDsrBase := 0;
-        cartBanks := 1;
-        activeCartBank := 0;
-        waitStates := 0
-    end;
-
 procedure writeMemory (addr, w: uint16);
     begin
         with memoryMap [addr shr 1] do
@@ -315,5 +293,22 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
     end;
 
 begin
-    configureBaseMemory
+    setMemoryMap ($0000, $1ffe, writeNull, 0, readMemW, 0);
+    setMemoryMap ($2000, $fffe, writeNull, 4, readNull, 4);
+    setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
+    setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);
+    setMemoryMap ($8000, $83fe, writePAD, 0, readPAD, 0);
+    setMemoryMap ($8400, $85fe, writeSound, 4, readNull, 4);
+    setMemoryMap ($8800, $8bfe, writeNull, 4, readVDP, 4);
+    setMemoryMap ($8c00, $8ffe, writeVDP, 4, readNull, 4);
+    setMemoryMap ($9800, $9bfe, writeNull, 4, readGROM, 4);
+    setMemoryMap ($9c00, $9ffe, writeGROM, 23, readNull, 4);
+        
+    fillChar (mem, sizeof (mem), 0);
+    fillChar (groms, sizeof (groms), 0);
+    fillChar (cart, sizeof (cart), 0);
+    activeDsrBase := 0;
+    cartBanks := 1;
+    activeCartBank := 0;
+    waitStates := 0
 end.
