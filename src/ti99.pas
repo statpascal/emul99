@@ -166,63 +166,62 @@ procedure fillKeyMap;
         fillChar (pressCount, sizeof (pressCount), 0)
     end;    
     
-procedure callPressKey (key: TKeys);
+procedure pressKey (key: TKeys);
     begin
         inc (pressCount [key]);
         if pressCount [key] = 1 then
-            pressKey (key)
+            setKeyPressed (key, true)
     end;
     
-procedure callReleaseKey (key: TKeys);    
+procedure releaseKey (key: TKeys);    
     begin
         dec (pressCount [key]);
         if pressCount [key] = 0 then
-            releaseKey (key)
+            setKeyPressed (key, false)
     end;
 
-procedure keyDown (keymap: TKeyMapEntry);
+procedure keyDown (evKeyval: uint16; hardwareKey: uint8);
+    var
+        j: 1..KeyMapSize;
     begin
-        if keyMap.isShift then
-            callPressKey (KeyShift);
-        if keyMap.isFunction then
-            callPressKey (KeyFctn);
-        callPressKey (keyMap.key)
+        for j := 1 to KeyMapCount do
+            with keyMap [j] do 
+                if evKeyVal = keyval then
+                    begin
+                        if isShift then
+                            pressKey (KeyShift);
+                        if isFunction then
+                            pressKey (KeyFctn);
+                        pressKey (key);
+                        hardwareKeyIndex [hardwareKey] := j;
+                        exit
+                    end
     end;
         
-procedure keyUp (var keymap: TKeyMapEntry);
+procedure keyUp (hardwareKey: uint8);
     begin
-        callReleaseKey (keyMap.key);
-        if keyMap.isShift then
-            callReleaseKey (KeyShift);
-        if keyMap.isFunction then
-            callReleaseKey (KeyFctn)
+        with keyMap [hardwareKeyIndex [hardwareKey]] do
+            begin
+                releaseKey (key);
+                if isShift then
+                    releaseKey (KeyShift);
+                if isFunction then
+                    releaseKey (KeyFctn);
+                hardwareKeyIndex [hardwareKey] := 0
+            end
     end;
         
 function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolean; export;
     var
-        event: PTGdkEventKey;
-        keyval: uint32;
-        j: integer;
+        event: PTGdkEventKey absolute p;
     begin
-        event := p;
 //        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
-        keyval := event^.keyval;
-        windowKeyEvent := false;
-        for j := 1 to KeyMapCount do
-           if ord (keyMap [j].keyval) = keyval then
-                begin
-                    if (event^.eventtype = GDK_KEY_PRESS) and (hardwareKeyIndex [uint8 (event^.hardware_keycode)] = 0) then
-                        begin
-                            keyDown (keyMap [j]);
-                            hardwareKeyIndex [uint8 (event^.hardware_keycode)] := j
-                        end
-                    else if (event^.eventtype = GDK_KEY_RELEASE) and (hardwareKeyIndex [uint8 (event^.hardware_keycode)] <> 0) then
-                        begin
-                            keyUp (keyMap [hardwareKeyIndex [uint8 (event^.hardware_keycode)]]);
-                            hardwareKeyIndex [uint8 (event^.hardware_keycode)] := 0
-                        end;
-                    exit
-                end
+        with event^ do
+            if (eventtype = GDK_KEY_RELEASE) and (hardwareKeyIndex [hardware_keycode] <> 0) then
+                keyUp (uint8 (hardware_keycode))
+            else if (eventtype = GDK_KEY_PRESS) and (hardwareKeyIndex [uint8 (hardware_keycode)] = 0) then
+                keyDown (keyval, uint8 (hardware_keycode));
+        windowKeyEvent := false
     end;
 
 procedure preparePalette;

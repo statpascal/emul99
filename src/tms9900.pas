@@ -127,9 +127,9 @@ procedure writeRegister (reg: uint8; val: uint16);
 	writeMemory (uint16 (wp + 2 * reg), val)
     end;
 
-function readInstruction: uint16;
+function fetchInstruction: uint16;
     begin
-    	readInstruction := readMemory (pc);
+    	fetchInstruction := readMemory (pc);
     	pc := uint16 (pc + 2)
     end;
 
@@ -144,7 +144,7 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
 		getGeneralAddress := readRegister (reg);
 	    2:
 	        begin
-	            addr := readInstruction;	// fill in address for tracing
+	            addr := fetchInstruction;	// fill in address for tracing
  		    if reg = 0 then
 	 	        getGeneralAddress := addr
 		    else
@@ -450,7 +450,7 @@ procedure executeFormat8 (var instruction: TInstruction);
     var
 	result, status: uint16;
     begin
-        instruction.imm := readInstruction;
+        instruction.imm := fetchInstruction;
         case instruction.opcode of
   	    Op_AI:
 	        add16 (status, readRegister (instruction.w), instruction.imm, result, false);
@@ -472,7 +472,7 @@ procedure executeFormat8 (var instruction: TInstruction);
 
 procedure executeFormat8_1 (var instruction: TInstruction);
     begin
-        instruction.imm := readInstruction;
+        instruction.imm := fetchInstruction;
         case instruction.opcode of
 	    Op_LIMI:
 	        st := st and $fff0 or instruction.imm and $000f;
@@ -594,7 +594,7 @@ procedure runCpu;
     	time := getCurrentTime;
 	while not cpuStopped do 
             begin
-  	        executeInstruction (readInstruction);
+  	        executeInstruction (fetchInstruction);
 		sleepUntil (time + cycles * cycleTime);
   	        handleTimer (cycles);
 		if (st and $000f >= 1) and tms9901IsInterrupt then 

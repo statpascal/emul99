@@ -44,6 +44,23 @@ const
     EDOM            = 33;
     ERANGE          = 34;
 
+    O_RDONLY = 0;
+    O_WRONLY = 1;
+    O_RDWR = 2;
+    O_CREAT = 64;
+    SEEK_SET = 0;
+    SEEK_CUR = 1;
+    SEEK_END = 2;
+    PROT_READ = 1;
+    PROT_WRITE = 2;
+    PROT_EXEC = 4;
+    MAP_SHARED = 1;
+    MAP_PRIVATE = 2;
+    MAP_SHARED_VALIDATE = 3;
+    
+    POLLIN = 1;
+    POLLOUT = 4;
+
 type
     cfile = record end;
     fileptr = ^cfile;
@@ -61,6 +78,12 @@ type
         tv_sec: time_t;
         tv_nsec: int64
     end;
+    
+    pollfd = record
+        fd: int32;
+        events, revents: int16
+    end;
+    ptr_pollfd = ^pollfd;
 
 function clock_gettime (clockid: clockid_t; var res: timespec): int32; cdecl; external;
 function clock_nanosleep (clockid: clockid_t; flags: int32; var request, remain: timespec): int32; cdecl; external;
@@ -81,26 +104,12 @@ function waitpid (pid: pid_t; var wstatus: integer; options: integer): pid_t; cd
 function htons (n: uint16): uint16; cdecl; external;
 function ntohs (n: uint16): uint16; cdecl; external;
 
-const
-    O_RDONLY = 0;
-    O_WRONLY = 1;
-    O_RDWR = 2;
-    O_CREAT = 64;
-    SEEK_SET = 0;
-    SEEK_CUR = 1;
-    SEEK_END = 2;
-    PROT_READ = 1;
-    PROT_WRITE = 2;
-    PROT_EXEC = 4;
-    MAP_SHARED = 1;
-    MAP_PRIVATE = 2;
-    MAP_SHARED_VALIDATE = 3;
-
 function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external; external 'libc' name 'open';
 function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
 function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
 function lseek (fd: int32; offset: int64; whence: int32): int64; cdecl; external;
 function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
+function poll (fds: ptr_pollfd; nfds: int64; timeout: int32): int32; cdecl; external;
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;
 procedure perror (s: pchar); cdecl; external;

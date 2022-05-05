@@ -12,10 +12,8 @@ type
              KeyCtrl, KeyW, KeyE, KeyR, KeyT, KeyQ, KeyInvalid4, KeyInvalid5,
              KeyInvalid6, KeyX, KeyC, KeyV, KeyB, KeyZ, KeyInvalid7, KeyInvalid8);
 
+procedure setKeyPressed (key: TKeys; pressed: boolean);
 function readKeyboard (addr, col: uint8): boolean;
-
-procedure pressKey (key: TKeys);
-procedure releaseKey (key: TKeys);
 
 
 implementation
@@ -31,16 +29,6 @@ function readKeyboard (addr, col: uint8): boolean;
 procedure setKeyPressed (key: TKeys; pressed: boolean);
     begin
         keyboardMatrix [3 + ord (key) div 8, ord (key) mod 8] := not pressed
-    end;
-    
-procedure pressKey (key: TKeys);
-    begin
-        setKeyPressed (key, true)
-    end;    
-    
-procedure releaseKey (key: TKeys);
-    begin
-        setKeyPressed (key, false)
     end;
     
 begin

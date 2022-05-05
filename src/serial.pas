@@ -1,5 +1,9 @@
 unit serial;
 
+// Work in progress
+// - Read should not block because the CPU cycle count/real time are completely out of sync and interrupts are not served
+// - Load/Save not yet implemented
+
 interface
 
 uses types;
@@ -22,7 +26,7 @@ const
     
 implementation
 
-uses vdp, memory, pab, tools, fileop, cfuncs;
+uses vdp, memory, keyboard, pab, tools, fileop, cfuncs;
 
 type
     TSerialModifiers = record
@@ -102,6 +106,32 @@ procedure writeSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TF
             end
     end;
     
+function checkClearKey: boolean;
+    begin
+        checkClearKey := not readKeyBoard (7, 0) and not readKeyBoard (7, 3)	// FCTN + 4
+    end;
+    
+type
+    TPortStatus = (DataRead, EndOfFile, ClearPressed);
+    
+function readPort (handle: TFileHandle; var ch: uint8): TPortStatus;
+    var
+        done: boolean;
+    begin
+        repeat
+            done := true;
+            if filePollIn (handle, 100) then
+                if fileRead (handle, addr (ch), 1) = 1 then
+                    readPort := DataRead
+                else
+                    readPort := EndOfFile
+            else if checkClearKey then
+                readPort := ClearPressed
+            else
+                done := false;
+        until done
+    end;
+        
 procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFileHandle);
     var
         count, numChars, ch: uint8;
@@ -113,14 +143,14 @@ procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFi
         else
             begin
                 if getDataType (pab) = E_Internal then
-                    fileRead (handle, addr (numChars), 1)
+                    readPort (handle, ch)
                 else
                     numChars := getRecordLength (pab);
                 vdpBuffer := getVdpRamPtr (getBufferAddress (pab));
                 done := false; 
                 count := 0;
                 while (count < numChars) and not done do
-                    if fileRead (handle, addr (ch), 1) > 0 then
+                    if readPort (handle, ch) = DataRead then
                         begin
                             vdpBuffer^ := ch;
                             inc (vdpBuffer);

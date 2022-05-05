@@ -66,15 +66,6 @@ procedure soundWriteData (b: uint8);
             handleData (b)
     end;
 
-procedure initVolume;
-    var 
-        i: 0..MaxAttenuator - 1;
-    begin
-        for i := 0 to MaxAttenuator - 1 do
-            volume [i] := round (MaxVolume * power (0.5, i / 5));
-        volume [MaxAttenuator] := 0
-    end;
-      
 (*$POINTERMATH ON*)
 procedure getSamples (buffer: TSampleDataPtr; len: uint32);
     var 
@@ -104,12 +95,16 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
                     end;
     end;
       
+var 
+    i: 0..MaxAttenuator - 1;
+    
 begin
     selectedRegister := 0;
     fillChar (toneDivider, sizeof (toneDivider), 0);
     fillChar (generatorCounter, sizeof (generatorCounter), 0);
     fillChar (generatorOutput, sizeof (generatorOutput), 1);
     fillChar (attenuator, sizeof (attenuator), MaxAttenuator);
-    initVolume
-end.
-    
+    for i := 0 to MaxAttenuator - 1 do
+        volume [i] := round (MaxVolume * power (0.5, i / 5));
+    volume [MaxAttenuator] := 0
+end.    

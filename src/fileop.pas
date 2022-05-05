@@ -15,6 +15,7 @@ function fileWrite (handle: TFileHandle; buf: pointer; size: int64): int64;
 function fileRead (handle: TFileHandle; buf: pointer; size: int64): int64;
 function fileSize (handle: TFileHandle): int64;
 function fileSeek (handle: TFileHandle; pos: int64): boolean;
+function filePollIn (handle: TFileHandle; waitMilliSecs: int32): boolean;
 function fileClose (handle: TFileHandle): boolean;
 
 function fileMap (handle: TFileHandle; start, length: int64): pointer;
@@ -54,6 +55,15 @@ function fileSize (handle: TFileHandle): int64;
 function fileSeek (handle: TFileHandle; pos: int64): boolean;
     begin
         fileSeek := lseek (handle, pos, SEEK_SET) = pos
+    end;
+    
+function filePollIn (handle: TFileHandle; waitMilliSecs: int32): boolean;
+    var
+        fds: pollfd;
+    begin
+        fds.fd := handle;
+        fds.events := POLLIN;
+        filePollin := (poll (addr (fds), 1, waitMilliSecs) = 1) and (fds.revents and POLLIN <> 0)
     end;
     
 function fileClose (handle: TFileHandle): boolean;
