@@ -104,7 +104,7 @@ function waitpid (pid: pid_t; var wstatus: integer; options: integer): pid_t; cd
 function htons (n: uint16): uint16; cdecl; external;
 function ntohs (n: uint16): uint16; cdecl; external;
 
-function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external; external 'libc' name 'open';
+function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external 'libc' name 'open';
 function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
 function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
 function lseek (fd: int32; offset: int64; whence: int32): int64; cdecl; external;

@@ -42,23 +42,26 @@ implementation
 uses tools, tms9901, timer;
 
 const
-    vdpRAMSize = 16384;
-    vdpRegisterCount = 8;
+    VdpRAMSize = 16384;
+    VdpRegisterCount = 8;
+    GraphicsWidth = 256;
+    DrawHeight = 192;
     
 type
     TVideoMode = (StandardMode, MultiColorMode, TextMode, IllegalMode1, BitmapMode, BitmapMultiColorMode, BitmapTextMode, IllegalMode2);
+    TImagePtr = ^TPaletteEntry;
 
 var
     commandByteBufferValid: boolean;
     commandByteBuffer: uint8;
     readWriteAddress: uint16;
 
-    vdpRAM: array [0..vdpRAMSize - 1] of uint8;
-    vdpRegister: array [0..vdpRegisterCount - 1] of uint8;
+    vdpRAM: array [0..VdpRAMSize - 1] of uint8;
+    vdpRegister: array [0..VdpRegisterCount - 1] of uint8;
     vdpStatus: uint8;
     
-    fgColor, bgColor: TPaletteEntry;
-    imageTable, colorTable, colorTableMask, patternTable, patternTableMask, spriteAttributeTable, spritePatternTable: 0..vdpRAMSize - 1;
+    bgColor: TPaletteEntry;
+    imageTable, colorTable, colorTableMask, patternTable, patternTableMask, spriteAttributeTable, spritePatternTable: 0..VdpRAMSize - 1;
     videoMode: TVideoMode;
     screenActive, spriteSize4, spriteMagnification: boolean;
     
@@ -67,7 +70,7 @@ var
 
 procedure advanceReadWriteAddress;
     begin
-        readWriteAddress := succ (readWriteAddress) mod vdpRAMSize;
+        readWriteAddress := succ (readWriteAddress) mod VdpRAMSize;
         commandByteBufferValid := false
     end;
 
@@ -80,11 +83,11 @@ procedure executeCommand (commandByte1, commandByte2: uint8);
     begin
         case commandByte2 shr 6 of
             0:
-                readWriteAddress := succ (commandByte1 + 256 * commandByte2) mod vdpRAMSize;
+                readWriteAddress := succ (commandByte1 + 256 * commandByte2) mod VdpRAMSize;
             1:
-                readWriteAddress := (commandByte1 + 256 * commandByte2) mod vdpRAMSize;
+                readWriteAddress := (commandByte1 + 256 * commandByte2) mod VdpRAMSize;
             2:
-                writeRegister (commandByte2 mod vdpRegisterCount, commandByte1)
+                writeRegister (commandByte2 mod VdpRegisterCount, commandByte1)
         end
     end;
 
@@ -143,10 +146,9 @@ procedure readVdpRegisters;
         spriteMagnification := odd (vdpRegister [1]);
         spriteSize4 := odd (vdpRegister [1] shr 1);
         
-        imageTable := (vdpRegister [2] and $0f) * $400;
-        spriteAttributeTable := (vdpRegister [5] and $7f) * $80;
-        spritePatternTable := (vdpRegister [6] and $07) * $800;
-        fgColor := vdpRegister [7] shr 4;
+        imageTable := (vdpRegister [2] and $0f) shl 10;
+        spriteAttributeTable := (vdpRegister [5] and $7f) shl 7;
+        spritePatternTable := (vdpRegister [6] and $07) shl 11;
         bgColor := vdpRegister [7] and $0f;
 
         if videoMode = BitmapMode then
@@ -158,235 +160,195 @@ procedure readVdpRegisters;
             end
         else
             begin
-                colorTable := vdpRegister [3] * $40;
-                patternTable := (vdpRegister [4] and $07) * $800;
+                colorTable := vdpRegister [3] shl 6;
+                patternTable := (vdpRegister [4] and $07) shl 11;
             end
     end;
 
 (*$POINTERMATH ON*)
-procedure vdpRenderScreen;
+procedure drawSpritesScanline (scanline: uint8; imagePtr: TImagePtr);
     const
-        graphicsWidth = 256;
-    var
-        drawWidth, drawHeight, vBorder, hBorder: uint16;
-        image: TScreenImage;
+        NrSprites = 32;
+        LastSpriteIndicator = $D0;
+    type
+        TSpriteAttribute = record
+            vpos, hpos, pattern, color: uint8
+        end;
+    var 
+        spritePixel: array [0..GraphicsWidth - 1] of boolean;
+        spriteCount: uint8;
+        coincidence: boolean;
+        fifthSpriteIndex: 0..NrSprites - 1;  (* must be at least 4 to be valid *)
+        spriteIndex: 0..NrSprites; 
+        spriteAttributePtr: ^TSpriteAttribute;
         
-    procedure drawSprites (line: uint8);
-        const
-            NrSprites = 32;
-            LastSpriteIndicator = $D0;
-        type
-            TSpriteAttribute = record
-                vpos, hpos, pattern, color: uint8
-            end;
-        var 
-            spritePixel: array [0..graphicsWidth - 1] of boolean;
-            spriteCount: uint8;
-            coincidence: boolean;
-            fifthSpriteIndex: 0..NrSprites - 1;  (* must be at least 4 to be valid *)
-            screenRow: TMemoryPtr;
-            
-        procedure drawSpriteLine (xpos: int16; pattern: uint16; color: TPaletteEntry);
-            procedure drawSpritePixel;
-                var 
-                    i: boolean;
-                begin
-                    for i := false to spriteMagnification do
+    procedure drawSpriteLine (xpos: int16; pattern: uint16; color: TPaletteEntry);
+        var
+            i: 0..15;
+            j: boolean;
+        begin
+            if pattern <> 0 then
+                for i := 15 downto 8 * ord (not spriteSize4) do
+                    for j := false to spriteMagnification do
                         begin
-                            if uint16 (xpos) < graphicsWidth then
+                            if (uint16 (xpos) < GraphicsWidth) and odd (pattern shr i) then
                                 if spritePixel [xpos] then
                                     coincidence := true
                                 else
                                     begin
                                         if color <> 0 then
-                                            screenRow [xpos] := color;
+                                            imagePtr [xpos] := color;
                                         spritePixel [xpos] := true
                                     end;
                             inc (xpos)
                         end
-                end;
-            var
-                i: 0..15;
-            begin
-                for i := 15 downto 8 * ord (not spriteSize4) do
-                    if odd (pattern shr i) then 
-                        drawSpritePixel
-                    else
-                        inc (xpos, 1 + ord (spriteMagnification))
-            end;            
-            
-        procedure checkSprite (spriteIndex: uint8; var spriteAttribute: TSpriteAttribute);
-            var
-                xpos, ypos: int16;
-                pattern, patternAddr: uint16;
-                yoffset: 0..15;
-             begin
-                if spriteAttribute.vpos > LastSpriteIndicator then
-                    ypos := spriteAttribute.vpos - 255
-                else
-                    ypos := succ (spriteAttribute.vpos);
-                if (line >= ypos) and (line < ypos + 8 shl (ord (spriteSize4) + ord (spriteMagnification))) then
-                    begin
-                        inc (spriteCount);
-                        if spriteCount = 5 then
-                            fifthSpriteIndex := spriteIndex
-                        else if spriteCount < 5 then
-                            begin
-                                xpos := spriteAttribute.hpos - (spriteAttribute.color and $80) shr 2;
-                                patternAddr := spritePatternTable + (spriteAttribute.pattern and not (3 * ord (spriteSize4))) shl 3;
-                                yoffset := (line - ypos) shr ord (spriteMagnification);
-                                pattern := vdpRAM [patternAddr + yOffset] shl 8;
-                                if spriteSize4 then
-                                    pattern := pattern or vdpRAM [patternAddr + yOffset + 16];
-                                if pattern <> 0 then
-                                    drawSpriteLine (xpos, pattern, spriteAttribute.color and $0f)
-                            end
-                    end
-            end;
-
-        var            
-            spriteIndex: 0..NrSprites;
-            spriteAttributePtr: ^TSpriteAttribute;
+        end;            
+        
+    procedure handleSprite (spriteIndex: uint8; var spriteAttribute: TSpriteAttribute);
+        var
+            xpos, ypos: int16;
+            patternAddr: uint16;
+            yoffset: 0..15;
         begin
-            fillChar (spritePixel, sizeof (spritePixel), 0);
-            spriteCount := 0;
-            coincidence := false;
-            fifthSpriteIndex := 0;
-            screenRow := addr (image [vBorder + line, hBorder]);
-            
-            spriteIndex := 0;
-            spriteAttributePtr := addr (vdpRAM [spriteAttributeTable]);
-            while (spriteIndex < NrSprites) and (spriteAttributePtr [spriteIndex].vpos <> LastSpriteIndicator) do
+            ypos := succ (spriteAttribute.vpos - 256 * ord (spriteAttribute.vpos > LastSpriteIndicator));    
+            if (scanline >= ypos) and (scanline < ypos + 8 shl (ord (spriteSize4) + ord (spriteMagnification))) then
                 begin
-                    if spriteCount < 5 then
-                        checkSprite (spriteIndex, spriteAttributePtr [spriteIndex]);
-                    inc (spriteIndex);
-                end;
-                
-            if coincidence then
-                vdpStatus := vdpStatus or $20;
-            if not odd (vdpStatus shr 6) then
-                if fifthSpriteIndex <> 0 then
-                    vdpStatus := vdpStatus and not $1f or fifthSpriteIndex or $40
-                else
-                    (* TODO: Check: should this be the last drawn on the scanline? *)
-                    vdpStatus := vdpStatus or (spriteIndex - 1) and $1f
+                    inc (spriteCount);
+                    if spriteCount = 5 then
+                        fifthSpriteIndex := spriteIndex
+                    else if spriteCount < 5 then
+                        begin
+                            xpos := spriteAttribute.hpos - (spriteAttribute.color and $80) shr 2;
+                            patternAddr := spritePatternTable + (spriteAttribute.pattern and not (3 * ord (spriteSize4))) shl 3;
+                            yoffset := (scanline - ypos) shr ord (spriteMagnification);
+                            drawSpriteLine (xpos, vdpRAM [patternAddr + yOffset] shl 8 or vdpRAM [patternAddr + yOffset + 16], spriteAttribute.color and $0f)
+                        end
+                end
         end;
 
-    procedure drawImagePlane;
-        var
-            imagePtr: ^TPaletteEntry;
+    begin
+        fillChar (spritePixel, sizeof (spritePixel), 0);
+        spriteCount := 0;
+        coincidence := false;
+        fifthSpriteIndex := 0;
+        
+        spriteIndex := 0;
+        spriteAttributePtr := addr (vdpRAM [spriteAttributeTable]);
+        while (spriteIndex < NrSprites) and (spriteAttributePtr [spriteIndex].vpos <> LastSpriteIndicator) do
+            begin
+                if spriteCount < 5 then
+                    handleSprite (spriteIndex, spriteAttributePtr [spriteIndex]);
+                inc (spriteIndex);
+            end;
+            
+        if coincidence then
+            vdpStatus := vdpStatus or $20;
+        if not odd (vdpStatus shr 6) then
+            if fifthSpriteIndex <> 0 then
+                vdpStatus := vdpStatus and not $1f or fifthSpriteIndex or $40
+            else
+                (* TODO: Check: should this be the last drawn on the scanline? *)
+                vdpStatus := vdpStatus or (spriteIndex - 1) and $1f
+    end;
 
-        procedure drawBitmapPattern (pattern: uint16; foreColor, backColor: TPaletteEntry; textOffset: uint8);
-            var
-                i: 0..7;
-                palette: array [boolean] of TPaletteEntry;
-            begin
-                palette [false] := backColor or bgColor * ord (backColor = 0);
-                palette [true] := foreColor or bgColor * ord (foreColor = 0);
-                for i := 7 downto textOffset do
-                    begin
-                        imagePtr^ := palette [odd (pattern shr i)];
-                        inc (imagePtr)
-                    end
-            end;
-            
-        procedure drawTextMode (y, yoffset: uint8);
-            var
-                x: 0..39;
-                imageTablePtr: TMemoryPtr;
-            begin
-                imageTablePtr := addr (vdpRAM [imageTable + 40 * y]);
-                for x := 0 to 39 do
-                    drawBitmapPattern (vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], fgColor, bgColor, 2)
-            end;
-            
-        procedure drawStandardMode (y, yoffset: uint8);
-            var
-                x: 0..31;
-                colors: uint8;
-                imageTablePtr: TMemoryPtr;
-            begin
-                imageTablePtr := addr (vdpRAM [imageTable + y shl 5]);
-                for x := 0 to 31 do 
-                    begin
-                        colors := vdpRAM [colorTable + imageTablePtr [x] shr 3];
-                        drawBitmapPattern (vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], colors shr 4, colors and $0f, 0);
-                    end
-            end;
-            
-        procedure drawBitmapMode (y, yoffset: uint8);
-            var
-                x: 0..31;
-                offset, offsetBase: uint16;
-                colors: uint8;
-                imageTablePtr: TMemoryPtr;
-            begin
-                offsetBase := (y and $f8) shl 8 + yOffset;
-                imageTablePtr := addr (vdpRAM [imageTable + y shl 5]);
-                for x := 0 to 31 do
-                    begin
-                        offset := offsetBase + imageTablePtr [x] shl 3;
-                        colors := vdpRAM [colorTable + offset and colorTableMask];
-                        drawBitmapPattern (vdpRAM [patternTable + offset and patternTableMask], colors shr 4, colors and $0f, 0);
-                    end
-            end;
-            
-        procedure drawMultiColorMode (scanline: uint8);
-            var
-                x: 0..31;
-                colors: uint8;
-                patternTableOffset: uint16;
-                imageTablePtr: TMemoryPtr;
-            begin
-                imageTablePtr := addr (vdpRAM [imageTable + (scanline and $f8) shl 2]);
-                patternTableOffset := patternTable + (scanline and $1c) shr 2;
-                for x := 0 to 31 do
-                    begin
-                        colors := vdpRAM [patternTableOffset + imageTableptr [x] shl 3];
-                        drawBitmapPattern ($f0, colors shr 4, colors and $0f, 0)
-                    end
-            end;
-       
+procedure drawImageScanline (scanline: uint8; imagePtr: TImagePtr);
+
+    procedure drawBitmapPattern (pattern, colors, textOffset: uint8);
         var
-            scanline: uint8;
-            time: TNanoTimestamp;
-        const
-            ScanlineTime = 63898;       (* nanoseconds *)
+            i: 0..7;
         begin
-            time := getCurrentTime;
-            for scanline := 0 to pred (drawHeight) do 
+            colors := colors or bgColor * ord (colors and $0f = 0) or (bgColor shl 4) * ord (colors and $f0 = 0);
+            for i := 7 downto textOffset do
                 begin
-                    readVdpRegisters;
-                    imagePtr := addr (image [vBorder + scanline, hBorder]);
-
-                    case videoMode of
-                        StandardMode:                
-                            drawStandardMode (scanline shr 3, scanline and $07);
-                        BitmapMode:
-                            drawBitmapMode (scanline shr 3, scanline and $07);
-                        TextMode:
-                            drawTextMode (scanline shr 3, scanline and $07);
-                        multiColorMode:
-                            drawMultiColorMode (scanline)
-                    end;
-                    if videoMode <> TextMode then
-                        drawSprites (scanline);
-                    sleepUntil (time + scanline * ScanlineTime)
+                    imagePtr^ := colors shr (4 * ord (odd (pattern shr i))) and $0f;
+                    inc (imagePtr)
                 end
         end;
         
+    procedure drawTextMode (y, yoffset: uint8);
+        var
+            x: 0..39;
+            imageTablePtr: TMemoryPtr;
+        begin
+            imageTablePtr := addr (vdpRAM [imageTable + 40 * y]);
+            for x := 0 to 39 do
+                drawBitmapPattern (vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRegister [7], 2)
+        end;
+        
+    procedure drawStandardMode (y, yoffset: uint8);
+        var
+            x: 0..31;
+            imageTablePtr: TMemoryPtr;
+        begin
+            imageTablePtr := addr (vdpRAM [imageTable + y shl 5]);
+            for x := 0 to 31 do 
+                drawBitmapPattern (vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRAM [colorTable + imageTablePtr [x] shr 3], 0);
+        end;
+        
+    procedure drawBitmapMode (y, yoffset: uint8);
+        var
+            x: 0..31;
+            offset, offsetBase: uint16;
+            imageTablePtr: TMemoryPtr;
+        begin
+            offsetBase := (y and $f8) shl 8 + yOffset;
+            imageTablePtr := addr (vdpRAM [imageTable + y shl 5]);
+            for x := 0 to 31 do
+                begin
+                    offset := offsetBase + imageTablePtr [x] shl 3;
+                    drawBitmapPattern (vdpRAM [patternTable + offset and patternTableMask], vdpRAM [colorTable + offset and colorTableMask], 0);
+                end
+        end;
+        
+    procedure drawMultiColorMode (scanline: uint8);
+        var
+            x: 0..31;
+            imageTablePtr: TMemoryPtr;
+        begin
+            imageTablePtr := addr (vdpRAM [imageTable + (scanline and $f8) shl 2]);
+            for x := 0 to 31 do
+                drawBitmapPattern ($f0, vdpRAM [patternTable + (scanline and $1c) shr 2 + imageTableptr [x] shl 3], 0)
+        end;
+        
+    begin                
+        case videoMode of
+            StandardMode:                
+                drawStandardMode (scanline shr 3, scanline and $07);
+            BitmapMode:
+                drawBitmapMode (scanline shr 3, scanline and $07);
+            TextMode:
+                drawTextMode (scanline shr 3, scanline and $07);
+            multiColorMode:
+                drawMultiColorMode (scanline)
+        end
+    end;
+    
+procedure vdpRenderScreen;
+    const
+        ScanlineTime = 63898;       (* nanoseconds *)
+    var
+        drawWidth, vBorder, hBorder: uint16;
+        image: TScreenImage;
+        scanline: uint8;
+        time: TNanoTimestamp;
     begin
         fillchar (image, sizeof (image), bgColor);
         readVdpRegisters;
                 
         if screenActive then
             begin
-                drawHeight := 192;
                 drawWidth := 256 - 16 * ord (videoMode = TextMode);
                 hBorder := (RenderWidth - drawWidth) div 2;
-                vBorder := (RenderHeight - drawHeight) div 2;
-                drawImagePlane
+                vBorder := (RenderHeight - DrawHeight) div 2;
+                time := getCurrentTime;
+                for scanline := 0 to pred (DrawHeight) do 
+                    begin
+                        readVdpRegisters;
+                        drawImageScanline (scanline, addr (image [vBorder + scanline, hBorder]));
+                        if videoMode <> TextMode then
+                            drawSpritesScanline (scanline, addr (image [vBorder + scanline, hBorder]));
+                        sleepUntil (time + scanline * ScanlineTime)
+                    end
             end;
             
         vdpStatus := vdpStatus or $80;
@@ -397,7 +359,7 @@ procedure vdpRenderScreen;
     
 procedure runVdp;
     const
-        vdpInterval = 20 * 1000 * 1000;         (* 20 msecs for 50 fps *)
+        VdpInterval = 20 * 1000 * 1000;         (* 20 msecs for 50 fps *)
     var
         time: TNanoTimestamp;
     begin
@@ -405,7 +367,7 @@ procedure runVdp;
         while not vdpStopped do
             begin
                 vdpRenderScreen;
-                inc (time, vdpInterval);
+                inc (time, VdpInterval);
                 sleepUntil (time)
             end
     end;
