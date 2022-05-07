@@ -6,7 +6,6 @@ type
     TNanoTimestamp = int64;
     
 function getCurrentTime: TNanoTimestamp;
-procedure nanoSleep (duration: TNanoTimestamp);
 procedure sleepUntil (time: TNanoTimestamp);
 
 
@@ -38,7 +37,7 @@ procedure nanoSleep (duration: TNanoTimestamp);
                     result := clock_nanosleep (Clock_Monotonic, 0, request, remain);
                     request := remain
                 until result <> EINTR
-            end;
+            end
     end;
     
 procedure sleepUntil (time: TNanoTimestamp);

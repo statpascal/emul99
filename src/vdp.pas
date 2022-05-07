@@ -46,14 +46,15 @@ const
     VdpRegisterCount = 8;
     GraphicsWidth = 256;
     DrawHeight = 192;
+    Invalid = -1;
     
 type
     TVideoMode = (StandardMode, MultiColorMode, TextMode, IllegalMode1, BitmapMode, BitmapMultiColorMode, BitmapTextMode, IllegalMode2);
     TImagePtr = ^TPaletteEntry;
 
 var
-    commandByteBufferValid: boolean;
-    commandByteBuffer: uint8;
+    commandByteBuffer: int16;
+    prefetchedRead: uint8;
     readWriteAddress: uint16;
 
     vdpRAM: array [0..VdpRAMSize - 1] of uint8;
@@ -71,24 +72,24 @@ var
 procedure advanceReadWriteAddress;
     begin
         readWriteAddress := succ (readWriteAddress) mod VdpRAMSize;
-        commandByteBufferValid := false
-    end;
-
-procedure writeRegister (reg, val: uint8);
-    begin
-        vdpRegister [reg] := val
+        commandByteBuffer := Invalid
     end;
     
-procedure executeCommand (commandByte1, commandByte2: uint8);
+procedure prefetchReadData;
     begin
-        case commandByte2 shr 6 of
-            0:
-                readWriteAddress := succ (commandByte1 + 256 * commandByte2) mod VdpRAMSize;
-            1:
-                readWriteAddress := (commandByte1 + 256 * commandByte2) mod VdpRAMSize;
-            2:
-                writeRegister (commandByte2 mod VdpRegisterCount, commandByte1)
-        end
+        prefetchedRead := vdpRAM [readWriteAddress];
+        advanceReadWriteAddress
+    end;
+
+procedure executeCommand (command, commandByte1, commandByte2: uint8);
+    begin
+        if command = 2 then
+            vdpRegister [commandByte2 mod VdpRegisterCount] := commandByte1
+        else if command <= 1 then
+            readWriteAddress := commandByte1 + 256 * commandByte2;
+        if command = 0 then
+            prefetchReadData;
+        commandByteBuffer := Invalid
     end;
 
 procedure vdpWriteData (b: uint8);
@@ -99,25 +100,24 @@ procedure vdpWriteData (b: uint8);
 
 procedure vdpWriteCommand (b: uint8);
     begin
-        if commandByteBufferValid then
-            executeCommand (commandByteBuffer, b)
+        if commandByteBuffer <> Invalid then
+            executeCommand (b shr 6, commandByteBuffer, b and $3f)
         else
-            commandByteBuffer := b;
-        commandByteBufferValid := not commandByteBufferValid
+            commandByteBuffer := b
     end;
 
 function vdpReadData: uint8;
     begin
-        vdpReadData := vdpRAM [(readWriteAddress - 1) and (vdpRamSize - 1)];
-        advanceReadWriteAddress
+        vdpReadData := prefetchedRead;
+        prefetchReadData
     end;
 
 function vdpReadStatus: uint8;
     begin
-        commandByteBufferValid := false;
+        commandByteBuffer := Invalid;
         vdpReadStatus := vdpStatus;
         vdpStatus := vdpStatus and $1f;
-        if odd (vdpRegister [1] shr 5) then
+//        if odd (vdpRegister [1] shr 5) then
             tms9901setVdpInterrupt (false)
     end;
     
@@ -128,7 +128,7 @@ function getVdpRamPtr (a: uint16): TMemoryPtr;
     
 procedure resetVdp;
     begin
-        commandByteBufferValid := false;
+        commandByteBuffer := Invalid;
         vdpStatus := 0;
         fillChar (vdpRegister, sizeof (vdpRegister), 0);
         fillChar (vdpRAM, sizeof (vdpRAM), 0)
@@ -247,7 +247,7 @@ procedure drawSpritesScanline (scanline: uint8; imagePtr: TImagePtr);
             if fifthSpriteIndex <> 0 then
                 vdpStatus := vdpStatus and not $1f or fifthSpriteIndex or $40
             else
-                (* TODO: Check: should this be the last drawn on the scanline? *)
+                //  TODO: Check: should this be the last drawn on the scanline?
                 vdpStatus := vdpStatus or (spriteIndex - 1) and $1f
     end;
 
@@ -364,12 +364,11 @@ procedure runVdp;
         time: TNanoTimestamp;
     begin
         time := getCurrentTime;
-        while not vdpStopped do
-            begin
-                vdpRenderScreen;
-                inc (time, VdpInterval);
-                sleepUntil (time)
-            end
+        repeat
+            vdpRenderScreen;
+            inc (time, VdpInterval);
+            sleepUntil (time)
+        until vdpStopped
     end;
                 
 procedure stopVdp;

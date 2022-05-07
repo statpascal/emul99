@@ -592,14 +592,13 @@ procedure runCpu;
     	performContextSwitch (readMemory (0), readMemory (2));
     	
     	time := getCurrentTime;
-	while not cpuStopped do 
-            begin
-  	        executeInstruction (fetchInstruction);
-		sleepUntil (time + cycles * cycleTime);
-  	        handleTimer (cycles);
-		if (st and $000f >= 1) and tms9901IsInterrupt then 
-  	            handleInterrupt (1)
-	    end
+    	repeat
+            executeInstruction (fetchInstruction);
+	    sleepUntil (time + cycles * cycleTime);
+  	    handleTimer (cycles);
+	    if (st and $000f >= 1) and tms9901IsInterrupt then 
+  	        handleInterrupt (1)
+        until cpuStopped
     end;
 
 procedure stopCpu;
