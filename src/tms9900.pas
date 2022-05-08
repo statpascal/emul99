@@ -11,7 +11,7 @@ procedure stopCpu;
 
 implementation
 
-uses memory, tms9901, decoder, types, xophandler, tools, timer;
+uses memory, tms9901, types, xophandler, tools, timer;
 
 const 
     Status_LGT = $8000;
@@ -21,49 +21,184 @@ const
     Status_OV  = $0800;
     Status_OP  = $0400;
     Status_X   = $0200;
+    MaxInstruction = 65535;
+    Status_None = 0;
+    
+type 
+    TOpcode = (Op_IVLD, Op_LI, Op_AI, Op_ANDI, Op_ORI, Op_CI, Op_STWP, Op_STST, Op_LWPI, Op_LIMI, Op_IDLE, Op_RSET, Op_RTWP, Op_CKON, Op_CKOF, Op_LREX, 
+               Op_BLWP, Op_B, Op_X, Op_CLR, Op_NEG, Op_INV, Op_INC, Op_INCT, Op_DEC, Op_DECT, Op_BL, Op_SWPB, Op_SETO, Op_ABS, Op_SRA, Op_SRL, Op_SLA, Op_SRC,
+               Op_JMP, Op_JLT, Op_JLE, Op_JEQ, Op_JHE, Op_JGT, Op_JNE, Op_JNC, Op_JOC, Op_JNO, Op_JL, Op_JH, Op_JOP, Op_SBO, Op_SBZ, Op_TB, Op_COC, Op_CZC,
+               Op_XOR, Op_XOP, Op_LDCR, Op_STCR, Op_MPY, Op_DIV, Op_SZC, Op_SZCB, Op_S, Op_SB, Op_C, Op_CB, Op_A, Op_AB, Op_MOV, Op_MOVB, Op_SOC, Op_SOCB);
+               
+    TInstructionFormat = (Format1, Format2, Format2_1, Format3, Format4, Format5, Format6, Format7, Format8, Format8_1, Format8_2, Format9);
+
+    TInstruction = record
+	opcode: TOpCode;
+	instructionFormat: TInstructionFormat;
+        B: boolean;        
+	Td, Ts: 0..3;
+        D, S, W, count: 0..15;
+	disp: 0..255;
+	cycles: uint8;
+	instr, source, dest, imm, statusBits: uint16
+    end;
     
 var
     pc, wp, st: uint16;
     cpuStopped: boolean;
     cycles: int64;
     cpuFreq: uint32;
-    statusMask: array [TOpcode] of uint16;		(* Status bits affected by instruction *)
-    
-procedure initOpcodeStatus;
-    type
-        TOpcodeSet = set of TOpcode;
+    instructionString: array [TOpcode] of string;
+    decodedInstruction: array [0..MaxInstruction] of TInstruction;
+
+procedure createInstruction (instr: uint16; opcode: TOpcode; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16; var result: TInstruction);
     const 
-        Entries = 6;
-        opcodeStatus: array [1..Entries] of record opcodes: TOpcodeSet; status: uint16 end = (
-            (opcodes: [Op_A, Op_AI, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_NEG, Op_S, Op_SLA];
-             status:  Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV),
-            (opcodes: [Op_AB, Op_SB];
-             status:  Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV + Status_OP),
-            (opcodes: [Op_ANDI, Op_C, Op_CI, Op_INV, Op_LI, Op_MOV, Op_ORI, Op_SOC, Op_SZC, Op_XOR, Op_STCR];
-             status:  Status_LGT + Status_AGT + Status_EQ),
-            (opcodes: [Op_CB, Op_MOVB, Op_SOCB, Op_SZCB];
-             status:  Status_LGT + Status_AGT + Status_EQ + Status_OP),
-            (opcodes: [Op_LDCR, Op_SRA, Op_SRC, Op_SRL];
-             status:  Status_LGT + Status_AGT + Status_EQ + Status_C),
-            (opcodes: [Op_COC, Op_CZC, Op_TB];
-             status:  Status_EQ));
-    var
-        i: 1..Entries;
-        j: TOpcode;
-    begin
-        fillChar (statusMask, sizeof (statusMask), 0);
-        for i := 1 to Entries do
-            with opcodeStatus [i] do
-                for j := Op_LI to Op_SOCB do
-                    if j in opcodes then
-                        statusMask [j] := status;
-	statusMask [Op_ABS] := Status_LGT + Status_AGT + Status_EQ + Status_OV;
-	statusMask [Op_DIV] := Status_OV
-    end;
+        ExtraCycles: array [0..3] of uint8 = (0, 4, 8, 6);
+
+    procedure decodeGeneralSource;
+        begin
+            result.B := odd (instr shr 12) and (result.instructionFormat = Format1);
+            result.Ts := (instr and $0030) shr 4;
+            result.S := instr and $0f;
+            inc (result.cycles, ExtraCycles [result.Ts] + 2 * ord (not result.B and (result.Ts = 3)))
+        end;
         
-procedure updateStatusBits (mask, val: uint16);
+    procedure decodeGeneralDestination;
+        begin
+            result.Td := (instr and $0C00) shr 10;
+            result.D := (instr and $03C0) shr 6;
+            inc (result.cycles, ExtraCycles [result.Td] + 2 * ord (not result.B and (result.Td = 3)))
+        end;
+
     begin
-	st := (st and not mask) or (val and mask)
+	fillchar (result, sizeof (result), 0);
+	result.instr := instr;
+	result.opcode := opcode;
+	result.instructionFormat := instructionFormat;
+	result.cycles := cycles;
+	result.statusBits := statusBits;
+	
+	case instructionFormat of
+	    Format1:
+	        begin
+	            decodeGeneralSource;
+	            decodeGeneralDestination
+                end;
+            Format2, Format2_1:
+		result.disp := instr and $ff;
+	    Format3, Format9:
+	        begin
+                    decodeGeneralSource;	        	
+                    result.D := (instr and $03C0) shr 6
+                end;
+            Format4:
+                begin
+                    decodeGeneralSource;
+                    result.count := (instr and $03C0) shr 6
+                end;
+            Format5:
+                begin
+                    result.count := (instr and $00F0) shr 4;
+                    result.W := instr and $0f
+                end;
+            Format6:
+                decodeGeneralSource;
+            Format8, Format8_2:
+                result.W := instr and $0f
+        end;
+        
+        if result.opcode in [Op_STCR, Op_LDCR] then
+            begin
+                if result.opcode = Op_STCR then
+                    case result.count of
+                        8:
+                            inc (result.cycles, 2);
+                        9..15:
+                            inc (result.cycles, 16);
+                        0:
+                            inc (result.cycles, 18)
+                    end
+                else
+                    inc (result.cycles, 2 * result.count or 32 * ord (result.count = 0));
+                result.statusBits := statusBits or Status_OP * ord (result.count in [1..8])
+            end 
+    end;
+    
+function disassembleInstruction (var instruction: TInstruction; addr: uint16): string;
+
+    function disassembleGeneralAddress (tx, x: uint8; addr: uint16): string;
+        begin
+            case tx of
+                0:
+                    disassembleGeneralAddress := 'R' + decimalstr (x);
+                1:
+                    disassembleGeneralAddress := '*R' + decimalstr (x);
+                2:
+                    if x <> 0 then
+                        disassembleGeneralAddress := '@>' + hexstr (addr) + '(R' + decimalstr (x) + ')'
+                    else
+                        disassembleGeneralAddress := '@>' + hexstr (addr);
+                3:
+                    disassembleGeneralAddress := '*R' + decimalstr (x) + '+'
+            end
+        end;
+        
+    var
+        res: string;
+        
+    begin
+        res := hexstr (addr) + '  ' + hexstr (instruction.instr) + ' ';
+        if (instruction.instructionFormat = Format8) or (instruction.instructionFormat = Format8_1) then
+            res := res + hexstr (instruction.imm);
+        if instruction.Ts = 2 then
+            res := res + hexstr (instruction.source) + ' ';
+        if instruction.Td = 2 then
+            res := res + hexstr (instruction.dest);
+        while length (res) < 22 do
+            res := res + ' ';
+        
+        res := res + instructionString [instruction.opcode];
+        while length (res) < 27 do
+            res := res + ' ';
+        case instruction.instructionFormat of
+            Format1:
+                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',' + disassembleGeneralAddress (instruction.Td, instruction.D, instruction.dest);
+            Format2:
+                res := res + '>' + hexstr (addr + 2 + 2 * int8 (instruction.disp));
+            Format3, Format9:
+                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',R' + decimalstr (instruction.D);
+            Format4:
+                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',' + decimalstr (instruction.count);
+            Format5:
+                res := res + 'R' + decimalstr (instruction.W) + ',' + decimalstr (instruction.count);
+            Format6:
+                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source);
+            Format8:
+                res := res + 'R' + decimalstr (instruction.W) + ',>' + hexstr (instruction.imm);
+            Format8_1:
+                res := res + '>' + hexstr (instruction.imm);
+            Format8_2:
+                res := res + 'R' + decimalstr (instruction.W);
+            Format2_1:
+                res := res + decimalstr (instruction.disp)
+        end;
+        disassembleInstruction := res
+    end;        
+
+procedure enterData (opcode: TOpcode; base: uint16; instString: string; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16);
+    const
+        opcodeBits: array [TInstructionFormat] of uint8 = (4, 8, 8, 6, 6, 8, 10, 16, 12, 12, 12, 6);
+    var
+        i: uint16;
+    begin
+        instructionString [opcode] := instString;
+        for i := 0 to pred (1 shl (16 - opcodeBits [instructionFormat])) do
+            createInstruction (base + i, opcode, instructionFormat, cycles, statusBits, decodedInstruction [base + i])
+    end;
+
+procedure updateStatusBits (var instruction: TInstruction; val: uint16);
+    begin
+	st := (st and not instruction.statusBits) or (val and instruction.statusBits)
     end;
 
 function getWordStatus (w: uint16): uint16;
@@ -178,7 +313,7 @@ procedure performContextSwitch (newWP, newPC: uint16);
 	pc := newPC and $fffe
     end;
 
-procedure executeInstruction (instr: uint16); forward;
+procedure executeInstruction (var instruction: TInstruction); forward;
 
 procedure executeFormat1 (var instruction: TInstruction);
     var
@@ -221,17 +356,17 @@ procedure executeFormat1 (var instruction: TInstruction);
 	    Op_SZCB:
  	        result8 := dstval8 and not srcval8
 	end;
-	if (instruction.opcode = Op_MOVB) or (instruction.opcode = Op_SOCB) or (instruction.opcode = Op_SZCB) then
+	if instruction.opcode in [Op_MOVB, Op_SOCB, Op_SZCB] then
  	    status := getByteStatus (result8)
-	else if (instruction.opcode = Op_MOV) or (instruction.opcode = Op_SOC) or (instruction.opcode = Op_SZC) then
+	else if instruction.opcode in [Op_MOV, Op_SOC, Op_SZC] then
   	    status := getWordStatus (result);
-	if (instruction.opcode <> Op_C) and (instruction.opcode <> Op_CB) then
+	if not (instruction.opcode in [Op_C, Op_CB]) then
 	    begin
   	        if instruction.B then
 	            setHighLow (result, not odd (dstaddr), result8);
   	        writeMemory (dstaddr, result);
 	    end;
-	updateStatusBits (statusMask [instruction.opcode], status)
+	updateStatusBits (instruction, status)
     end;
 
 procedure executeFormat2 (var instruction: TInstruction);
@@ -271,29 +406,28 @@ procedure executeFormat2_1 (var instruction: TInstruction);
 	    Op_SBZ:
 	        writeCru (addr, 0);
 	    Op_TB:
-	        st := (st and not Status_EQ) or (Status_EQ * readCru (addr))
+	        updateStatusBits (instruction, Status_EQ * readCru (addr))
 	end
     end;
 
 procedure executeFormat3 (var instruction: TInstruction);
     var
-	srcval, dstval, result, status: uint16;
+	srcval, dstval, status: uint16;
     begin
 	srcval := readMemory (getSourceAddress (instruction));
 	dstval := readRegister (instruction.D);
 	case instruction.opcode of
 	    Op_XOR:
 	        begin
-		    result := srcval xor dstval;
-		    writeRegister(instruction.D, result);
-		    status := getWordStatus (result)
+		    writeRegister(instruction.D, srcval xor dstval);
+		    status := getWordStatus (srcval xor dstval)
 		end;
 	    Op_COC:
 	        status := Status_EQ * ord (srcval and dstval = srcval);
 	    Op_CZC:
 	        status := Status_EQ * ord (srcval and dstval = 0)
 	end;
-	updateStatusBits (statusMask [instruction.opcode], status)
+	updateStatusBits (instruction, status)
     end;
 
 procedure executeFormat4 (var instruction: TInstruction);
@@ -329,9 +463,9 @@ procedure executeFormat4 (var instruction: TInstruction);
 	    end;
 	    
 	if count <= 8 then
-  	    updateStatusBits (statusMask [instruction.opcode] or Status_OP, getByteStatus (bits))
+  	    updateStatusBits (instruction, getByteStatus (bits))
 	else
-	    updateStatusBits (statusMask [instruction.opcode], getWordStatus (bits))
+	    updateStatusBits (instruction, getWordStatus (bits))
     end;
 
 procedure executeFormat5 (var instruction: TInstruction);
@@ -372,13 +506,11 @@ procedure executeFormat5 (var instruction: TInstruction);
 	end;
 	
 	writeRegister (instruction.w, val);
-	updateStatusBits (statusMask [instruction.opcode], getWordStatus (val) and (Status_LGT or Status_AGT or Status_EQ) 
+	updateStatusBits (instruction, getWordStatus (val) and (Status_LGT or Status_AGT or Status_EQ) 
 	    or Status_OV * ord (overflow) or Status_C * ord (carry))
     end;
 
 procedure executeFormat6 (var instruction: TInstruction);
-    const
-	writeResultOpcodes: set of TOpcode = [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB];
     var
 	srcaddr, srcval, result, status: uint16;
     begin
@@ -423,13 +555,13 @@ procedure executeFormat6 (var instruction: TInstruction);
             Op_SWPB:
                 result := swap16 (srcval);
             Op_X:
-                executeInstruction (srcval)
+                executeInstruction (decodedInstruction [srcval])
         end;
-	if instruction.opcode in writeResultOpcodes then
+	if instruction.opcode in [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB] then
 	    writeMemory (srcaddr, result);
-	if (instruction.opcode = Op_INV) or (instruction.opcode = Op_NEG) then
+	if instruction.opcode in [Op_INV, Op_NEG] then
 	    status := getWordStatus (result);
-	updateStatusBits (statusMask [instruction.opcode], status)
+	updateStatusBits (instruction, status)
     end;
 
 procedure executeFormat7 (var instruction: TInstruction);
@@ -465,9 +597,9 @@ procedure executeFormat8 (var instruction: TInstruction);
 	end;
         if instruction.opcode <> Op_CI then
             writeRegister (instruction.w, result);
-        if (instruction.opcode <> Op_CI) and (instruction.opcode <> Op_AI) then
+        if instruction.opcode in [Op_ANDI, Op_LI, Op_ORI] then
             status := getWordStatus (result);
-	updateStatusBits (statusMask [instruction.opcode], status)
+	updateStatusBits (instruction, status)
     end;
 
 procedure executeFormat8_1 (var instruction: TInstruction);
@@ -493,7 +625,7 @@ procedure executeFormat8_2 (var instruction: TInstruction);
 
 procedure executeFormat9 (var instruction: TInstruction);	
     var
-	srcaddr, srcval, oldWP: uint16;
+	srcaddr, srcval: uint16;
         product, dividend: uint32;
     begin
 	srcaddr := getSourceAddress (instruction);
@@ -506,13 +638,8 @@ procedure executeFormat9 (var instruction: TInstruction);
 		case instruction.opcode of
 		    Op_XOP:
 		        begin
-		            oldWP := wp;
-                            wp := readMemory ($0040 + 2 * instruction.D);
+		            performContextSwitch (readMemory ($0040 + 2 * instruction.D), readMemory ($0042 + 2 * instruction.D));
                             writeRegister (11, srcaddr);
-                            writeRegister (13, oldWP);
-                            writeRegister (14, pc);
-                            writeRegister (15, st);
-                            pc := readMemory ($0042 + 2 * instruction.D) and $fffe;
                             st := st or Status_X
                         end;
                     Op_MPY:
@@ -541,24 +668,19 @@ procedure executeFormat9 (var instruction: TInstruction);
 	    end
     end;
 
-procedure executeInstruction (instr: uint16);
-    type
-        TExecuteProc = procedure (var instruction: TInstruction);
+procedure executeInstruction (var instruction: TInstruction);
     const
-	dispatch: array [TInstructionFormat] of TExecuteProc = (
+	dispatch: array [TInstructionFormat] of procedure (var instruction: TInstruction) = (
 	    executeFormat1, executeFormat2, executeFormat2_1, executeFormat3, executeFormat4, executeFormat5, executeFormat6, executeFormat7, executeFormat8, executeFormat8_1, executeFormat8_2, executeFormat9);
     var
-	instruction: TInstruction;
 	prevPC: uint16;
 	prevCycles: int64;
     begin
         prevPC := uint16 (pc - 2);
         prevCycles := cycles;
         
-        decodeInstruction (instr, instruction);
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cycles, instruction.cycles + getWaitStates);
-
 //        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
     end;	
 
@@ -593,7 +715,7 @@ procedure runCpu;
     	
     	time := getCurrentTime;
     	repeat
-            executeInstruction (fetchInstruction);
+            executeInstruction (decodedInstruction [fetchInstruction]);
 	    sleepUntil (time + cycles * cycleTime);
   	    handleTimer (cycles);
 	    if (st and $000f >= 1) and tms9901IsInterrupt then 
@@ -607,5 +729,75 @@ procedure stopCpu;
     end;
 
 begin
-    initOpcodeStatus
+    fillChar (decodedInstruction, sizeof (decodedInstruction), 0);
+    enterData (Op_IVLD, $0000, 'IVLD', Format7,    6, Status_None);
+    enterData (Op_LI,   $0200, 'LI',   Format8,   12, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_AI,   $0220, 'AI',   Format8,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_ANDI, $0240, 'ANDI', Format8,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_ORI,  $0260, 'ORI',  Format8,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_CI,   $0280, 'CI',   Format8,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_STWP, $02a0, 'STWP', Format8_2,  8, Status_None);
+    enterData (Op_STST, $02c0, 'STST', Format8_2,  8, Status_None);
+    enterData (Op_LWPI, $02e0, 'LWPI', Format8_1, 10, Status_None);
+    enterData (Op_LIMI, $0300, 'LIMI', Format8_1, 16, Status_None);
+    enterData (Op_IDLE, $0340, 'IDLE', Format7,   12, Status_None);
+    enterData (Op_RSET, $0360, 'RSET', Format7,   12, Status_None);
+    enterData (Op_RTWP, $0380, 'RTWP', Format7,   14, Status_None);
+    enterData (Op_CKON, $03a0, 'CKON', Format7,   12, Status_None);
+    enterData (Op_CKOF, $03c0, 'CKOF', Format7,   12, Status_None);
+    enterData (Op_LREX, $03e0, 'LREX', Format7,   12, Status_None);
+    enterData (Op_BLWP, $0400, 'BLWP', Format6,   26, Status_None);
+    enterData (Op_B,    $0440, 'B',    Format6,    8, Status_None);
+    enterData (Op_X,    $0480, 'X',    Format6,    8, Status_None);
+    enterData (Op_CLR,  $04c0, 'CLR',  Format6,   10, Status_None);
+    enterData (Op_NEG,  $0500, 'NEG',  Format6,   12, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_INV,  $0540, 'INV',  Format6,   10, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_INC,  $0580, 'INC',  Format6,   10, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_INCT, $05c0, 'INCT', Format6,   10, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_DEC,  $0600, 'DEC',  Format6,   10, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_DECT, $0640, 'DECT', Format6,   10, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_BL,   $0680, 'BL',   Format6,   12, Status_None);
+    enterData (Op_SWPB, $06c0, 'SWPB', Format6,   10, Status_None);
+    enterData (Op_SETO, $0700, 'SETO', Format6,   10, Status_None);
+    enterData (Op_ABS,  $0740, 'ABS',  Format6,   14, Status_LGT + Status_AGT + Status_EQ + Status_OV);
+    enterData (Op_SRA,  $0800, 'SRA',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C);
+    enterData (Op_SRL,  $0900, 'SRL',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C);
+    enterData (Op_SLA,  $0a00, 'SLA',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_SRC,  $0b00, 'SRC',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C);
+    enterData (Op_JMP,  $1000, 'JMP',  Format2,    8, Status_None);
+    enterData (Op_JLT,  $1100, 'JLT',  Format2,    8, Status_None);
+    enterData (Op_JLE,  $1200, 'JLE',  Format2,    8, Status_None);
+    enterData (Op_JEQ,  $1300, 'JEQ',  Format2,    8, Status_None);
+    enterData (Op_JHE,  $1400, 'JHE',  Format2,    8, Status_None);
+    enterData (Op_JGT,  $1500, 'JGT',  Format2,    8, Status_None);
+    enterData (Op_JNE,  $1600, 'JNE',  Format2,    8, Status_None);
+    enterData (Op_JNC,  $1700, 'JNC',  Format2,    8, Status_None);
+    enterData (Op_JOC,  $1800, 'JOC',  Format2,    8, Status_None);
+    enterData (Op_JNO,  $1900, 'JNO',  Format2,    8, Status_None);
+    enterData (Op_JL,   $1a00, 'JL',   Format2,    8, Status_None);
+    enterData (Op_JH,   $1b00, 'JH',   Format2,    8, Status_None);
+    enterData (Op_JOP,  $1c00, 'JOP',  Format2,    8, Status_None);
+    enterData (Op_SBO,  $1d00, 'SBO',  Format2_1, 12, Status_None);
+    enterData (Op_SBZ,  $1e00, 'SBZ',  Format2_1, 12, Status_None);
+    enterData (Op_TB,   $1f00, 'TB',   Format2_1, 12, Status_EQ);
+    enterData (Op_COC,  $2000, 'COC',  Format3,   14, Status_EQ);
+    enterData (Op_CZC,  $2400, 'CZC',  Format3,   14, Status_EQ);
+    enterData (Op_XOR,  $2800, 'XOR',  Format3,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_XOP,  $2c00, 'XOP',  Format9,   36, Status_X);
+    enterData (Op_LDCR, $3000, 'LDCR', Format4,   20, Status_LGT + Status_AGT + Status_EQ + Status_C);
+    enterData (Op_STCR, $3400, 'STCR', Format4,   42, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_MPY,  $3800, 'MPY',  Format9,   52, Status_None);
+    enterData (Op_DIV,  $3c00, 'DIV',  Format9,  108, Status_OV);
+    enterData (Op_SZC,  $4000, 'SZC',  Format1,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_SZCB, $5000, 'SZCB', Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_OP);
+    enterData (Op_S,    $6000, 'S',    Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_SB,   $7000, 'SB',   Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV + Status_OP);
+    enterData (Op_C,    $8000, 'C',    Format1,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_CB,   $9000, 'CB',   Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_OP);
+    enterData (Op_A,    $a000, 'A',    Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
+    enterData (Op_AB,   $b000, 'AB',   Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV + Status_OP);
+    enterData (Op_MOV,  $c000, 'MOV',  Format1,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_MOVB, $d000, 'MOVB', Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_OP);
+    enterData (Op_SOC,  $e000, 'SOC',  Format1,   14, Status_LGT + Status_AGT + Status_EQ);
+    enterData (Op_SOCB, $f000, 'SOCB', Format1,   14, Status_LGT + Status_AGT + Status_EQ + Status_OP)
 end.

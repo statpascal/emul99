@@ -22,7 +22,7 @@ var
     pressCount: array [TKeys] of int64;
     cpuThreadId, vdpThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
-    tiImage: TScreenImage;
+    currentScreenBitmap: TScreenBitmap;
     newImage: boolean;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
@@ -233,22 +233,22 @@ procedure preparePalette;
                 gtkColor [i] := r shl 16 + g shl 8 + b
     end;
 
-procedure screenCallback (var image: TScreenImage);
+procedure screenCallback (var screenBitmap: TScreenBitmap);
     begin
-        if compareByte (tiImage, image, sizeof (tiImage)) <> 0 then
+        if compareByte (currentScreenBitmap, screenBitmap, sizeof (currentScreenBitmap)) <> 0 then
             begin
-                tiImage := image;
+                currentScreenBitmap := screenBitmap;
                 newImage := true
             end;
     end;
 
 (*$POINTERMATH ON*)    
-procedure renderScreen (var image: TScreenImage; bitmap: PCairoSurface);
+procedure renderScreen (var screenBitmap: TScreenBitmap; bitmap: PCairoSurface);
     var 
         y, x, stride: uint16;
         row: PChar;
         p: ^uint32 absolute row;
-        q: ^TPaletteEntry;
+        q: ^TPalette;
     begin
         if newImage then 
             begin
@@ -257,7 +257,7 @@ procedure renderScreen (var image: TScreenImage; bitmap: PCairoSurface);
                 stride := cairo_image_surface_get_stride (bitmap);
                 for y := 0 to pred (RenderHeight) do
                     begin
-                        q := addr (image [y]);
+                        q := addr (screenBitmap [y]);
                         for x := 0 to pred (RenderWidth) do
                             p [x] := gtkColor [q [x]];
                         inc (row, stride)
@@ -274,7 +274,7 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
             renderPcodeScreen (cr)
         else
             begin
-                renderscreen (tiImage, bitmap);
+                renderScreen (currentScreenBitmap, bitmap);
                 cairo_scale (cr, getWindowScaleWidth, getWindowScaleHeight);
                 cairo_set_source_surface (cr, bitmap, 0, 0);
                 cairo_paint (cr)
@@ -305,7 +305,7 @@ begin
         loadConfigFile (ParamStr (1))
     else
         loadConfigFile ('ti99.cfg');
-    fillChar (tiImage, sizeof (tiImage), 0);
+    fillChar (currentScreenBitmap, sizeof (currentScreenBitmap), 0);
     preparePalette;
     
     argc := 0;
