@@ -21,7 +21,6 @@ const
     Status_OV  = $0800;
     Status_OP  = $0400;
     Status_X   = $0200;
-    MaxInstruction = 65535;
     Status_None = 0;
     
 type 
@@ -49,9 +48,9 @@ var
     cycles: int64;
     cpuFreq: uint32;
     instructionString: array [TOpcode] of string;
-    decodedInstruction: array [0..MaxInstruction] of TInstruction;
+    decodedInstruction: array [uint16] of TInstruction;
 
-procedure createInstruction (instr: uint16; opcode: TOpcode; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16; var result: TInstruction);
+procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16; var result: TInstruction);
     const 
         ExtraCycles: array [0..3] of uint8 = (0, 4, 8, 6);
 
@@ -78,68 +77,61 @@ procedure createInstruction (instr: uint16; opcode: TOpcode; instructionFormat: 
 	result.cycles := cycles;
 	result.statusBits := statusBits;
 	
+	if instructionFormat in [Format1, Format2, Format3, Format4, Format6, Format9] then
+	    decodeGeneralSource;
 	case instructionFormat of
 	    Format1:
-	        begin
-	            decodeGeneralSource;
-	            decodeGeneralDestination
-                end;
+                decodeGeneralDestination;
             Format2, Format2_1:
 		result.disp := instr and $ff;
 	    Format3, Format9:
-	        begin
-                    decodeGeneralSource;	        	
-                    result.D := (instr and $03C0) shr 6
-                end;
+                result.D := (instr and $03C0) shr 6;
             Format4:
-                begin
-                    decodeGeneralSource;
-                    result.count := (instr and $03C0) shr 6
-                end;
+                result.count := (instr and $03C0) shr 6;
             Format5:
-                begin
-                    result.count := (instr and $00F0) shr 4;
-                    result.W := instr and $0f
-                end;
-            Format6:
-                decodeGeneralSource;
-            Format8, Format8_2:
-                result.W := instr and $0f
+                result.count := (instr and $00F0) shr 4
         end;
+        if instructionFormat in [Format5, Format8, Format8_2] then
+            result.W := instr and $0f;
         
         if result.opcode in [Op_STCR, Op_LDCR] then
             begin
                 if result.opcode = Op_STCR then
-                    case result.count of
-                        8:
-                            inc (result.cycles, 2);
-                        9..15:
-                            inc (result.cycles, 16);
-                        0:
-                            inc (result.cycles, 18)
-                    end
+                    inc (result.cycles, 16 * ord ((result.count >= 9) or (result.count = 0)) + 2 * ord (result.count and 7 = 0))
                 else
                     inc (result.cycles, 2 * result.count or 32 * ord (result.count = 0));
                 result.statusBits := statusBits or Status_OP * ord (result.count in [1..8])
             end 
+        else if (result.opcode in [Op_SLA, Op_SRA, Op_SRC, Op_SRL]) and (result.count = 0) then
+            inc (result.cycles, 8)
     end;
     
 function disassembleInstruction (var instruction: TInstruction; addr: uint16): string;
 
-    function disassembleGeneralAddress (tx, x: uint8; addr: uint16): string;
+    function reg (r: uint8): string;
+        begin
+            reg := 'R' + decimalStr (r)
+        end;
+        
+    function hex (w: uint16): string;
+        begin
+            hex := '>' + hexstr (w)
+        end;
+        
+    function genAddr (tx, x: uint8; addr: uint16): string;
         begin
             case tx of
                 0:
-                    disassembleGeneralAddress := 'R' + decimalstr (x);
+                    genAddr := reg (x);
                 1:
-                    disassembleGeneralAddress := '*R' + decimalstr (x);
+                    genAddr := '*' + reg (x);
                 2:
                     if x <> 0 then
-                        disassembleGeneralAddress := '@>' + hexstr (addr) + '(R' + decimalstr (x) + ')'
+                        genAddr := '@' + hex (addr) + '(' + reg (x) + ')'
                     else
-                        disassembleGeneralAddress := '@>' + hexstr (addr);
+                        genAddr := '@' + hex (addr);
                 3:
-                    disassembleGeneralAddress := '*R' + decimalstr (x) + '+'
+                    genAddr := '*' + reg (x) + '+'
             end
         end;
         
@@ -148,7 +140,7 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         
     begin
         res := hexstr (addr) + '  ' + hexstr (instruction.instr) + ' ';
-        if (instruction.instructionFormat = Format8) or (instruction.instructionFormat = Format8_1) then
+        if instruction.instructionFormat in [Format8, Format8_1] then
             res := res + hexstr (instruction.imm);
         if instruction.Ts = 2 then
             res := res + hexstr (instruction.source) + ' ';
@@ -160,25 +152,25 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         res := res + instructionString [instruction.opcode];
         while length (res) < 27 do
             res := res + ' ';
+            
+        if instruction.instructionFormat in [Format1, Format3, Format4, Format6, Format9] then
+            res := res + genAddr (instruction.Ts, instruction.S, instruction.source)
+        else if instruction.instructionFormat in [Format5, Format8, Format8_2] then
+            res := res + reg (instruction.W);
+            
         case instruction.instructionFormat of
             Format1:
-                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',' + disassembleGeneralAddress (instruction.Td, instruction.D, instruction.dest);
+                res := res + ',' + genAddr (instruction.Td, instruction.D, instruction.dest);
             Format2:
-                res := res + '>' + hexstr (addr + 2 + 2 * int8 (instruction.disp));
+                res := res + hex (addr + 2 + 2 * int8 (instruction.disp));
             Format3, Format9:
-                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',R' + decimalstr (instruction.D);
-            Format4:
-                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source) + ',' + decimalstr (instruction.count);
-            Format5:
-                res := res + 'R' + decimalstr (instruction.W) + ',' + decimalstr (instruction.count);
-            Format6:
-                res := res + disassembleGeneralAddress (instruction.Ts, instruction.S, instruction.source);
+                res := res + ',' + reg (instruction.D);
+            Format4, Format5:
+                res := res + ',' + decimalstr (instruction.count);
             Format8:
-                res := res + 'R' + decimalstr (instruction.W) + ',>' + hexstr (instruction.imm);
+                res := res + ',' + hex (instruction.imm);
             Format8_1:
-                res := res + '>' + hexstr (instruction.imm);
-            Format8_2:
-                res := res + 'R' + decimalstr (instruction.W);
+                res := res + hex (instruction.imm);
             Format2_1:
                 res := res + decimalstr (instruction.disp)
         end;
@@ -193,7 +185,7 @@ procedure enterData (opcode: TOpcode; base: uint16; instString: string; instruct
     begin
         instructionString [opcode] := instString;
         for i := 0 to pred (1 shl (16 - opcodeBits [instructionFormat])) do
-            createInstruction (base + i, opcode, instructionFormat, cycles, statusBits, decodedInstruction [base + i])
+            prepareInstruction (base + i, opcode, instructionFormat, cycles, statusBits, decodedInstruction [base + i])
     end;
 
 procedure updateStatusBits (var instruction: TInstruction; val: uint16);
@@ -306,9 +298,9 @@ function getDestAddress (var instruction: TInstruction): uint16;
 
 procedure performContextSwitch (newWP, newPC: uint16);
     begin
-	writeMemory (newWP + 26, wp);
-	writeMemory (newWP + 28, pc);
-	writeMemory (newWP + 30, st);
+	writeMemory (uint16 (newWP + 26), wp);
+	writeMemory (uint16 (newWP + 28), pc);
+	writeMemory (uint16 (newWP + 30), st);
 	wp := newWP;
 	pc := newPC and $fffe
     end;
@@ -476,13 +468,10 @@ procedure executeFormat5 (var instruction: TInstruction);
     begin
 	count := instruction.count;
 	if count = 0 then
-	    begin
-	    	inc (cycles, 8);
- 	        count := readRegister (0) and $000f;
-		if count = 0 then
-		    count := 16
-	    end;
-	inc (cycles, 2 * count);
+            count := readRegister (0) and $000f;
+	if count = 0 then
+	    count := 16;
+        inc (cycles, 2 * count);
 	
 	val := readRegister (instruction.w);
 	overflow := false;
@@ -515,7 +504,6 @@ procedure executeFormat6 (var instruction: TInstruction);
 	srcaddr, srcval, result, status: uint16;
     begin
 	srcaddr := getSourceAddress (instruction);
-	(* TODO: B, BL do not need val - really read? *)
 	srcval := readMemory (srcaddr);
 	status := 0;
         case instruction.opcode of
@@ -678,7 +666,6 @@ procedure executeInstruction (var instruction: TInstruction);
     begin
         prevPC := uint16 (pc - 2);
         prevCycles := cycles;
-        
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cycles, instruction.cycles + getWaitStates);
 //        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
@@ -725,7 +712,7 @@ procedure runCpu;
 
 procedure stopCpu;
     begin
-	cpuStopped := true;
+	cpuStopped := true
     end;
 
 begin

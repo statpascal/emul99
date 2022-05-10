@@ -201,6 +201,8 @@ Known Bugs and Limitations
   assumed that the settings remain unchanged during the sampling interval.
   Changes occuring during that interval should be recorded with a CPU
   timestamp and handled when generating output.
+- An infinite recursion of "X" operations crashes the simulator with a stack
+  overflow.
 - The recent "Copper Demo" does not work well at all.
 
 
