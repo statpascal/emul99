@@ -107,6 +107,8 @@ procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat:
     end;
     
 function disassembleInstruction (var instruction: TInstruction; addr: uint16): string;
+    var
+        codestr, textstr: string;
 
     function reg (r: uint8): string;
         begin
@@ -114,8 +116,19 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         end;
         
     function hex (w: uint16): string;
+        var
+            s: string;
         begin
-            hex := '>' + hexstr (w)
+            s := hexstr (w);
+            codestr := codestr + ' ' + s;
+            hex := '>' + s
+        end;
+        
+    function makeLength (s: string; n: uint8): string;
+        begin
+            while length (s) < n do
+                s := s + ' ';
+            makeLength := s
         end;
         
     function genAddr (tx, x: uint8; addr: uint16): string;
@@ -135,46 +148,30 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
             end
         end;
         
-    var
-        res: string;
-        
     begin
-        res := hexstr (addr) + '  ' + hexstr (instruction.instr) + ' ';
-        if instruction.instructionFormat in [Format8, Format8_1] then
-            res := res + hexstr (instruction.imm);
-        if instruction.Ts = 2 then
-            res := res + hexstr (instruction.source) + ' ';
-        if instruction.Td = 2 then
-            res := res + hexstr (instruction.dest);
-        while length (res) < 22 do
-            res := res + ' ';
-        
-        res := res + instructionString [instruction.opcode];
-        while length (res) < 27 do
-            res := res + ' ';
-            
+        codestr := hexstr (addr) + '  ' + hexstr (instruction.instr);
+        textstr := makeLength (instructionString [instruction.opcode], 5);
         if instruction.instructionFormat in [Format1, Format3, Format4, Format6, Format9] then
-            res := res + genAddr (instruction.Ts, instruction.S, instruction.source)
+            textstr := textstr + genAddr (instruction.Ts, instruction.S, instruction.source)
         else if instruction.instructionFormat in [Format5, Format8, Format8_2] then
-            res := res + reg (instruction.W);
-            
+            textstr := textstr + reg (instruction.W);
         case instruction.instructionFormat of
             Format1:
-                res := res + ',' + genAddr (instruction.Td, instruction.D, instruction.dest);
+                textstr := textstr + ',' + genAddr (instruction.Td, instruction.D, instruction.dest);
             Format2:
-                res := res + hex (addr + 2 + 2 * int8 (instruction.disp));
+                textstr := textstr + '>' + hexstr (addr + 2 + 2 * int8 (instruction.disp));
             Format3, Format9:
-                res := res + ',' + reg (instruction.D);
+                textstr := textstr + ',' + reg (instruction.D);
             Format4, Format5:
-                res := res + ',' + decimalstr (instruction.count);
+                textstr := textstr + ',' + decimalstr (instruction.count);
             Format8:
-                res := res + ',' + hex (instruction.imm);
+                textstr := textstr + ',' + hex (instruction.imm);
             Format8_1:
-                res := res + hex (instruction.imm);
+                textstr := textstr + hex (instruction.imm);
             Format2_1:
-                res := res + decimalstr (instruction.disp)
+                textstr := textstr + decimalstr (instruction.disp)
         end;
-        disassembleInstruction := res
+        disassembleInstruction := makeLength (codestr, 22) + textstr
     end;        
 
 procedure enterData (opcode: TOpcode; base: uint16; instString: string; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16);
