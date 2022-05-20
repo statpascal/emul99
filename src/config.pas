@@ -19,7 +19,7 @@ var
 procedure loadConfigFile (fn: string);
     type
         TConfigKey = record
-	    key, value: string
+	    key, value, path: string
 	end;
         TKeyType = (CpuFreq, Mem32KExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
                     SerialDsr, SerialPort1In, SerialPort2In, SerialPort3In, SerialPort4In, ParallelPort1In, ParallelPort2In, SerialPort1Out, SerialPort2Out, SerialPort3Out, SerialPort4Out, ParallelPort1Out, ParallelPort2Out, Invalid);
@@ -52,7 +52,7 @@ procedure loadConfigFile (fn: string);
 		    inc (kt);
 	        evalKey := kt
 	    end;
-	
+
         begin
             cartBank := 0;
             pcodeGromCount := 0;
@@ -68,70 +68,62 @@ procedure loadConfigFile (fn: string);
 			        if n = 1 then 
  			    	    configure32KExtension;
 		            ConsoleRom: 
-		    	        loadConsoleRom (value);
+		    	        loadConsoleRom (path);
   		            ConsoleGroms:
-		                loadConsoleGroms (value);
+		                loadConsoleGroms (path);
 			    CartRom:
 			        begin
-				    loadCartROM (cartBank, value);
+				    loadCartROM (cartBank, path);
 				    inc (cartBank)
 				end;
 			    CartGroms:
-			        loadCartGROM (value);
+			        loadCartGROM (path);
 		            DiskSimDsr:
-			         diskDsr := value;
+			         diskDsr := path;
 		            DiskSimDir:
 		                 if diskDsr <> '' then
-		                     initDiskSim (diskDsr, value)
+		                     initDiskSim (diskDsr, path)
 		                 else
 		                     writeln ('disksim_dir specified without valid disksim_dsr value');
 			    FdcDsr:
-			        fdcInitCard (value);
-			    FdcDisk1:
-			    	fdcSetDiskImage (1, value);
-			    FdcDisk2:
-			    	fdcSetDiskImage (2, value);
-			    FdcDisk3:
-			    	fdcSetDiskImage (3, value);
+			        fdcInitCard (path);
+			    FdcDisk1..FdcDisk3:
+			    	fdcSetDiskImage (succ (ord (keyType) - ord (FdcDisk1)), path);
 			    PcodeDsrLow: 
-			        pcodeRomFilenames.dsrLow := value;
+			        pcodeRomFilenames.dsrLow := path;
 			    PcodeDsrHigh:
-			        pcodeRomFilenames.dsrHigh := value;
+			        pcodeRomFilenames.dsrHigh := path;
 			    PcodeGrom:
 			        begin
 			            if pcodeGromCount < 8 then
-  			    	        pcodeRomFilenames.groms [pcodeGromCount] := value;
+  			    	        pcodeRomFilenames.groms [pcodeGromCount] := path;
  			    	    inc (pcodeGromCount)
  			    	end;
 			    PcodeScreen80:
 			    	pcode80 := true;
 			    PcodeDiskDsr:
-			        initPcodeDisk (value);
-			    PcodeDisk1: 
-			        pcodeDiskSetDiskImage (1, value);
-			    PcodeDisk2: 
-			        pcodeDiskSetDiskImage (2, value);
-			    PcodeDisk3:
-			        pcodeDiskSetDiskImage (3, value);
+			        initPcodeDisk (path);
+			    PcodeDisk1..PcodeDisk3:
+			        pcodeDiskSetDiskImage (succ (ord (keyType) - ord (PcodeDisk1)), path);
 			    CartMiniMem:
 			    	if n = 1 then
 				    configureMiniMemory;
 			    CartInverted:
  			        setCartROMInverted (n = 1);
 			    CassIn:
-			        setCassetteInput (value);
+			        setCassetteInput (path);
 			    CassOut:
-			        setCassetteOutput (value);
+			        setCassetteOutput (path);
 			    WindowScaleWidth:
 			        scaleWidth := n;
 			    WindowScaleHeight:
 			        scaleHeight := n;
 			    SerialDsr:
-			        initSerial (value);
+			        initSerial (path);
 			    SerialPort1In..ParallelPort2In:
-			        setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1In)), PortIn, value);
+			        setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1In)), PortIn, path);
 			    SerialPort1Out..ParallelPort2Out:
-			        setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1Out)), PortOut, value);
+			        setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1Out)), PortOut, path);
 			    Invalid:
 			        writeln ('Invalid config entry: ', key, ' = ', value)
 			end
@@ -140,7 +132,7 @@ procedure loadConfigFile (fn: string);
 	        initPCodeCard (pcodeRomFilenames)
 	end;
 	
-    procedure loadConfigKeys (fn: string; level: uint8);
+    procedure loadConfigKeys (dir, fn: string; level: uint8);
         var
             f: text;
             s: string;
@@ -157,18 +149,24 @@ procedure loadConfigFile (fn: string);
 		            value := trim (copy (s, succ (p), length (s) - p));
 		            if (key <> '') and (value <> '') then 
 		                if upcase (key) = 'INCLUDE' then
-		                    loadConfigKeys (value, succ (level))
+		                    loadConfigKeys (dir, value, succ (level))
 		                else
-  		                    inc (keyCount)
+		                    begin
+		                        if value [1] <> '/' then
+		                            path := dir + value
+		                        else
+		                            path := value;
+     		                        inc (keyCount)
+				    end
 		        end
 	    end;
 	
         begin
-            if not fileExists (fn) then
-	        errorExit ('config file ' + fn + ' not found');
+            if not fileExists (dir + fn) then
+	        errorExit ('config file ' + dir + fn + ' not found');
 	    if level > maxConfigLevel then
 	        errorExit ('Configuration files nested too deep - recursive inclusion?');
-       	    assign (f, fn);
+       	    assign (f, dir + fn);
     	    reset (f);
     	    while not eof (f) do
 	        begin
@@ -184,7 +182,7 @@ procedure loadConfigFile (fn: string);
         scaleWidth := 4;
         scaleHeight := 4;
         keyCount := 0;
-        loadConfigKeys (fn, 1);
+        loadConfigKeys (extractFilePath (fn), extractFileName (fn), 1);
         evaluateKeys
     end;
     

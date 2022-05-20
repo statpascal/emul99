@@ -66,6 +66,7 @@ procedure dumpPabOperation (pab: TPabPtr);
         dataTypeString: array [TDataType] of string = ('Display', 'Internal');
         operationModeString: array [TOperationMode] of string = ('Update', 'Output', 'Input', 'Append');
         accessTypeString: array [TAccessType] of string = ('Sequential', 'Relative');
+        errorCodeString: array [TErrorCode] of string = ('NoError', 'WriteProtection', 'BadAttribute', 'IllegalOpcode', 'MemoryFull', 'PastEOF', 'DeviceError', 'FileError');
     begin
         writeln ('Device:            ', getDeviceName (pab));
         writeln ('File:              ', getFileName (pab));
@@ -78,7 +79,7 @@ procedure dumpPabOperation (pab: TPabPtr);
         writeln ('Number of char:    ', getNumChars (pab));
         writeln ('Recod #/File size: ', getRecordNumber (pab));
         writeln ('Status:            ', getStatus (pab));
-        writeln ('Error code:        ', getErrorCode (pab));
+        writeln ('Error code:        ', errorCodeString [getErrorCode (pab)]);
         writeln
     end;
     
