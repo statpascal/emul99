@@ -107,7 +107,7 @@ added from within the P-code sytem with the Filer.
 
 Moreover, an internal 80x24 screen image is maintained at memory address
 >2000. The simulator provides a flag to use this image instead of the
-output created by the VDP (see ucsd80.cfg) to display 80 columns of text.
+output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the

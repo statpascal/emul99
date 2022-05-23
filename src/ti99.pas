@@ -302,9 +302,9 @@ var
     
 begin
     if ParamCount >= 1 then
-        loadConfigFile (ParamStr (1))
+        loadConfig (ParamStr (1))
     else
-        loadConfigFile ('ti99.cfg');
+        loadConfig ('ti99.cfg');
     fillChar (currentScreenBitmap, sizeof (currentScreenBitmap), 0);
     preparePalette;
     
