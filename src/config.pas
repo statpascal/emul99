@@ -168,8 +168,8 @@ procedure loadConfigFile (fn: string; level: uint8);
 procedure loadConfig (fn: string);    
     begin
         pcode80 := false;
-        scaleWidth := 4;
-        scaleHeight := 4;
+        scaleWidth := 3;
+        scaleHeight := 3;
         cartBank := 0;
         pcodeGromCount := 0;
         diskDsr := '';

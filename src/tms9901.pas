@@ -65,7 +65,7 @@ function tms9901ReadBit (addr: TTms9901CRUAddress): TCRUBit;
                 0:
                     tms9901ReadBit := 1;
                 1..14:
-                    tms9901ReadBit := ord (odd (readReg shr pred (addr)));
+                    tms9901ReadBit := (readReg shr pred (addr)) and 1;
                 15:
                     tms9901ReadBit := ord (timerInterrupt);	 (* TODO: invert bit? *)
                 27:

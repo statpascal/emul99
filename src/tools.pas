@@ -2,8 +2,6 @@ unit tools;
 
 interface
 
-function swap16 (u: uint16): uint16;
-
 function hexstr (u: uint16): string;
 function hexstr2 (u: uint8): string;
 function decimalstr (v: int64): string;
@@ -27,24 +25,19 @@ implementation
 
 uses fileop;
 
-function swap16 (u: uint16): uint16;
-    begin
-        swap16 := (u shr 8) or ((u and $ff) shl 8)
-    end;
-    
 const 
     hex: array [0..15] of string = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F');
     
-function hexstr (u: uint16): string;
-    begin
-        hexstr := hex [u shr 12] + hex [(u shr 8) and $0f] + hex [(u shr 4) and $0f] + hex [u and $0f]
-    end;
-
 function hexstr2 (u: uint8): string;    
     begin
         hexstr2 := hex [(u shr 4) and $0f] + hex [u and $0f]
     end;
     
+function hexstr (u: uint16): string;
+    begin
+        hexstr := hexstr2 (u shr 8) + hexstr2 (u and $ff)
+    end;
+
 function decimalstr (v: int64): string;
     var 
         s: string;
@@ -59,14 +52,11 @@ function trim (s: string): string;
     begin
         b := 1;
         e := length (s);
-	while (b <= length (s)) and (s [b] = ' ') do
+	while (b <= e) and (s [b] = ' ') do
 	    inc (b);
 	while (e >= b) and (s [e] = ' ') do
 	    dec (e);
-        if e >= b then
-	    trim := copy (s, b, succ (e - b))
-        else
-	    trim := ''
+        trim := copy (s, b, succ (e - b))
     end; 
     
 function loadBlock (var dest; size, offset: int64; fileName: string): int64;
@@ -129,7 +119,7 @@ function crc16 (var data; size: int64): uint16;
             begin
                 crc := crc xor (p [j] shl 8);
                 for i := 1 to 8 do
-                    crc := ((crc shl 1) xor ($1021 * (crc shr 15))) and $ffff;
+                    crc := ((crc shl 1) xor ($1021 * (crc shr 15))) and $ffff
             end;        
         crc16 := crc
     end;
@@ -141,7 +131,7 @@ function oddParity (val: uint8): boolean;
 
 function getHighLow (val: uint16; highByte: boolean): uint8;
     begin
-        getHighLow := (val shr (ord (highByte) * 8)) and $ff;
+        getHighLow := (val shr (ord (highByte) * 8)) and $ff
     end;
     
 procedure setHighLow (var val: uint16; highByte: boolean; b: uint8);

@@ -259,7 +259,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
         begin
             colors := colors or bgColor * ord (colors and $0f = 0) or (bgColor shl 4) * ord (colors and $f0 = 0);
             for i := 7 downto textOffset do
-                destPtr [7 - i] := colors shr (4 * ord (odd (pattern shr i))) and $0f
+                destPtr [7 - i] := colors shr (4 * ((pattern shr i) and 1)) and $0f
         end;
         
     procedure drawTextMode (imageTablePtr: TMemoryPtr);

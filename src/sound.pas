@@ -84,7 +84,7 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
                                 begin
                                     generatorCounter [NoiseGenerator] := toneDivider [NoiseGenerator - ord (toneDivider [NoiseGenerator] = $100)];
                                     noiseShift := noiseShift shr 1 or ord (odd (noiseShift shr 1) xor (noiseIsWhite and odd (noiseShift shr 3))) shl 15;
-                                    generatorOutput [NoiseGenerator] := ord (odd (noiseShift))
+                                    generatorOutput [NoiseGenerator] := noiseShift and 1
                                 end
                             else
                                 begin

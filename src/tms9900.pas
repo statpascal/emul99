@@ -37,8 +37,7 @@ type
         B: boolean;        
 	Td, Ts: 0..3;
         D, S, W, count: 0..15;
-	disp: 0..255;
-	cycles: uint8;
+	disp, cycles: uint8;
 	instr, source, dest, imm, statusBits: uint16
     end;
     
@@ -124,13 +123,6 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
             hex := '>' + s
         end;
         
-    function makeLength (s: string; n: uint8): string;
-        begin
-            while length (s) < n do
-                s := s + ' ';
-            makeLength := s
-        end;
-        
     function genAddr (tx, x: uint8; addr: uint16): string;
         begin
             case tx of
@@ -150,7 +142,7 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
         
     begin
         codestr := hexstr (addr) + '  ' + hexstr (instruction.instr);
-        textstr := makeLength (instructionString [instruction.opcode], 5);
+        textstr := copy (instructionString [instruction.opcode] + '     ', 1, 5);
         if instruction.instructionFormat in [Format1, Format3, Format4, Format6, Format9] then
             textstr := textstr + genAddr (instruction.Ts, instruction.S, instruction.source)
         else if instruction.instructionFormat in [Format5, Format8, Format8_2] then
@@ -171,7 +163,7 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
             Format2_1:
                 textstr := textstr + decimalstr (instruction.disp)
         end;
-        disassembleInstruction := makeLength (codestr, 22) + textstr
+        disassembleInstruction := codestr + stringOfChar (' ', 22 - length (codestr)) + textstr
     end;        
 
 procedure enterData (opcode: TOpcode; base: uint16; instString: string; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16);
@@ -298,7 +290,7 @@ procedure performContextSwitch (newWP, newPC: uint16);
 	writeMemory (uint16 (newWP + 26), wp);
 	writeMemory (uint16 (newWP + 28), pc);
 	writeMemory (uint16 (newWP + 30), st);
-	wp := newWP;
+	wp := newWP and $fffe;
 	pc := newPC and $fffe
     end;
 
@@ -306,8 +298,8 @@ procedure executeInstruction (var instruction: TInstruction); forward;
 
 procedure executeFormat1 (var instruction: TInstruction);
     var
-	srcaddr, dstaddr, srcval, dstval, result, status: uint16;
-	srcval8, dstval8, result8: uint8;
+	srcaddr, dstaddr, srcval, dstval, status: uint16;
+	srcval8, dstval8: uint8;
     begin
 	srcaddr := getSourceAddress (instruction);
 	srcval := readMemory (srcaddr);
@@ -316,44 +308,43 @@ procedure executeFormat1 (var instruction: TInstruction);
 	if instruction.B then
 	    begin
   	        srcval8 := getHighLow (srcval, not odd (srcaddr));
-  	        dstval8 := getHighLow (dstval, not odd (dstaddr));
-  	        result := dstval;
+  	        dstval8 := getHighLow (dstval, not odd (dstaddr))
 	    end;
         case instruction.opcode of
 	    Op_A:
-	        add16 (status, srcval, dstval, result, false);
+	        add16 (status, srcval, dstval, dstval, false);
 	    Op_S:
-	        add16 (status, uint16 (-srcval), dstval, result, true);
+	        add16 (status, uint16 (-srcval), dstval, dstval, true);
 	    Op_AB:
-	    	add8 (status, srcval8, dstval8, result8, false);
+	    	add8 (status, srcval8, dstval8, dstval8, false);
 	    Op_SB:
-	    	add8 (status, uint8 (-srcval8), dstval8, result8, true);
+	    	add8 (status, uint8 (-srcval8), dstval8, dstval8, true);
 	    Op_C:
 	        status := compare16 (srcval, dstval);
 	    Op_CB:
 	        status := compare8 (srcval8, dstval8);
 	    Op_MOV:
-   	        result := srcval;
+   	        dstval := srcval;
 	    Op_MOVB:
-	        result8 := srcval8;
+	        dstval8 := srcval8;
 	    Op_SOC:
-	        result := srcval or dstval;
+	        dstval := srcval or dstval;
 	    Op_SOCB:
-	        result8 := srcval8 or dstval8;
+	        dstval8 := srcval8 or dstval8;
 	    Op_SZC:
- 	        result := dstval and not srcval;
+ 	        dstval := dstval and not srcval;
 	    Op_SZCB:
- 	        result8 := dstval8 and not srcval8
+ 	        dstval8 := dstval8 and not srcval8
 	end;
 	if instruction.opcode in [Op_MOVB, Op_SOCB, Op_SZCB] then
- 	    status := getByteStatus (result8)
+ 	    status := getByteStatus (dstval8)
 	else if instruction.opcode in [Op_MOV, Op_SOC, Op_SZC] then
-  	    status := getWordStatus (result);
+  	    status := getWordStatus (dstval);
 	if not (instruction.opcode in [Op_C, Op_CB]) then
 	    begin
   	        if instruction.B then
-	            setHighLow (result, not odd (dstaddr), result8);
-  	        writeMemory (dstaddr, result);
+	            setHighLow (dstval, not odd (dstaddr), dstval8);
+  	        writeMemory (dstaddr, dstval);
 	    end;
 	updateStatusBits (instruction, status)
     end;
@@ -401,22 +392,21 @@ procedure executeFormat2_1 (var instruction: TInstruction);
 
 procedure executeFormat3 (var instruction: TInstruction);
     var
-	srcval, dstval, status: uint16;
+	srcval, dstval: int16;
     begin
 	srcval := readMemory (getSourceAddress (instruction));
 	dstval := readRegister (instruction.D);
 	case instruction.opcode of
 	    Op_XOR:
 	        begin
-		    writeRegister(instruction.D, srcval xor dstval);
-		    status := getWordStatus (srcval xor dstval)
+		    writeRegister (instruction.D, srcval xor dstval);
+		    updateStatusBits (instruction, getWordStatus (srcval xor dstval))
 		end;
 	    Op_COC:
-	        status := Status_EQ * ord (srcval and dstval = srcval);
+                updateStatusBits (instruction, Status_EQ * ord (srcval and dstval = srcval));
 	    Op_CZC:
-	        status := Status_EQ * ord (srcval and dstval = 0)
-	end;
-	updateStatusBits (instruction, status)
+                updateStatusBits (instruction, Status_EQ * ord (srcval and dstval = 0))
+	end
     end;
 
 procedure executeFormat4 (var instruction: TInstruction);
@@ -437,7 +427,7 @@ procedure executeFormat4 (var instruction: TInstruction);
 	        else
 	            bits := srcval;
    	        for i := 0 to pred (count) do
-		    writeCru (cruBase + i, ord (odd (bits shr i)))
+		    writeCru (cruBase + i, (bits shr i) and 1)
 	    end
 	else (* STCR *)
 	    begin
@@ -471,18 +461,13 @@ procedure executeFormat5 (var instruction: TInstruction);
         inc (cycles, 2 * count);
 	
 	val := readRegister (instruction.w);
-	overflow := false;
+	overflow := (count = 16) and (val <> 0) or 
+	            (count <> 16) and (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count)); // SLA only
 	carry := odd (val shr (pred (count) + (17 - 2 * count) * ord (instruction.opcode = Op_SLA)));
 	
 	case instruction.opcode of
 	    Op_SLA:
-	        begin
-    	            if count = 16 then
-	                overflow := val <> 0
-	            else
-	                overflow := (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count));
-		    val := uint16 (val shl count)
-		end;
+                val := uint16 (val shl count);
 	    Op_SRA:
 	        val := uint16 (int16 (val) shr count);
 	    Op_SRC:
@@ -492,60 +477,56 @@ procedure executeFormat5 (var instruction: TInstruction);
 	end;
 	
 	writeRegister (instruction.w, val);
-	updateStatusBits (instruction, getWordStatus (val) and (Status_LGT or Status_AGT or Status_EQ) 
-	    or Status_OV * ord (overflow) or Status_C * ord (carry))
+	updateStatusBits (instruction, getWordStatus (val) and (Status_LGT or Status_AGT or Status_EQ) or Status_OV * ord (overflow) or Status_C * ord (carry))
     end;
 
 procedure executeFormat6 (var instruction: TInstruction);
     var
-	srcaddr, srcval, result, status: uint16;
+	addr, val, status: uint16;
     begin
-	srcaddr := getSourceAddress (instruction);
-	srcval := readMemory (srcaddr);
+	addr := getSourceAddress (instruction);
+	val := readMemory (addr);
 	status := 0;
         case instruction.opcode of
             Op_ABS:
-                begin
-                    status := getWordStatus (srcval);
-                    if int16 (srcval) < 0 then
-                        writeMemory (srcaddr, uint16 (-srcval))
-		    else
-                        dec (cycles, 2)
-                end;
+                if int16 (val) < 0 then
+                    writeMemory (addr, uint16 (-val))
+                else
+                    dec (cycles, 2);
             Op_B:
-                pc := srcaddr and $fffe;
+                pc := addr and $fffe;
             Op_BL:
                 begin
                     writeRegister (11, pc);
-                    pc := srcaddr and $fffe
+                    pc := addr and $fffe
                 end;
             Op_BLWP:
-                performContextSwitch (srcval, readMemory (srcaddr + 2));
+                performContextSwitch (val, readMemory (addr + 2));
             Op_CLR:
-                result := 0;
+                val := 0;
             Op_DEC:
-                add16 (status, uint16 (-1), srcval, result, true);
+                add16 (status, uint16 (-1), val, val, true);
             Op_DECT:
-                add16 (status, uint16 (-2), srcval, result, true);
+                add16 (status, uint16 (-2), val, val, true);
             Op_INC:
-                add16 (status, 1, srcval, result, false);
+                add16 (status, 1, val, val, false);
             Op_INCT:
-                add16 (status, 2, srcval, result, false);
+                add16 (status, 2, val, val, false);
             Op_INV:
-                result := uint16 (not srcval);
+                val := uint16 (not val);
             Op_NEG:
-                result := uint16 (-srcval);
+                val := uint16 (-val);
             Op_SETO:
-                result := $ffff;
+                val := $ffff;
             Op_SWPB:
-                result := swap16 (srcval);
+                val := val shr 8 or (val and $ff) shl 8;
             Op_X:
-                executeInstruction (decodedInstruction [srcval])
+                executeInstruction (decodedInstruction [val])
         end;
 	if instruction.opcode in [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB] then
-	    writeMemory (srcaddr, result);
-	if instruction.opcode in [Op_INV, Op_NEG] then
-	    status := getWordStatus (result);
+	    writeMemory (addr, val);
+	if instruction.opcode in [Op_ABS, Op_INV, Op_NEG] then
+	    status := getWordStatus (val);
 	updateStatusBits (instruction, status)
     end;
 
@@ -594,7 +575,7 @@ procedure executeFormat8_1 (var instruction: TInstruction);
 	    Op_LIMI:
 	        st := st and $fff0 or instruction.imm and $000f;
 	    Op_LWPI:
-	        wp := instruction.imm
+	        wp := instruction.imm and $fffe
         end
     end;
 
@@ -672,8 +653,7 @@ procedure handleInterrupt (level: uint8);
     begin
 	performContextSwitch (readMemory (4 * level), readMemory (4 * level + 2));
 	inc (cycles, 22);
-	if st and $000f > 0 then
-	    dec (st)
+        dec (st)
     end;
 
 procedure setCpuFrequency (freq: uint32);
