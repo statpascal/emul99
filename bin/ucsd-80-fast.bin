@@ -1,0 +1,9 @@
+include = ucsd-80.cfg
+
+; For compiler runs, the simulator can be executed at maximum speed 
+; (1 GHz is well beyond the capabilities of current systems)
+; on the same disk images that are used by a slower interactive session.
+; This will result in high CPU loads on the host system even when 
+; the simulated TI 99 is idle.
+
+cpu_freq = 1000000000
