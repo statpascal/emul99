@@ -10,9 +10,6 @@ function readPcodeDisk (addr: uint16): uint16;
 procedure initPcodeDisk (dsrFilename: string);
 procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);
 
-const
-    PcodeDiskCruAddress = $1300;
-
     
 implementation
 
@@ -28,9 +25,7 @@ type
     TDisk = array [0..MaxSectors - 1, 0..SectorSize - 1] of uint8;
 
 var
-    dsrRom: array [$4000..$5fff] of uint8;
-    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
-    
+    dsrRom: TDsrRom;
     diskBuffers: array [TDiskDrive] of ^TDisk;
     diskSectors: array [TDiskDrive] of 0..MaxSectors;
 
@@ -41,7 +36,9 @@ procedure pcodeDiskSubSectorIO;
             drive: uint8;
             rw: uint8;
             bufptr: uint16;
-            sectorNumberIn: uint16
+            case boolean of
+                false: (sectorNumberIn: uint16);
+                true:  (errorCode: uint8)
         end;
         TSectorIOCmdPtr = ^TSectorIOCmd;
     var
@@ -53,19 +50,19 @@ procedure pcodeDiskSubSectorIO;
         if (cmd^.drive in [1..NumberDrives]) and (sectorNumber < diskSectors [cmd^.drive]) then
             begin
                 if (cmd^.rw <> 0) then
-                    move (diskBuffers [cmd^.drive]^[ntohs (cmd^.sectorNumberIn)], getVdpRamPtr (ntohs (cmd^.bufptr))^, SectorSize)
+                    move (diskBuffers [cmd^.drive]^[sectorNumber], getVdpRamPtr (ntohs (cmd^.bufptr))^, SectorSize)
                 else
-                    move (getVdpRamPtr (ntohs (cmd^.bufptr))^, diskBuffers [cmd^.drive]^[ntohs (cmd^.sectorNumberIn)], SectorSize);
+                    move (getVdpRamPtr (ntohs (cmd^.bufptr))^, diskBuffers [cmd^.drive]^[sectorNumber], SectorSize);
                 cmd^.sectorNumberOut := cmd^.sectorNumberin;
-                cmd^.sectorNumberIn := E_NoError
+                cmd^.errorCode := E_NoError
             end
         else
-            cmd^.sectorNumberIn := E_DeviceError
+            cmd^.errorCode := E_DeviceError
     end;    
 
 function readPcodeDisk (addr: uint16): uint16;
     begin
-        readPcodeDisk := htons (dsrRomW [addr shr 1])
+        readPcodeDisk := ntohs (dsrRom.w [addr shr 1])
     end;
 
 procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);

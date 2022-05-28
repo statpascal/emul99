@@ -13,9 +13,6 @@ function readFdcCardCru (addr: TCruR12Address): TCruBit;
 procedure fdcInitCard (dsrFilename: string);
 procedure fdcSetDiskImage (diskDrive: TDiskDrive; filename: string);
 
-const 
-    FdcCardCruAddress = $1100;
-
 
 implementation
 
@@ -65,9 +62,7 @@ type
     end;
 
 var
-    dsrRom: array [$4000..$5fff] of uint8;
-    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
-
+    dsrRom: TDsrRom;
     disks: array [TDiskDrive] of ^TDisk;
     diskReady: array [TDiskDrive] of boolean;
     diskDoubleSided: array [TDiskDrive] of boolean;
@@ -377,7 +372,7 @@ function readFdcCard (addr: uint16): uint16;
                 readFdcCard := (res xor $ff) shl 8
             end
         else
-            readFdcCard := htons (dsrRomW [addr shr 1])
+            readFdcCard := ntohs (dsrRom.w [addr shr 1])
     end;
 
 procedure writeFdcCardCru (addr: TCruR12Address; value: TCruBit);

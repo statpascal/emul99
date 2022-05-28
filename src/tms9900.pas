@@ -449,7 +449,7 @@ procedure executeFormat4 (var instruction: TInstruction);
 
 procedure executeFormat5 (var instruction: TInstruction);
     var 
-	count: uint8;
+	count: 0..16;
 	val: uint16;
 	overflow, carry: boolean;
     begin

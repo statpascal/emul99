@@ -9,6 +9,7 @@ ti99.pas provides the following features:
 
 - emulation of console with 32K extension
 - P-code card with optional 80 column display
+- Transfer tool for text files between host system and UCSD disk images
 - several disk systems:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
   * Program/data files in TIFILES format in host system directory
@@ -27,7 +28,7 @@ and under Ubuntu 21/Linux Mint with
 
 sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
-Development is mainly done under openSUSE Tumbleweed.
+Development is mainly done under openSUSE Tumbleweed on x64. 
 
 Executing the build script "compile-fpc.sh" generates the binaries "ti99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
@@ -77,19 +78,6 @@ and the left "Alt" key is the fire button. These mappings are defined in
 the file "ti99.pas" and can only be changed by editing the source file.
 
 
-Multiple Instances
-
-Disk images (using the original DSR or the P-code DSR) are memory mapped and
-can be shared between multiple instances of the simulator. Changes are
-immediately visible to other instances but there is no mechanism to
-synchronize them; so data corruption is possible if they are written to at
-the same time.
-
-The simulator does not provide a utility to transfer files between standard
-TI disk images and the host system. Programs like xdm99 from Ralph Benzinger's
-xdt99 tools can be utilized for this task.
-
-
 P-code simulation
 
 The P-code card uses only sector based disk operations (subroutine >10 of
@@ -116,10 +104,30 @@ following options:
 ucsddskman image-name list
 ucsddskman image-name extract ucsd-file local-file
 ucsddskman image-name add ucsd-file local-file
+ucsddskman image-name remove ucsd-file
 
-Files are only added after the last used block.
+Files are only added after the last used block. To update an existing text
+file in a disk image, it first needs to be removed.
 
-Overclocking the system (cpufreq setting) can also be desirable. 
+Overclocking the system (cpu_freq setting in the configuration file) might
+also be desirable. The example configuration in ucsd-80.cfg uses a fivefold
+speed (15 MHz) which is close to making the keyboard unusable. However,
+with some caution it is possible to start a second instance of the simulator
+running on the same disk images at maximum speed to execute the compiler
+(see ucsd-80-fast.bin and the next section).
+
+
+Multiple Instances
+
+Disk images (using the original DSR or the P-code DSR) are memory mapped and
+can be shared between multiple instances of the simulator. Changes are
+immediately visible to other instances but there is no mechanism to
+synchronize them; so data corruption is possible if they are written to at
+the same time.
+
+The simulator does not provide a utility to transfer files between standard
+TI disk images and the host system. Programs like xdm99 from Ralph Benzinger's
+xdt99 tools can be utilized for this task.
 
 
 Cassette I/O
@@ -158,7 +166,7 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (about 5100 lines of Pascal source
+The implementation is rather concise (about 5050 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -170,16 +178,15 @@ take longer than the available 64 microseconds to render which can cause
 problems with code relying on an exact scanline timing.
 
 The timer of the TMS9901 needs to be interleaved with the CPU to
-get the required exact timing for cassette operations.  
+get the exact timing required for cassette operations.  
 
 This approach is sufficient to run the "Don't mess with Texas" megademo but
 the output of the recent Copper demo is rather distorted.
 
 The DSRs for the simulated devices (serial, host and special P-Code disk
-system) need to transform control to the simulator at some point. This is
-done via an "XOP 0" instruction, specifying the requested operation as a
-dummy source address. The simulated TMS9900 dispatches these XOP calls in
-the file "xophandler.pas."
+system) transform control to the simulator with an "XOP 0" instruction,
+specifying the requested operation as a dummy source address. The simulated
+TMS9900 dispatches these XOP calls in the file "xophandler.pas."
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the

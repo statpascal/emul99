@@ -111,7 +111,7 @@ function getFilePtr (dsk: TDiskImagePtr; fn: string): TFilePtr;
         getFilePtr := nil;
         for i := 1 to ntohs (dirPtr^.numFiles) do
             begin
-                filePtr := TFilePtr (dsk + DirOffset + DirEntrySize * i);
+                filePtr := TFilePtr (dirPtr) + i;
                 if nameCompare (filePtr, fn) then
                     getFilePtr := filePtr
             end
@@ -151,7 +151,7 @@ procedure listDir (dsk: TDiskImagePtr);
         writeln ('Last boot: ', dateString (ntohs (dirPtr^.lastboot)));
         writeln;
         for i := 1 to ntohs (dirPtr^.numFiles) do
-            listFile (TFilePtr (dsk + DirOffset + DirEntrySize * i))
+            listFile (TFilePtr (dirPtr) + i)
     end;
     
 procedure dumpTextFile (dsk: TDiskImagePtr; filePtr: TFilePtr; fnout: string);
@@ -308,7 +308,6 @@ procedure appendTextFile (dsk: TDiskImagePtr; fn, fnin: string);
                         
     end;
         
-    
 procedure addFile (dsk: TDiskImagePtr; fn, fnin: string);
     var
         i: 1..MaxFileName;
@@ -329,13 +328,35 @@ procedure addFile (dsk: TDiskImagePtr; fn, fnin: string);
         appendTextFile (dsk, fn, fnin)
     end;
     
+procedure removeFile (dsk: TDiskImagePtr; fn: string);
+    var
+        filePtr, endPtr: TFilePtr;
+        dirPtr: TDirPtr;
+    begin
+        filePtr := getFilePtr (dsk, fn);
+        if filePtr = nil then
+            writeln ('No file ', fn, ' found in image.')
+        else
+            begin
+                dirPtr := TDirPtr (dsk + DirOffset);
+                endPtr := TFilePtr (dirPtr) + ntohs (dirPtr^.numFiles);
+                while filePtr < endPtr do
+                    begin
+                        filePtr^ := (filePtr + 1)^;
+                        inc (filePtr)
+                    end;
+                dirPtr^.numFiles := htons (pred (ntohs (dirPtr^.numFiles)))
+            end
+    end;
+    
 procedure help;
     begin
         writeln ('Usage is:');
         writeln;
         writeln ('ucsddsk image-name list');
         writeln ('ucsddsk image-name extract ucsd-file local-file');
-        writeln ('ucsddsk image-name add ucsd-file local-file')
+        writeln ('ucsddsk image-name add ucsd-file local-file');
+        writeln ('ucsddsk image-name remove ucsd-file')
     end;
     
 var
@@ -351,6 +372,8 @@ begin
                 extractFile (p, ParamStr (3), ParamStr (4))
             else if ParamStr (2) = 'add' then
                 addFile (p, ParamStr (3), ParamStr (4))
+            else if ParamStr (2) = 'remove' then
+                removeFile (p, ParamStr (3))
             else
                 help;
             closeAllMappings

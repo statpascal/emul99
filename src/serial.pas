@@ -3,6 +3,7 @@ unit serial;
 // Work in progress
 // - Read should not block because the CPU cycle count/real time are completely out of sync and interrupts are not served
 // - Load/Save not yet implemented
+// - Reading incomplete
 
 interface
 
@@ -20,9 +21,6 @@ function readSerial (addr: uint16): uint16;
 procedure initSerial (dsrFilename: string);
 procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDirection;  filename: string);
 
-const
-    SerialSimCruAddress = $1500;
-    
     
 implementation
 
@@ -37,9 +35,7 @@ type
     end;
 
 var
-    dsrRom: array [$4000..$5fff] of uint8;
-    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
-    
+    dsrRom: TDsrRom;
     serialFiles: array [TSerialPort, TSerialPortDirection] of TFileHandle;
     
 procedure serialSimPowerup;
@@ -203,7 +199,7 @@ procedure serialSimDSR;
     
 function readSerial (addr: uint16): uint16;
     begin
-        readSerial := htons (dsrRomW [addr shr 1])
+        readSerial := ntohs (dsrRom.w [addr shr 1])
     end;
 
 procedure initSerial (dsrFilename: string);

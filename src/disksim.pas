@@ -21,12 +21,10 @@ procedure diskSimSubFileInput;
 procedure diskSimSubFileOutput;
 procedure diskSimSubNumberOfFiles;
 
-const 
-    DiskSimCruAddress = $1200;
 
 implementation
 
-uses memory, vdp, pab, tools, cfuncs, math, sysutils;
+uses memory, vdp, pab, types, tools, cfuncs, math, sysutils;
 
 const
     SectorSize = 256;
@@ -71,9 +69,7 @@ type
     end;
     
 var
-    dsrRom: array [$4000..$5fff] of uint8;
-    dsrRomW: array [$2000..$2fff] of uint16 absolute dsrRom;
-    
+    dsrRom: TDsrRom;
     files: array [1..MaxFiles] of TFileBuffer;
     fileDirectory: string;
 
@@ -636,7 +632,7 @@ procedure initFileBuffers;
 
 function readDiskSim (addr: uint16): uint16;
     begin
-        readDiskSim := htons (dsrRomW [addr shr 1])
+        readDiskSim := ntohs (dsrRom.w [addr shr 1])
     end;
 
 procedure initDiskSim (dsrFileName, directory: string);

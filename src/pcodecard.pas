@@ -18,22 +18,14 @@ type
 
 procedure initPcodeCard (filenames: TPcodeRomFilenames);
 
-const
-    PcodeCardCruAddress = $1f00;
-
 
 implementation
 
 uses grom, tools, cfuncs;
 
 var
-    pcodeDsrLow: array [$4000..$4fff] of uint8;
-    pcodeDsrLowW: array [$2000..$27ff] of uint16 absolute pcodeDsrLow;
-    
-    pcodeDsrHigh: array [0..1, $5000..$5FFF] of uint8;
-    pcodeDsrHighW: array [0..1, $2800..$2FFF] of uint16 absolute pcodeDsrHigh;
-    
-    pcodeHighBank: 0..1;
+    dsrRom: array [0..1] of TDsrRom;  
+    dsrBank: 0..1;
     pcodeGrom: TGrom;
 
 procedure writePcodeCard (addr, val: uint16);
@@ -48,22 +40,20 @@ function readPcodeCard (addr: uint16): uint16;
             readPcodeCard := readGromData (pcodeGrom) shl 8
         else if addr = $5BFE then
             readPcodeCard := readGromAddress (pcodeGrom) shl 8
-        else if addr >= $5000 then
-            readPcodeCard := ntohs (pcodeDsrHighW [pcodeHighBank, addr shr 1])
         else
-            readPcodeCard := ntohs (pcodeDsrLowW [addr shr 1])
+            readPcodeCard := ntohs (dsrRom [dsrBank].w [addr shr 1])
     end;
     
 procedure writePcodeCardCru (addr: TCruR12Address; value: TCruBit);
     begin
         if addr = $1F80 then
-            pcodeHighBank := value
+            dsrBank := value
     end;
     
 function readPcodeCardCru (addr: TCruR12Address): TCruBit;
     begin
         if addr = $1F80 then
-            readPcodeCardCru := pcodeHighBank
+            readPcodeCardCru := dsrBank
         else
             readPcodeCardCru := 0
     end;
@@ -74,8 +64,10 @@ procedure initPcodeCard (filenames: TPcodeRomFilenames);
     begin
         with filenames do
             begin
-                loadBlock (pcodeDsrLow, sizeof (pcodeDsrLow), 0, dsrLow);
-                loadBlock (pcodeDsrHigh, sizeof (pcodeDsrHigh), 0, dsrHigh);
+                loadBlock (dsrRom [0], $1000, 0, dsrLow);
+                move (dsrRom [0], dsrRom [1], $1000);
+                loadBlock (dsrRom [0].b [$5000], $1000, 0, dsrHigh);
+                loadBlock (dsrRom [1].b [$5000], $1000, $1000, dsrHigh);
                 for i := 0 to 7 do
                     loadBlock (pcodeGrom.data [i * $2000], $2000, 0, groms [i])
             end

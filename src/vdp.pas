@@ -182,7 +182,7 @@ procedure drawSpritesScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
         spriteIndex: 0..NrSprites; 
         spriteAttributePtr: ^TSpriteAttribute;
         
-    procedure drawSpriteLine (xpos: int16; pattern: uint16; color: TPalette);
+    procedure drawSpritePattern (xpos: int16; pattern: uint16; color: TPalette);
         var
             i: 0..15;
             j: boolean;
@@ -221,7 +221,7 @@ procedure drawSpritesScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
                             xpos := spriteAttribute.hpos - (spriteAttribute.color and $80) shr 2;
                             patternAddr := spritePatternTable + (spriteAttribute.pattern and not (3 * ord (spriteSize4))) shl 3;
                             yoffset := (scanline - ypos) shr ord (spriteMagnification);
-                            drawSpriteLine (xpos, vdpRAM [patternAddr + yOffset] shl 8 or vdpRAM [patternAddr + yOffset + 16], spriteAttribute.color and $0f)
+                            drawSpritePattern (xpos, vdpRAM [patternAddr + yOffset] shl 8 or vdpRAM [patternAddr + yOffset + 16], spriteAttribute.color and $0f)
                         end
                 end
         end;
