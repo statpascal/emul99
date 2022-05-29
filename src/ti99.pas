@@ -3,7 +3,7 @@ program ti99;
 (*$linklib c*)
 
 uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
-     tms9900, tms9901, vdp, memory, sound, keyboard, fdccard, tape, config, tools, pcode80;
+     tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80;
 
 const
     KeyMapSize = 256;

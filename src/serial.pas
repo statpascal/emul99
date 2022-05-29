@@ -24,7 +24,7 @@ procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDire
     
 implementation
 
-uses vdp, memory, keyboard, pab, tools, fileop, cfuncs;
+uses vdp, memory, tms9901, pab, tools, fileop, cfuncs;
 
 type
     TSerialModifiers = record
