@@ -11,7 +11,7 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
 
 procedure writeMemory (addr, w: uint16);
 function readMemory (addr: uint16): uint16;
-function getMemoryPtr (s: uint16): TMemoryPtr;
+function getMemoryPtr (s: uint16): TUint8Ptr;
 
 function getWaitStates: uint8;
 
@@ -42,11 +42,11 @@ type
     end;
 
 var
-    mem: array [0..MaxAddress] of uint8;
-    memW: array [0..MaxAddress div 2] of uint16 absolute mem;
+    mem: array [0..MaxAddress div 2] of uint16;
+    memB: array [0..MaxAddress] of uint8 absolute mem;
 	
-    cart: array [0..MaxCardBanks - 1, $6000..$7FFF] of uint8;
-    cartW: array [0..MaxCardBanks - 1, $3000..$3FFF] of uint16 absolute cart;
+    cart: array [0..MaxCardBanks - 1, $3000..$3FFF] of uint16;
+    cartB: array [0..MaxCardBanks - 1, $6000..$7FFF] of uint8 absolute cart;
     cartBanks: 1..MaxCardBanks;
     activeCartBank: 0..MaxCardBanks - 1;
     cartROMInverted: boolean;
@@ -66,24 +66,24 @@ function readNull (addr: uint16): uint16;
 	readNull := 0
     end;
     
-procedure writeMemW (addr, w: uint16);
+procedure writeMem (addr, w: uint16);
     begin
-	memW [addr shr 1] := htons (w)
+	mem [addr shr 1] := htons (w)
     end;
 
-function readMemW (addr: uint16): uint16;
+function readMem (addr: uint16): uint16;
     begin
-	readMemW := ntohs (memW [addr shr 1])
+	readMem := ntohs (mem [addr shr 1])
     end;
 
 procedure writePAD (addr, w: uint16);
     begin
-	writeMemW (addr or $8300, w)
+	writeMem (addr or $8300, w)
     end;
 
 function readPAD (addr: uint16): uint16;
     begin
-	readPAD := readMemW (addr or $8300)
+	readPAD := readMem (addr or $8300)
     end;
 
 procedure writeSound (addr, w: uint16);
@@ -116,7 +116,7 @@ procedure writeCart (addr, w: uint16);
     
 function readCart (addr: uint16): uint16;
     begin
-	readCart := ntohs (cartW [activeCartBank, addr shr 1])
+	readCart := ntohs (cart [activeCartBank, addr shr 1])
     end;
     
 procedure writeDsrROM (addr, val: uint16);
@@ -177,13 +177,13 @@ procedure setMemoryMap (startAddr, endAddr: uint16; writeFunc: TMemoryWriter; wr
 
 procedure configure32KExtension;
     begin
-        setMemoryMap ($2000, $3ffe, writeMemW, 4, readMemW, 4);
-        setMemoryMap ($a000, $fffe, writeMemW, 4, readMemW, 4)
+        setMemoryMap ($2000, $3ffe, writeMem, 4, readMem, 4);
+        setMemoryMap ($a000, $fffe, writeMem, 4, readMem, 4)
     end;
 
 procedure configureMiniMemory;
     begin    
-  	setMemoryMap ($7000, $7ffe, writeMemW, 4, readMemW, 4)
+  	setMemoryMap ($7000, $7ffe, writeMem, 4, readMem, 4)
     end;
 
 procedure writeMemory (addr, w: uint16);
@@ -205,9 +205,9 @@ function readMemory (addr: uint16): uint16;
            end 
     end;
     
-function getMemoryPtr (s: uint16): TMemoryPtr;
+function getMemoryPtr (s: uint16): TUint8Ptr;
     begin
-        getMemoryPtr := addr (mem [s])
+        getMemoryPtr := addr (memB [s])
     end;
     
 function getWaitStates: uint8;
@@ -220,12 +220,12 @@ function getWaitStates: uint8;
 
 procedure loadConsoleRom (filename: string);
     begin
-        loadBlock (mem [0], MaxAddress, 0, filename)
+        loadBlock (mem, MaxAddress, 0, filename)
     end;
     
 procedure loadConsoleGroms (filename: string);
     begin
-        loadBlock (groms.data [0], MaxAddress, 0, filename)
+        loadBlock (groms.data, MaxAddress, 0, filename)
     end;
 
 procedure loadCartROM (bank: uint8; filename: string);
@@ -235,7 +235,9 @@ procedure loadCartROM (bank: uint8; filename: string);
         size := getFileSize (filename);
         if (bank = 0) and (size > sizeof (cart [0])) then
             begin
-                loadBlock (cart [0], size, 0, filename);
+                if size > sizeof (cart) then
+                    errorExit ('Cannot load cartridge: please enlarge MaxCardBanks in file memory.pas');
+                loadBlock (cart, size, 0, filename);
                 bank := (size - 1) div sizeof (cart [9])
             end
         else
@@ -294,7 +296,7 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
     end;
 
 begin
-    setMemoryMap ($0000, $1ffe, writeNull, 0, readMemW, 0);
+    setMemoryMap ($0000, $1ffe, writeNull, 0, readMem, 0);
     setMemoryMap ($2000, $fffe, writeNull, 4, readNull, 4);
     setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
     setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);

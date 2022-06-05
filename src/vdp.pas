@@ -29,7 +29,7 @@ procedure vdpWriteCommand (b: uint8);
 function vdpReadData: uint8;
 function vdpReadStatus: uint8;
 
-function getVdpRamPtr (a: uint16): TMemoryPtr;
+function getVdpRamPtr (a: uint16): TUint8Ptr;
 
 procedure runVdp;
 procedure stopVdp;
@@ -121,7 +121,7 @@ function vdpReadStatus: uint8;
             tms9901setVdpInterrupt (false)
     end;
     
-function getVdpRamPtr (a: uint16): TMemoryPtr;
+function getVdpRamPtr (a: uint16): TUint8Ptr;
     begin
         getVdpRamPtr := addr (vdpRAM [a])
     end;
@@ -262,7 +262,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
                 destPtr [7 - i] := colors shr (4 * ((pattern shr i) and 1)) and $0f
         end;
         
-    procedure drawTextMode (imageTablePtr: TMemoryPtr);
+    procedure drawTextMode (imageTablePtr: TUint8Ptr);
         var
             x: 0..39;
         begin
@@ -270,7 +270,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
                 drawBitmapPattern (bitmapPtr + 6 * x, vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRegister [7], 2)
         end;
         
-    procedure drawStandardMode (imageTablePtr: TMemoryPtr);
+    procedure drawStandardMode (imageTablePtr: TUint8Ptr);
         var
             x: 0..31;
         begin
@@ -278,7 +278,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
                 drawBitmapPattern (bitmapPtr + 8 * x, vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRAM [colorTable + imageTablePtr [x] shr 3], 0);
         end;
         
-    procedure drawBitmapMode (imageTablePtr: TMemoryPtr);
+    procedure drawBitmapMode (imageTablePtr: TUint8Ptr);
         var
             x: 0..31;
             offset, offsetBase: uint16;
@@ -294,7 +294,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
     procedure drawMultiColorMode (scanline: uint8);
         var
             x: 0..31;
-            imageTablePtr: TMemoryPtr;
+            imageTablePtr: TUint8Ptr;
         begin
             imageTablePtr := addr (vdpRAM [imageTable + (scanline and $f8) shl 2]);
             for x := 0 to 31 do

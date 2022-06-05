@@ -33,7 +33,7 @@ function getPcodeScreenHeight: uint32;
 
 procedure renderPcodeScreen (cr: PCairoT);
     var
-        screenPtr: TMemoryPtr;
+        screenPtr: TUint8Ptr;
         y: 0..Height - 1;
         x: 0..Width - 1;
         buf: array [0..1] of char;

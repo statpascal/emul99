@@ -17,7 +17,7 @@ type
     TCruAddress = 0..MaxCruAddress;
     TCruR12Address = 0..2 * MaxCruAddress;
     TCruBit = 0..1;
-    TMemoryPtr = ^uint8;
+    TUint8Ptr = ^uint8;
     TDiskDrive = 1..NumberDrives;
     
     TDsrRom = record

@@ -15,7 +15,7 @@ procedure fdcSetDiskImage (diskDrive: TDiskDrive; filename: string);
 
 
 implementation
-
+(*$POINTERMATH ON*)
 uses tools, memmap,  cfuncs;
 
 const
@@ -49,14 +49,13 @@ type
     TSector = array [0..SectorSize - 1] of uint8;
     TTrack = array [0..DiskSectors - 1] of TSector;
     TDisk = array [0..1, 0..DiskTracks - 1] of TTrack;	(* two sides, single density *)
-    
+    TStepDirection = -1..1;
     TActiveCommand = (CmdNone, CmdReadSector, CmdWriteSector, CmdReadId, CmdReadTrack, CmdWriteTrack);
     
     TRegisters = record
         track, sector, status, data: uint8
     end;
-    
-    TReadIdBuffer = record
+    TSectorIdData = record
         track, side, sector, sizecode: uint8;
         crc: uint16
     end;
@@ -64,30 +63,28 @@ type
 var
     dsrRom: TDsrRom;
     disks: array [TDiskDrive] of ^TDisk;
-    diskReady: array [TDiskDrive] of boolean;
     diskDoubleSided: array [TDiskDrive] of boolean;
-    readIdBuffer: TReadIdBuffer;
+    sectorIdData: TSectorIdData;
 
     regs: TRegisters;
     selectedSide: 0..1;
     activeTrack: 0..DiskTracks;
-    stepDirection: -1..1;
-    bytesLeft: uint16;
-    
-    idBlockBytesLeft, dataBlockBytesLeft: uint16;
-    trackWriteIdData: array [0..4] of uint8;
+    stepDirection: TStepDirection;
+    bytesLeft, trackBytesLeft: uint16;
     trackWriteSector: 0..DiskSectors - 1;
     
-    readWritePtr: ^uint8;
+    readWritePtr: TUint8Ptr;
     activeCommand: TActiveCommand;
     activeDisk: 0..NumberDrives;
-    diskImageName: array [TDiskDrive] of string;
 
-procedure writeByte (b: uint8; var counter: uint16);
+procedure writeByte (var p: TUint8Ptr; b: uint8; var counter: uint16);
     begin
-         readWritePtr^ := b;
-         inc (readWritePtr);
-         dec (counter)
+        if p <> nil then
+            begin
+                p^ := b;
+                inc (p)
+            end;
+        dec (counter)
     end;
     
 procedure terminateActiveCommand;
@@ -97,7 +94,7 @@ procedure terminateActiveCommand;
             begin
                 regs.status := regs.status or StatusLostData;
                 while bytesLeft mod SectorSize <> 0 do
-                    writeByte (0, bytesLeft)
+                    writeByte (readWritePtr, 0, bytesLeft)
             end;
         activeCommand := CmdNone
     end;
@@ -127,37 +124,32 @@ procedure handleSeek (cmd: uint8);
         regs.track := regs.data;
     end;
     
-procedure handleStep (cmd: uint8);
+procedure handleStep (cmd: uint8; direction: TStepDirection);
     begin
+        stepDirection := direction;
         moveActiveTrack (stepDirection);
         if cmd and $10 <> 0 then
             regs.track := activeTrack
     end;
     
-procedure handleStepIn (cmd: uint8);
-    begin 
-        stepDirection := 1;
-        handleStep (cmd);
+function getDiskPointer (disk, side, track, sector: uint8): TUint8Ptr;
+    begin
+        if (disk in [1..NumberDrives]) and (disks [disk] <> nil) and (side <= ord (diskDoubleSided [disk])) and (track < DiskTracks) and (sector < DiskSectors) then
+            getDiskPointer := addr (disks [disk]^[side, track, sector])
+        else
+            getDiskPointer := nil
     end;
     
-procedure handleStepOut (cmd: uint8);
+function findReadWritePosition (cmd: uint16): TUint8Ptr;
+    var
+        res: TUint8Ptr;
     begin
-        stepDirection := -1;
-        handleStep (cmd)
-    end;
-    
-function findReadWritePosition (cmd: uint16): pointer;
-    begin
-        findReadWritePosition := nil;
-(*
-        writeln ('Active Disk: ', activeDisk);
-        writeln ('Regs.sector = ', regs.Sector);
-        writeln ('Regs.track = ', regs.track);
-        writeln ('Active Track = ', activeTrack);
-*)
-        if (activeDisk <> 0) and (regs.sector < DiskSectors) and (activeTrack = regs.track) and (selectedSide <= ord (diskDoubleSided [activeDisk])) then
+        if activeTrack = regs.track then
+            res := getDiskPointer (activeDisk, selectedSide, activeTrack, regs.sector)
+        else
+            res := nil;
+        if res <> nil then
             begin
-                findReadWritePosition := addr (disks [activeDisk]^[selectedSide][activeTrack][regs.sector]);
                 if cmd and $10 <> 0 then
                     bytesLeft := SectorSize * (DiskSectors - regs.sector)
                 else
@@ -165,7 +157,8 @@ function findReadWritePosition (cmd: uint16): pointer;
                 regs.status := (regs.status or StatusBusy) and not (StatusCrcError or StatusLostData)
             end
         else
-            regs.status := regs.status or StatusRecordNotFound
+            regs.status := regs.status or StatusRecordNotFound;
+        findReadWritePosition := res
     end;
             
     
@@ -185,21 +178,19 @@ procedure handleWriteSector (cmd: uint8);
     
 procedure handleReadId (cmd: uint8);
     begin
-        bytesLeft := sizeof (readIdBuffer);
-        readWritePtr := addr (readIdBuffer);
-        readIdBuffer.track := activeTrack;
-        readIdBuffer.side := selectedSide * ord ((activeDisk <> 0) and diskDoubleSided [activeDisk]);
-        readIdBuffer.sector := regs.sector;
-(*        readIdBuffer.sector := (readIdBuffer.sector + 1) mod DiskSectors; *)
-        readIdBuffer.sizecode := 1;
-        readIdBuffer.crc := htons (crc16 (readIdBuffer, 4));
+        bytesLeft := sizeof (sectorIdData);
+        readWritePtr := addr (sectorIdData);
+        sectorIdData.track := activeTrack;
+        sectorIdData.side := selectedSide * ord ((activeDisk <> 0) and diskDoubleSided [activeDisk]);
+        sectorIdData.sector := regs.sector;
+        sectorIdData.sizecode := 1;
+        sectorIdData.crc := htons (crc16 (sectorIdData, 4));
         regs.status := (regs.status or StatusBusy) and not (StatusCrcError or StatusLostData)
     end;
     
 procedure handleForceInterrupt (cmd: uint8);
     begin
-        regs.status := regs.status and not StatusBusy;
-(*        writeln ('FDC: Force interrupt'); *)
+        regs.status := regs.status and not StatusBusy
     end;
     
 procedure handleReadTrack (cmd: uint8);
@@ -209,37 +200,32 @@ procedure handleReadTrack (cmd: uint8);
     
 procedure handleWriteTrack (cmd: uint8);
     begin
-        if selectedSide <= ord (diskDoubleSided [activeDisk]) then
+        if getDiskPointer (activeDisk, selectedSide, activeTrack, 0) <> nil then
             begin
-                readWritePtr := addr (disks [activeDisk]^[selectedSide][activeTrack][0]);
-                bytesLeft := 3236;
+                bytesLeft := 3236;	// track length written by disk manager
                 regs.status := (regs.status or StatusBusy) and not (StatusCrcError or StatusLostData);
                 activeCommand := CmdWriteTrack
             end
         else
-            begin
-                readWritePtr := nil;
-                regs.status := StatusRecordNotFound
-            end;
-(*        writeln ('FDC: Write Track S', selectedSide, ' T', activeTrack) *)
+            regs.status := StatusRecordNotFound
     end;
     
 procedure handleCommand (cmd: uint8);
     begin
         terminateActiveCommand;
         if activeDisk <> 0 then
-            if diskReady [activeDisk] then
+            if disks [activeDisk] <> nil then
                 case cmd of
                     $00..$0f:
                         handleRestore (cmd);
                     $10..$1f:
                         handleSeek (cmd);
                     $20..$3f:
-                        handleStep (cmd);
+                        handleStep (cmd, stepDirection);
                     $40..$5f:
-                        handleStepIn (cmd);
+                        handleStep (cmd, 1);
                     $60..$7f:
-                        handleStepOut (cmd);
+                        handleStep (cmd, -1);
                     $80..$9f:
                         handleReadSector (cmd);
                     $a0..$bf:
@@ -258,53 +244,37 @@ procedure handleCommand (cmd: uint8);
     end;
     
 procedure handleDataWrite (val: uint8);
-    const
-        IdMark = $fe;
-        DataMark = $fb;
     begin
         regs.data := val;
-    
         if activeCommand = CmdWriteTrack then
             begin
                 if val = $fe then 
-                    idBlockBytesLeft := sizeof (trackWriteIdData)
+                    begin
+                        trackBytesLeft := 4;
+                        readWritePtr := addr (sectorIdData)
+                    end
                 else if val = $fb then
                     begin
-                        dataBlockBytesLeft := 256;
-                        if (activeDisk <> 0) and (selectedSide <= ord (diskDoubleSided [activeDisk])) then
-                            readWritePtr := addr (disks [activeDisk]^[selectedSide][activeTrack][trackWriteSector])
-                        else
-                            readWritePtr := nil;
+                        trackBytesLeft := 256;
+                        readWritePtr := getDiskPointer (activeDisk, selectedSide, activeTrack, trackWriteSector)
                     end
-                else if idBlockBytesLeft > 0 then 
+                else if trackBytesLeft > 0 then 
                     begin
-                        trackWriteIdData [sizeof (trackWriteIdData) - idBlockBytesLeft] := val;
-                        dec (idBlockBytesLeft);
-                        if idBlockBytesLeft = 0 then 
-                            begin
-                                if trackWriteIdData [2] < DiskSectors then
-                                    trackWriteSector := trackWriteIdData [2];
-                            end
-                    end
-                else if dataBlockBytesLeft > 0 then
-                    begin
-                        writeByte (val, dataBlockBytesLeft);
+                        writeByte (readWritePtr, val, trackBytesLeft);
+                        if (trackBytesLeft = 0) and (readWritePtr = TUint8Ptr (addr (sectorIdData)) + 4) then
+                            trackWriteSector := sectorIdData.sector;
                     end;
-                    
                 dec (bytesLeft);
                 if bytesLeft = 0 then 
                     terminateActiveCommand
             end
-        else if activeCommand = CmdWriteSector then
+        else if (activeCommand = CmdWriteSector) and (readWritePtr <> nil) and (bytesLeft > 0) then 
             begin
-                if (readWritePtr <> nil) and (bytesLeft > 0) then 
-                    begin
-                        writeByte (val, bytesLeft);
-                        if bytesLeft = 0 then
-                            regs.status := regs.status and not StatusBusy
-                        else if bytesLeft mod SectorSize = 0 then
-                            inc (regs.sector);
-                    end
+                writeByte (readWritePtr, val, bytesLeft);
+                if bytesLeft = 0 then
+                    regs.status := regs.status and not StatusBusy
+                else if bytesLeft mod SectorSize = 0 then
+                    inc (regs.sector);
             end
     end;
 
@@ -327,11 +297,8 @@ function getStatus: uint8;
     const
         count: int64 = 0;
     begin 
-        if count mod 100 = 0 then
-        getStatus := regs.status or StatusIndexPulse
-        else
-        getStatus := regs.status;
-        inc (count);
+        getStatus := regs.status or StatusIndexPulse * ord (count mod 64 = 0);
+        inc (count)
     end;
         
 function handleDataRead: uint8;
@@ -347,7 +314,6 @@ function handleDataRead: uint8;
                     inc (regs.sector)
             end
         else
-            (* Error? *)
             handleDataRead := 0
     end;
         
@@ -394,20 +360,18 @@ procedure writeFdcCardCru (addr: TCruR12Address; value: TCruBit);
 function readFdcCardCru (addr: TCruR12Address): TCruBit;
     var
         bit: 0..$7f;
-        res: TCruBit;
     begin
         bit := (addr and $ff) shr 1;
         case bit of
             1, 2, 3:
-                res := ord (activeDisk = bit);
+                readFdcCardCru := ord (activeDisk = bit);
             6:
-                res := 1;
+                readFdcCardCru := 1;
             7:
-                res := selectedSide
+                readFdcCardCru := selectedSide
             else
-                res := 0
-        end;
-        readFdcCardCru := res
+                readFdcCardCru := 0
+        end
     end;
 
 procedure fdcInitCard (dsrFilename: string);
@@ -421,29 +385,21 @@ procedure fdcInitCard (dsrFilename: string);
     
 procedure fdcSetDiskImage (diskDrive: TDiskDrive; filename: string);
     begin
-        diskImageName [diskDrive] := filename;
-        diskReady [diskDrive] := filename <> '';
-        if diskReady [diskDrive] then
-            begin
-                disks [diskDrive] := createMapping (filename);
-                case getMappingSize (disks [diskDrive]) of
-                    SingleSidedDisk:
-                        diskDoubleSided [diskDrive] := false;
-                    DoubleSidedDisk:
-                        diskDoubleSided [diskDrive] := true
-                    else
-                        begin
-                            writeln ('Illegal disk size (', getMappingSize (disks [diskDrive]), ' bytes) in file ', filename);
-                            diskReady [diskDrive] := false
-                        end
-                end
+        disks [diskDrive] := createMapping (filename);
+        if disks [diskDrive] <> nil then
+            case getMappingSize (disks [diskDrive]) of
+                SingleSidedDisk:
+                    diskDoubleSided [diskDrive] := false;
+                DoubleSidedDisk:
+                    diskDoubleSided [diskDrive] := true
+                else
+                    begin
+                        writeln ('Illegal disk size (', getMappingSize (disks [diskDrive]), ' bytes) in file ', filename);
+                        disks [diskDrive] := nil
+                    end
             end
     end; 
 
-var
-    i: TDiskDrive;
-
 begin
-    for i := 1 to NumberDrives do
-        diskImageName [i] := ''    
+    fillChar (disks, sizeof (disks), 0)
 end.

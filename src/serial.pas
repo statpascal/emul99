@@ -132,7 +132,7 @@ procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFi
     var
         count, numChars, ch: uint8;
         done: boolean;
-        vdpBuffer: TMemoryPtr;
+        vdpBuffer: TUint8Ptr;
     begin
         if handle = InvalidFileHandle then
             setErrorCode (pab, E_DeviceError)
