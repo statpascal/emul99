@@ -69,7 +69,6 @@ procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat:
         end;
 
     begin
-	fillchar (result, sizeof (result), 0);
 	result.instr := instr;
 	result.opcode := opcode;
 	result.instructionFormat := instructionFormat;
@@ -151,7 +150,7 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
             Format1:
                 textstr := textstr + ',' + genAddr (instruction.Td, instruction.D, instruction.dest);
             Format2:
-                textstr := textstr + '>' + hexstr (addr + 2 + 2 * int8 (instruction.disp));
+                textstr := textstr + '>' + hexstr (uint16 (addr + 2 + 2 * int8 (instruction.disp)));
             Format3, Format9:
                 textstr := textstr + ',' + reg (instruction.D);
             Format4, Format5:
@@ -251,47 +250,40 @@ function fetchInstruction: uint16;
 
 function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: boolean): uint16;
     var
-	tmp: uint16;
+	res: uint16;
     begin
 	case T of
 	    0:
-		getGeneralAddress := uint16 (wp + 2 * reg);
+		res := uint16 (wp + 2 * reg);
 	    1:
-		getGeneralAddress := readRegister (reg);
+		res := readRegister (reg);
 	    2:
 	        begin
 	            addr := fetchInstruction;	// fill in address for tracing
  		    if reg = 0 then
-	 	        getGeneralAddress := addr
+	 	        res := addr
 		    else
-		        getGeneralAddress := uint16 (addr + readRegister (reg))
+		        res := uint16 (addr + readRegister (reg))
 		end;
 	    3:  
 		begin
-		    tmp := readRegister (reg);
-		    writeRegister (reg, uint16 (tmp + 2 - ord (byteOp)));
-		    getGeneralAddress := tmp
+		    res := readRegister (reg);
+		    writeRegister (reg, uint16 (res + 2 - ord (byteOp)));
 		end
-	end
+	end;
+	getGeneralAddress := res
     end;
 
-function getSourceAddress (var instruction: TInstruction): uint16;
+procedure switchContext (vect: uint16);
+    var
+        newWP: uint16;
     begin
-	getSourceAddress := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B)
-    end;
-
-function getDestAddress (var instruction: TInstruction): uint16;
-    begin
-	getDestAddress := getGeneralAddress (instruction.Td, instruction.D, instruction.dest, instruction.B)
-    end;
-
-procedure performContextSwitch (newWP, newPC: uint16);
-    begin
+        newWP := readMemory (vect) and $fffe;
 	writeMemory (uint16 (newWP + 26), wp);
 	writeMemory (uint16 (newWP + 28), pc);
 	writeMemory (uint16 (newWP + 30), st);
-	wp := newWP and $fffe;
-	pc := newPC and $fffe
+	wp := newWP;
+	pc := readMemory (vect + 2) and $fffe
     end;
 
 procedure executeInstruction (var instruction: TInstruction); forward;
@@ -301,15 +293,13 @@ procedure executeFormat1 (var instruction: TInstruction);
 	srcaddr, dstaddr, srcval, dstval, status: uint16;
 	srcval8, dstval8: uint8;
     begin
-	srcaddr := getSourceAddress (instruction);
+	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
 	srcval := readMemory (srcaddr);
-	dstaddr := getDestAddress (instruction);
+        srcval8 := getHighLow (srcval, not odd (srcaddr));
+	dstaddr := getGeneralAddress (instruction.Td, instruction.D, instruction.dest, instruction.B);
 	dstval := readMemory (dstaddr);
-	if instruction.B then
-	    begin
-  	        srcval8 := getHighLow (srcval, not odd (srcaddr));
-  	        dstval8 := getHighLow (dstval, not odd (dstaddr))
-	    end;
+        dstval8 := getHighLow (dstval, not odd (dstaddr));
+        
         case instruction.opcode of
 	    Op_A:
 	        add16 (status, srcval, dstval, dstval, false);
@@ -336,16 +326,15 @@ procedure executeFormat1 (var instruction: TInstruction);
 	    Op_SZCB:
  	        dstval8 := dstval8 and not srcval8
 	end;
+	
 	if instruction.opcode in [Op_MOVB, Op_SOCB, Op_SZCB] then
  	    status := getByteStatus (dstval8)
 	else if instruction.opcode in [Op_MOV, Op_SOC, Op_SZC] then
   	    status := getWordStatus (dstval);
+        if instruction.B then
+            setHighLow (dstval, not odd (dstaddr), dstval8);
 	if not (instruction.opcode in [Op_C, Op_CB]) then
-	    begin
-  	        if instruction.B then
-	            setHighLow (dstval, not odd (dstaddr), dstval8);
-  	        writeMemory (dstaddr, dstval);
-	    end;
+            writeMemory (dstaddr, dstval);
 	updateStatusBits (instruction, status)
     end;
 
@@ -394,7 +383,7 @@ procedure executeFormat3 (var instruction: TInstruction);
     var
 	srcval, dstval: int16;
     begin
-	srcval := readMemory (getSourceAddress (instruction));
+	srcval := readMemory (getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B));
 	dstval := readRegister (instruction.D);
 	case instruction.opcode of
 	    Op_XOR:
@@ -415,11 +404,11 @@ procedure executeFormat4 (var instruction: TInstruction);
         cruBase: TCRUAddress;
 	i, count: 0..16;
     begin
-	srcaddr := getSourceAddress (instruction);
+	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
 	srcval := readMemory (srcaddr);
 	cruBase := (readRegister (12) shr 1) and $0fff;
 	count := instruction.count or 16 * ord (instruction.count = 0);
-
+	
 	if instruction.opcode = Op_LDCR then
 	    begin
 		if count <= 8 then
@@ -459,7 +448,6 @@ procedure executeFormat5 (var instruction: TInstruction);
 	if count = 0 then
 	    count := 16;
         inc (cycles, 2 * count);
-	
 	val := readRegister (instruction.w);
 	overflow := (count = 16) and (val <> 0) or 
 	            (count <> 16) and (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count)); // SLA only
@@ -481,37 +469,34 @@ procedure executeFormat5 (var instruction: TInstruction);
     end;
 
 procedure executeFormat6 (var instruction: TInstruction);
+    const
+        addVal: array [Op_INC..Op_DECT] of uint16 = ($0001, $0002, $ffff, $fffe);
     var
 	addr, val, status: uint16;
     begin
-	addr := getSourceAddress (instruction);
-	val := readMemory (addr);
+	addr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
+	if instruction.opcode <> Op_BLWP then
+            val := readMemory (addr);
 	status := 0;
+	
         case instruction.opcode of
             Op_ABS:
                 if int16 (val) < 0 then
                     writeMemory (addr, uint16 (-val))
                 else
                     dec (cycles, 2);
-            Op_B:
-                pc := addr and $fffe;
-            Op_BL:
+            Op_B, Op_BL:
                 begin
-                    writeRegister (11, pc);
+                    if instruction.opcode = Op_BL then
+                        writeRegister (11, pc);
                     pc := addr and $fffe
                 end;
             Op_BLWP:
-                performContextSwitch (val, readMemory (addr + 2));
+                switchContext (addr);
             Op_CLR:
                 val := 0;
-            Op_DEC:
-                add16 (status, uint16 (-1), val, val, true);
-            Op_DECT:
-                add16 (status, uint16 (-2), val, val, true);
-            Op_INC:
-                add16 (status, 1, val, val, false);
-            Op_INCT:
-                add16 (status, 2, val, val, false);
+            Op_INC..Op_DECT:
+                add16 (status, addVal [instruction.opcode], val, val, false);
             Op_INV:
                 val := uint16 (not val);
             Op_NEG:
@@ -523,6 +508,7 @@ procedure executeFormat6 (var instruction: TInstruction);
             Op_X:
                 executeInstruction (decodedInstruction [val])
         end;
+        
 	if instruction.opcode in [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB] then
 	    writeMemory (addr, val);
 	if instruction.opcode in [Op_ABS, Op_INV, Op_NEG] then
@@ -561,6 +547,7 @@ procedure executeFormat8 (var instruction: TInstruction);
 	    Op_ORI:
 	        result := readRegister (instruction.w) or instruction.imm
 	end;
+	
         if instruction.opcode <> Op_CI then
             writeRegister (instruction.w, result);
         if instruction.opcode in [Op_ANDI, Op_LI, Op_ORI] then
@@ -594,44 +581,41 @@ procedure executeFormat9 (var instruction: TInstruction);
 	srcaddr, srcval: uint16;
         product, dividend: uint32;
     begin
-	srcaddr := getSourceAddress (instruction);
-	(* Simulator hook for XOP 0 *)
-	if (instruction.opcode = Op_XOP) and (instruction.D = 0) then
-   	    handleXop (srcaddr)
-	else
-	    begin	
-		srcval := readMemory (srcaddr);
-		case instruction.opcode of
-		    Op_XOP:
-		        begin
-		            performContextSwitch (readMemory ($0040 + 2 * instruction.D), readMemory ($0042 + 2 * instruction.D));
-                            writeRegister (11, srcaddr);
-                            st := st or Status_X
-                        end;
-                    Op_MPY:
+	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
+        case instruction.opcode of
+            Op_XOP:
+                if instruction.D = 0 then
+                    handleXop (srcaddr) 	// simulator hook for XOP 0 
+                else
+                    begin
+                        switchContext ($0040 + 2 * instruction.D);
+                        writeRegister (11, srcaddr);
+                        st := st or Status_X
+                    end;
+            Op_MPY:
+                begin
+                    product := readMemory (srcaddr) * readRegister (instruction.D);
+                    writeRegister (instruction.D, product shr 16);
+                    writeRegister (instruction.D + 1, uint16 (product))
+                end;
+            Op_DIV:
+                begin
+                    srcval := readMemory (srcaddr);
+                    dividend := readRegister (instruction.D);
+                    if srcval > dividend then 
                         begin
-                            product := srcval * readRegister (instruction.D);
-                            writeRegister (instruction.D, product shr 16);
-                            writeRegister (instruction.D + 1, uint16 (product))
-                        end;
-                    Op_DIV:
+                            dividend := dividend shl 16 + readRegister (instruction.D + 1);
+                            writeRegister (instruction.D, dividend div srcval);
+                            writeRegister (instruction.D + 1, dividend mod srcval);
+                            st := st and not Status_OV
+                        end
+                    else
                         begin
-                            dividend := readRegister (instruction.D);
-                            if srcval > dividend then 
-                                begin
-                                    dividend := dividend shl 16 + readRegister (instruction.D + 1);
-                                    writeRegister (instruction.D, dividend div srcval);
-                                    writeRegister (instruction.D + 1, dividend mod srcval);
-                                    st := st and not Status_OV
-                                end
-                            else
-                                begin
-                                    st := st or Status_OV;
-                                    dec (cycles, instruction.cycles - 16)
-                                end
+                            st := st or Status_OV;
+                            dec (cycles, instruction.cycles - 16)
                         end
                 end
-	    end
+        end
     end;
 
 procedure executeInstruction (var instruction: TInstruction);
@@ -651,7 +635,7 @@ procedure executeInstruction (var instruction: TInstruction);
 
 procedure handleInterrupt (level: uint8);
     begin
-	performContextSwitch (readMemory (4 * level), readMemory (4 * level + 2));
+	switchContext (4 * level);
 	inc (cycles, 22);
         dec (st)
     end;
@@ -675,7 +659,7 @@ procedure runCpu;
     	cycles := 0;
     	cycleTime := (1000 * 1000 * 1000) div cpuFreq;
         st := 0;
-    	performContextSwitch (readMemory (0), readMemory (2));
+    	switchContext (0);
     	
     	time := getCurrentTime;
     	repeat

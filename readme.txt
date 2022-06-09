@@ -114,7 +114,7 @@ also be desirable. The example configuration in ucsd-80.cfg uses a fivefold
 speed (15 MHz) which is close to making the keyboard unusable. However,
 with some caution it is possible to start a second instance of the simulator
 running on the same disk images at maximum speed to execute the compiler
-(see ucsd-80-fast.bin and the next section).
+(see ucsd-80-fast.cfg and the next section).
 
 
 Multiple Instances

@@ -117,8 +117,7 @@ function vdpReadStatus: uint8;
         commandByteBuffer := Invalid;
         vdpReadStatus := vdpStatus;
         vdpStatus := vdpStatus and $1f;
-//        if odd (vdpRegister [1] shr 5) then
-            tms9901setVdpInterrupt (false)
+        tms9901setVdpInterrupt (false)
     end;
     
 function getVdpRamPtr (a: uint16): TUint8Ptr;
@@ -251,15 +250,19 @@ procedure drawSpritesScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
                 vdpStatus := vdpStatus or (spriteIndex - 1) and $1f
     end;
 
-procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
+procedure drawImageScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
 
-    procedure drawBitmapPattern (destPtr: TScreenBitmapPtr; pattern, colors, textOffset: uint8);
+    procedure drawBitmapPattern (pattern, colors, pixels: uint8);
         var
             i: 0..7;
+            val: TPalette;
         begin
-            colors := colors or bgColor * ord (colors and $0f = 0) or (bgColor shl 4) * ord (colors and $f0 = 0);
-            for i := 7 downto textOffset do
-                destPtr [7 - i] := colors shr (4 * ((pattern shr i) and 1)) and $0f
+            for i := 0 to pred (pixels) do
+                begin
+                    val := colors shr (4 * ((pattern shr (7 - i)) and 1)) and $0f;
+                    bitmapPtr^ := val or bgColor * ord (val = 0);
+                    inc (bitmapPtr)
+                end
         end;
         
     procedure drawTextMode (imageTablePtr: TUint8Ptr);
@@ -267,7 +270,7 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
             x: 0..39;
         begin
             for x := 0 to 39 do
-                drawBitmapPattern (bitmapPtr + 6 * x, vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRegister [7], 2)
+                drawBitmapPattern (vdpRAM [patternTable + 8 * imageTablePtr [x] + scanline and $07], vdpRegister [7], 6)
         end;
         
     procedure drawStandardMode (imageTablePtr: TUint8Ptr);
@@ -275,42 +278,39 @@ procedure drawImageScanline (y, yOffset: uint8; bitmapPtr: TScreenBitmapPtr);
             x: 0..31;
         begin
             for x := 0 to 31 do 
-                drawBitmapPattern (bitmapPtr + 8 * x, vdpRAM [patternTable + imageTablePtr [x] shl 3 + yoffset], vdpRAM [colorTable + imageTablePtr [x] shr 3], 0);
+                drawBitmapPattern (vdpRAM [patternTable + 8 * imageTablePtr [x] + scanline and $07], vdpRAM [colorTable + imageTablePtr [x] shr 3], 8);
         end;
         
     procedure drawBitmapMode (imageTablePtr: TUint8Ptr);
         var
             x: 0..31;
-            offset, offsetBase: uint16;
+            offset: uint16;
         begin
-            offsetBase := (y and $f8) shl 8 + yOffset;
             for x := 0 to 31 do
                 begin
-                    offset := offsetBase + imageTablePtr [x] shl 3;
-                    drawBitmapPattern (bitmapPtr + 8 * x, vdpRAM [patternTable + offset and patternTableMask], vdpRAM [colorTable + offset and colorTableMask], 0);
+                    offset := 32 * (scanline and $c0) + scanline and $07 + 8 * imageTablePtr [x];
+                    drawBitmapPattern (vdpRAM [patternTable + offset and patternTableMask], vdpRAM [colorTable + offset and colorTableMask], 8);
                 end
         end;
         
-    procedure drawMultiColorMode (scanline: uint8);
+    procedure drawMultiColorMode (imageTablePtr: TUint8Ptr);
         var
             x: 0..31;
-            imageTablePtr: TUint8Ptr;
         begin
-            imageTablePtr := addr (vdpRAM [imageTable + (scanline and $f8) shl 2]);
             for x := 0 to 31 do
-                drawBitmapPattern (bitmapPtr + 8 * x, $f0, vdpRAM [patternTable + (scanline and $1c) shr 2 + imageTableptr [x] shl 3], 0)
+                drawBitmapPattern ($f0, vdpRAM [patternTable + (scanline shr 2) and 7 + 8 * imageTableptr [x]], 8)
         end;
         
     begin                
         case videoMode of
             StandardMode:                
-                drawStandardMode (getVdpRamPtr (imageTable + y shl 5));
+                drawStandardMode (getVdpRamPtr (imageTable + 4 * (scanline and $f8)));
             BitmapMode:
-                drawBitmapMode (getVdpRamPtr (imageTable + y shl 5));
+                drawBitmapMode (getVdpRamPtr (imageTable + 4 * (scanline and $f8)));
             TextMode:
-                drawTextMode (getVdpRamPtr (imageTable + 40 * y));
-            multiColorMode:
-                drawMultiColorMode (y shl 3 + yOffset)
+                drawTextMode (getVdpRamPtr (imageTable + 5 * (scanline and $f8)));
+            MultiColorMode:
+                drawMultiColorMode (getVdpRamPtr (imageTable + 4 * (scanline and $f8)))
         end
     end;
     
@@ -335,7 +335,7 @@ procedure vdpRenderScreen;
                 for scanline := 0 to pred (DrawHeight) do 
                     begin
                         readVdpRegisters;
-                        drawImageScanline (scanline shr 3, scanline and $07, addr (image [vBorder + scanline, hBorder]));
+                        drawImageScanline (scanline, addr (image [vBorder + scanline, hBorder]));
                         if videoMode <> TextMode then
                             drawSpritesScanline (scanline, addr (image [vBorder + scanline, hBorder]));
                         sleepUntil (time + scanline * ScanlineTime)
