@@ -64,7 +64,7 @@ var
     bgColor: TPalette;
     imageTable, colorTable, colorTableMask, patternTable, patternTableMask, spriteAttributeTable, spritePatternTable: 0..VdpRAMSize - 1;
     videoMode: TVideoMode;
-    screenActive, spriteSize4, spriteMagnification: boolean;
+    screenActive, spriteSize4, spriteMagnification, flagTextMode, flagBitmapMode, flagMultiColorMode: boolean;
     
     vdpStopped: boolean;
     vdpCallback: TVdpCallback;
@@ -122,16 +122,9 @@ function vdpReadStatus: uint8;
     
 function getVdpRamPtr (a: uint16): TUint8Ptr;
     begin
-        getVdpRamPtr := addr (vdpRAM [a])
+        getVdpRamPtr := addr (vdpRAM [a mod VdpRAMSize])
     end;
     
-procedure resetVdp;
-    begin
-        commandByteBuffer := Invalid;
-        vdpStatus := 0;
-        fillChar (vdpRegister, sizeof (vdpRegister), 0);
-        fillChar (vdpRAM, sizeof (vdpRAM), 0)
-    end;
 
 procedure setVdpCallback (p: TVdpCallback);
     begin
@@ -140,27 +133,28 @@ procedure setVdpCallback (p: TVdpCallback);
     
 procedure readVdpRegisters;
     begin
-        videoMode := TVideoMode ((vdpRegister [0] and $02) shl 1 or (vdpRegister [1] and $18) shr 3);
+        flagTextMode := odd (vdpRegister [1] shr 4);
+        flagBitmapMode := odd (vdpRegister [0] shr 1);
+        flagMultiColorMode := odd (vdpRegister [1] shr 3);
+        videoMode := TVideoMode (4 * ord (flagBitmapMode) + 2 * ord (flagTextMode) + ord (flagMultiColorMode));
         screenActive := odd (vdpRegister [1] shr 6);
         spriteMagnification := odd (vdpRegister [1]);
         spriteSize4 := odd (vdpRegister [1] shr 1);
+        bgColor := vdpRegister [7] and $0f;
         
         imageTable := (vdpRegister [2] and $0f) shl 10;
         spriteAttributeTable := (vdpRegister [5] and $7f) shl 7;
         spritePatternTable := (vdpRegister [6] and $07) shl 11;
-        bgColor := vdpRegister [7] and $0f;
-
-        if videoMode = BitmapMode then
+        colorTable := vdpRegister [3] shl 6;
+        patternTable := (vdpRegister [4] and $07) shl 11;
+        patternTableMask := $ffff;
+        
+        if flagBitmapMode then
             begin
-                colorTableMask := (vdpRegister [3] and $7f) shl 6 or $003f;
-                patternTableMask := (vdpRegister [4] and $03) shl 11 or colorTableMask and $07ff;
-                colorTable := (vdpRegister [3] and $80) shl 6;
-                patternTable := (vdpRegister [4] and $04) shl 11
-            end
-        else
-            begin
-                colorTable := vdpRegister [3] shl 6;
-                patternTable := (vdpRegister [4] and $07) shl 11;
+                colorTableMask := colorTable and $1fc0 or $003f;
+                patternTableMask := patternTable and $1800 or (colorTableMask or $07ff * ord (flagTextMode or flagMultiColorMode)) and $07ff;
+                colorTable := colorTable and $2000;
+                patternTable := patternTable and $2000
             end
     end;
 
@@ -252,31 +246,42 @@ procedure drawSpritesScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
 
 procedure drawImageScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
 
-    procedure drawPattern (pattern, colors, pixels: uint8);
+    procedure drawPattern (pattern, colors: uint8);
         var
             i: 0..7;
         begin
-            colors := colors or bgColor * (ord (colors and $0f = 0) or ord (colors and $f0 = 0) << 4);
-            for i := 0 to pred (pixels) do
-                bitmapPtr [i] := colors shr (4 * ((pattern shr (7 - i)) and 1)) and $0f;
-            inc (bitmapPtr, pixels)
+            colors := colors or bgColor * (ord (colors and $0f = 0) or ord (colors and $f0 = 0) shl 4);
+            for i := 7 downto 2 * ord (flagTextMode) do
+                begin
+                    bitmapPtr^ := colors shr (4 * ((pattern shr i) and 1)) and $0f;
+                    inc (bitmapPtr)
+                end
         end;
         
     var
-        x: 0..39;
-        line: TUint8Ptr;
-    begin                
-        line := getVdpRamPtr (imageTable + (4 + ord (videoMode = TextMode)) * (scanline and $f8));
-        for x := 0 to 31 + 8 * ord (videoMode = TextMode) do 
-            case videoMode of
-                StandardMode:                
-                    drawPattern (vdpRAM [patternTable + 8 * line [x] + scanline and $07], vdpRAM [colorTable + line [x] shr 3], 8);
-                BitmapMode:
-                    drawPattern (vdpRAM [patternTable + (32 * (scanline and $c0) + 8 * line [x] + scanline and $07) and patternTableMask], vdpRAM [colorTable + (32 * (scanline and $c0) + 8 * line [x] + scanline and $07) and colorTableMask], 8);
-                TextMode:
-                    drawPattern (vdpRAM [patternTable + 8 * line [x] + scanline and $07], vdpRegister [7], 6);
-                MultiColorMode:
-                    drawPattern ($f0, vdpRAM [patternTable + 8 * line [x] + (scanline shr 2) and $07], 8)
+        width: 4..5;
+        col: 0..39;
+        offset, pattern: uint16;
+        value: uint8;
+    begin
+        width := 4 + ord (flagTextMode);
+        for col := 0 to pred (8 * width) do 
+            begin
+                value := vdpRAM [imageTable + width * (scanline and $f8) + col];
+                offset := 8 * value  +  scanline shr (2 * ord (flagMultiColorMode)) and $07  +  32 * (scanline and $c0) * ord (flagBitmapMode);
+                pattern := vdpRAM [patternTable + offset and patternTableMask];	// mask set to $ffff for non-bitmap modes
+                case videoMode of
+                    StandardMode:                
+                        drawPattern (pattern, vdpRAM [colorTable + value shr 3]);
+                    BitmapMode:
+                        drawPattern (pattern, vdpRAM [colorTable + offset and colorTableMask]);
+                    TextMode, BitmapTextMode:
+                        drawPattern (pattern, vdpRegister [7]);
+                    MultiColorMode, BitmapMultiColorMode:
+                        drawPattern ($f0, pattern)
+                    else
+                        drawPattern ($f0, vdpRegister [7])
+                end
             end
     end;
     
@@ -289,12 +294,12 @@ procedure vdpRenderScreen;
         scanline: uint8;
         time: TNanoTimestamp;
     begin
-        fillchar (image, sizeof (image), bgColor);
         readVdpRegisters;
-                
+        fillChar (image, sizeof (image), bgColor);
+        
         if screenActive then
             begin
-                drawWidth := 256 - 16 * ord (videoMode = TextMode);
+                drawWidth := 256 - 16 * ord (flagTextMode);
                 hBorder := (RenderWidth - drawWidth) div 2;
                 vBorder := (RenderHeight - DrawHeight) div 2;
                 time := getCurrentTime;
@@ -302,7 +307,7 @@ procedure vdpRenderScreen;
                     begin
                         readVdpRegisters;
                         drawImageScanline (scanline, addr (image [vBorder + scanline, hBorder]));
-                        if videoMode <> TextMode then
+                        if not flagTextMode then
                             drawSpritesScanline (scanline, addr (image [vBorder + scanline, hBorder]));
                         sleepUntil (time + scanline * ScanlineTime)
                     end
@@ -335,5 +340,8 @@ procedure stopVdp;
 
 begin
     vdpStopped := false;
-    resetVdp
+    commandByteBuffer := Invalid;
+    vdpStatus := 0;
+    fillChar (vdpRegister, sizeof (vdpRegister), 0);
+    fillChar (vdpRAM, sizeof (vdpRAM), 0)
 end.

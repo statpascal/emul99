@@ -166,7 +166,7 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (about 5000 lines of Pascal source
+The implementation is rather concise (less than  5000 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -180,8 +180,8 @@ problems with code relying on an exact scanline timing.
 The timer of the TMS9901 needs to be interleaved with the CPU to
 get the exact timing required for cassette operations.  
 
-This approach is sufficient to run the "Don't mess with Texas" megademo but
-the output of the recent Copper demo is rather distorted.
+This approach is sufficient to run the "Don't mess with Texas" demo but the
+output of the recent "Copper" demo is rather distorted.
 
 The DSRs for the simulated devices (serial, host and special P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
@@ -195,7 +195,8 @@ additional library was utilized to test its bindings.
 
 Known Bugs and Limitations
 
-- The unofficial video modes of the VDP are not supported.
+- The unofficial video modes of the VDP are implemented but remain untested 
+  (no software seems to use them).
 - The directory based disk DSR does not provide sector based
   access and cannot read directory information. Software requiring this may
   use the original disk controller DSR.
