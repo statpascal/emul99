@@ -11,7 +11,7 @@ procedure stopCpu;
 
 implementation
 
-uses memory, tms9901, types, xophandler, tools, timer;
+uses memory, tms9901, types, xophandler, tools, timer, math;
 
 const 
     Status_LGT = $8000;
@@ -276,13 +276,13 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
 
 procedure switchContext (vect: uint16);
     var
-        newWP: uint16;
+        oldWP: uint16;
     begin
-        newWP := readMemory (vect) and $fffe;
-	writeMemory (uint16 (newWP + 26), wp);
-	writeMemory (uint16 (newWP + 28), pc);
-	writeMemory (uint16 (newWP + 30), st);
-	wp := newWP;
+        oldWP := wp;
+        wp := readMemory (vect) and $fffe;
+	writeRegister (13, oldWP);
+	writeRegister (14, pc);
+	writeRegister (15, st);
 	pc := readMemory (vect + 2) and $fffe
     end;
 
@@ -429,11 +429,7 @@ procedure executeFormat4 (var instruction: TInstruction);
 		    srcval := bits;
 		writeMemory (srcaddr, srcval)
 	    end;
-	    
-	if count <= 8 then
-  	    updateStatusBits (instruction, getByteStatus (bits))
-	else
-	    updateStatusBits (instruction, getWordStatus (bits))
+        updateStatusBits (instruction, ifthen (count <= 8, getByteStatus (bits), getWordStatus (bits)))
     end;
 
 procedure executeFormat5 (var instruction: TInstruction);
@@ -449,7 +445,7 @@ procedure executeFormat5 (var instruction: TInstruction);
 	    count := 16;
         inc (cycles, 2 * count);
 	val := readRegister (instruction.w);
-	overflow := (count = 16) and (val <> 0) or 
+        overflow := (count = 16) and (val <> 0) or
 	            (count <> 16) and (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count)); // SLA only
 	carry := odd (val shr (pred (count) + (17 - 2 * count) * ord (instruction.opcode = Op_SLA)));
 	
@@ -678,7 +674,7 @@ procedure stopCpu;
 
 begin
     fillChar (decodedInstruction, sizeof (decodedInstruction), 0);
-    enterData (Op_IVLD, $0000, 'IVLD', Format7,    6, Status_None);
+    instructionString [Op_IVLD] := 'DATA';
     enterData (Op_LI,   $0200, 'LI',   Format8,   12, Status_LGT + Status_AGT + Status_EQ);
     enterData (Op_AI,   $0220, 'AI',   Format8,   14, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);
     enterData (Op_ANDI, $0240, 'ANDI', Format8,   14, Status_LGT + Status_AGT + Status_EQ);
