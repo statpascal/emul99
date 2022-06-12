@@ -241,6 +241,7 @@ procedure drawImageScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
         col: 0..39;
         offset: uint16;
         pattern, colors: uint8;
+        color: TPalette;
     begin
         for col := 0 to 31 + 8 * ord (textMode) do 
             begin
@@ -248,8 +249,11 @@ procedure drawImageScanline (scanline: uint8; bitmapPtr: TScreenBitmapPtr);
                 pattern := vdpRAM [patternTable + offset and patternTableMask];	// masks set to $3fff for non-bitmap modes
                 colors := ifthen (textMode, vdpRegister [7], ifthen (multiColorMode, pattern, vdpRam [colorTable + (offset shr (6 * ord (not bitmapMode))) and colorTableMask]));
                 for i := 7 downto 2 * ord (textMode) do
-                    bitmapPtr [7 - i] := colors shr (4 * ((ifthen (multiColorMode, $f0, pattern) shr i) and 1)) and $0f;
-                inc (bitmapPtr, 8 - 2 * ord (textMode))
+                    begin
+                        color := colors shr (4 * ((ifthen (multiColorMode, $f0, pattern) shr i) and 1)) and $0f;
+                        bitmapPtr^ := ifthen (color = 0, bgColor, color);
+                        inc (bitmapPtr)
+                    end;
             end
     end;
     
@@ -261,6 +265,7 @@ procedure vdpRenderScreen;
         image: TScreenBitmap;
         scanline: uint8;
         time: TNanoTimestamp;
+        i: uint16;
     begin
         fillChar (image, sizeof (image), bgColor);
         if odd (vdpRegister [1] shr 6) then
@@ -282,7 +287,6 @@ procedure vdpRenderScreen;
         vdpStatus := vdpStatus or $80;
         if odd (vdpRegister [1] shr 5) then
             tms9901setVdpInterrupt (true);
-        palette [0] := palette [bgColor];
         vdpCallback (image)
     end;
     
