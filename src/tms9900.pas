@@ -2,7 +2,6 @@ unit tms9900;
 
 interface
 
-procedure setCpuFrequency (freq: uint32);
 function getCycles: int64;
 
 procedure runCpu;
@@ -11,7 +10,7 @@ procedure stopCpu;
 
 implementation
 
-uses memory, tms9901, types, xophandler, tools, timer, math;
+uses memory, tms9901, vdp, types, xophandler, config, tools, timer, math;
 
 const 
     Status_LGT = $8000;
@@ -45,7 +44,6 @@ var
     pc, wp, st: uint16;
     cpuStopped: boolean;
     cycles: int64;
-    cpuFreq: uint32;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
 
@@ -250,28 +248,22 @@ function fetchInstruction: uint16;
 
 function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: boolean): uint16;
     var
-	res: uint16;
+	regval: uint16;
     begin
-	case T of
-	    0:
-		res := uint16 (wp + 2 * reg);
-	    1:
-		res := readRegister (reg);
-	    2:
-	        begin
-	            addr := fetchInstruction;	// fill in address for tracing
- 		    if reg = 0 then
-	 	        res := addr
-		    else
-		        res := uint16 (addr + readRegister (reg))
-		end;
-	    3:  
-		begin
-		    res := readRegister (reg);
-		    writeRegister (reg, uint16 (res + 2 - ord (byteOp)));
-		end
-	end;
-	getGeneralAddress := res
+        if T = 0 then
+            getGeneralAddress := uint16 (wp + 2 * reg)
+        else
+            begin
+                regval := 0;
+                addr := 0;
+                if odd (T) or (reg <> 0) then
+                    regval := readRegister (reg);
+                if T = 2 then
+                    addr := fetchInstruction;
+                if T = 3 then
+                    writeRegister (reg, uint16 (regval + 2 - ord (byteOp)));
+                getGeneralAddress := uint16 (addr + regval)
+            end
     end;
 
 procedure switchContext (vect: uint16);
@@ -279,11 +271,11 @@ procedure switchContext (vect: uint16);
         oldWP: uint16;
     begin
         oldWP := wp;
-        wp := readMemory (vect) and $fffe;
+        wp := readMemory (vect) and not 1;
 	writeRegister (13, oldWP);
 	writeRegister (14, pc);
 	writeRegister (15, st);
-	pc := readMemory (vect + 2) and $fffe
+	pc := readMemory (vect + 2) and not 1
     end;
 
 procedure executeInstruction (var instruction: TInstruction); forward;
@@ -485,7 +477,7 @@ procedure executeFormat6 (var instruction: TInstruction);
                 begin
                     if instruction.opcode = Op_BL then
                         writeRegister (11, pc);
-                    pc := addr and $fffe
+                    pc := addr and not 1
                 end;
             Op_BLWP:
                 switchContext (addr);
@@ -518,11 +510,11 @@ procedure executeFormat7 (var instruction: TInstruction);
    	    Op_RTWP:
 	        begin
 		    st := readRegister (15);
-		    pc := readRegister (14) and $fffe;
-		    wp := readRegister (13) and $fffe;
+		    pc := readRegister (14) and not 1;
+		    wp := readRegister (13) and not 1;
    	        end;
  	    Op_RSET:
-	        st := st and $ff0
+	        st := st and not $f
 	end
     end;
 
@@ -558,7 +550,7 @@ procedure executeFormat8_1 (var instruction: TInstruction);
 	    Op_LIMI:
 	        st := st and $fff0 or instruction.imm and $000f;
 	    Op_LWPI:
-	        wp := instruction.imm and $fffe
+	        wp := instruction.imm and not 1
         end
     end;
 
@@ -636,11 +628,6 @@ procedure handleInterrupt (level: uint8);
         dec (st)
     end;
 
-procedure setCpuFrequency (freq: uint32);
-    begin
-        cpuFreq := freq
-    end;
-    
 function getCycles: int64;
     begin
         getCycles := cycles
@@ -649,19 +636,25 @@ function getCycles: int64;
 procedure runCpu;
     var
 	time: TNanoTimestamp;
-	cycleTime: int64;
+	lastSleepCycles, msCycles: int64;
     begin
         cpuStopped := false;
     	cycles := 0;
-    	cycleTime := (1000 * 1000 * 1000) div cpuFreq;
+    	lastSleepCycles := 0;
+    	msCycles := 1000 * 1000 div getCycleTime;
         st := 0;
     	switchContext (0);
     	
     	time := getCurrentTime;
     	repeat
             executeInstruction (decodedInstruction [fetchInstruction]);
-	    sleepUntil (time + cycles * cycleTime);
+            if cycles - lastSleepCycles > msCycles then 
+                begin
+    	            sleepUntil (time + cycles * getCycleTime);
+    	            lastSleepCycles := cycles
+                end;
   	    handleTimer (cycles);
+  	    handleVDP (cycles);
 	    if (st and $000f >= 1) and tms9901IsInterrupt then 
   	        handleInterrupt (1)
         until cpuStopped

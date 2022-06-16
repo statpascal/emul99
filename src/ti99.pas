@@ -20,7 +20,7 @@ var
     hardwareKeyIndex: array [uint8] of 0..KeyMapSize;
     keyMapCount: uint16;
     pressCount: array [TKeys] of int64;
-    cpuThreadId, vdpThreadId: TThreadId;
+    cpuThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
     currentScreenBitmap: TScreenBitmap;
     newImage: boolean;
@@ -62,16 +62,9 @@ function cpuThreadProc (data: pointer): ptrint;
         cpuThreadProc := 0
     end;
 
-function vdpThreadProc (data: pointer): ptrint;
-    begin
-        runVDP;
-        vdpThreadProc := 0
-    end;
-    
 procedure startThreads;
     begin
         beginThread (cpuThreadProc, nil, cpuThreadId);
-        beginThread (vdpThreadProc, nil, vdpThreadId);
         startSound;
     end;
 
@@ -79,9 +72,7 @@ procedure stopThreads;
     begin
         stopSound;
         stopCPU;
-        stopVDP;
         waitForThreadTerminate (cpuThreadId, 0);
-        waitForThreadTerminate (vdpThreadId, 0)
     end;
 
 procedure addKeyMapUint (val: uint16; shift, func: boolean; k: TKeys); 

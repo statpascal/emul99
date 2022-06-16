@@ -16,7 +16,7 @@ procedure fdcSetDiskImage (diskDrive: TDiskDrive; filename: string);
 
 implementation
 (*$POINTERMATH ON*)
-uses tools, memmap,  cfuncs;
+uses tools, memmap, cfuncs, math;
 
 const
     SectorSize = 256;
@@ -150,10 +150,7 @@ function findReadWritePosition (cmd: uint16): TUint8Ptr;
             res := nil;
         if res <> nil then
             begin
-                if cmd and $10 <> 0 then
-                    bytesLeft := SectorSize * (DiskSectors - regs.sector)
-                else
-                    bytesLeft := SectorSize;
+                bytesLeft := SectorSize * ifthen (cmd and $10 <> 0, DiskSectors - regs.sector, 1);
                 regs.status := (regs.status or StatusBusy) and not (StatusCrcError or StatusLostData)
             end
         else

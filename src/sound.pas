@@ -72,9 +72,8 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
         i: uint32;
         j: 0..ToneGenerators;
     begin
-        for i := 0 to pred (len div 2) do
-            buffer [i] := 0;
-        for j := 0 to ToneGenerators do 
+        fillChar (buffer^, 2 * len, 0);
+        for j := 0 to ToneGenerators do
             if attenuator [j] <> MaxAttenuator then
                 for i := 0 to pred (len div 2) do
                     begin

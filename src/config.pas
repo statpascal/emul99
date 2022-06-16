@@ -8,6 +8,8 @@ function usePcode80: boolean;
 function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
 
+function getCycleTime: int64;	// nanoseconds
+
 implementation
 
 uses memory, tms9900, fdccard, disksim, tape, pcodecard, pcodedisk, serial, tools, sysutils;
@@ -18,6 +20,7 @@ var
     cartBank, pcodeGromCount: uint8;
     diskDsr: string;
     pcodeRomFilenames: TPcodeRomFilenames;
+    cycleTime: int64;
 
 procedure loadConfigFile (fn: string; level: uint8);
     type
@@ -50,7 +53,7 @@ procedure loadConfigFile (fn: string; level: uint8);
 	    keyType := findKey (upcase (key));
             case keyType of
                 CpuFreq:
-                    setCpuFrequency (n);
+                    cycleTime := (1000 * 1000 * 1000) div n;
                 Mem32KExt:
                     if n = 1 then 
                         configure32KExtension;
@@ -87,7 +90,7 @@ procedure loadConfigFile (fn: string; level: uint8);
                         inc (pcodeGromCount)
                     end;
                 PcodeScreen80:
-                    pcode80 := true;
+                    pcode80 := n = 1;
                 PcodeDiskDsr:
                     initPcodeDisk (path);
                 PcodeDisk1..PcodeDisk3:
@@ -191,6 +194,11 @@ function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
     begin
         getWindowScaleWidth := scaleWidth
+    end;
+    
+function getCycleTime: int64;
+    begin
+        getCycleTime := cycleTime
     end;
 
 end.

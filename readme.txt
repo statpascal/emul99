@@ -166,22 +166,14 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (less than  5000 lines of Pascal source
+The implementation is rather concise (about 4850 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
 
-VDP, CPU and sound run independently in seperate threads; the VDP performs a
-sleep after every scanline while the CPU does the same after every
-instruction. On a slower machine, scanlines containing multiple sprites may
-take longer than the available 64 microseconds to render which can cause
-problems with code relying on an exact scanline timing.
-
-The timer of the TMS9901 needs to be interleaved with the CPU to
-get the exact timing required for cassette operations.  
-
-This approach is sufficient to run the "Don't mess with Texas" demo but the
-output of the recent "Copper" demo is rather distorted.
+CPU, VDP and the 9901 timer are interleaved and executed in a seperate
+thread; this thread will perform a sleep every millisecond to synchronize
+with real time.
 
 The DSRs for the simulated devices (serial, host and special P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
@@ -211,7 +203,7 @@ Known Bugs and Limitations
   timestamp and handled when generating output.
 - An infinite recursion of "X" operations crashes the simulator with a stack
   overflow.
-- The recent "Copper Demo" does not work well at all.
+- The recent "Copper Demo" does not work well.
 
 
 Acknowledgements
