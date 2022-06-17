@@ -13,14 +13,15 @@ implementation
 uses memory, tms9901, vdp, types, xophandler, config, tools, timer, math;
 
 const 
-    Status_LGT = $8000;
-    Status_AGT = $4000;
-    Status_EQ  = $2000;
-    Status_C   = $1000;
-    Status_OV  = $0800;
-    Status_OP  = $0400;
-    Status_X   = $0200;
-    Status_None = 0;
+    Status_LGT     = $8000;
+    Status_AGT     = $4000;
+    Status_EQ      = $2000;
+    Status_C       = $1000;
+    Status_OV      = $0800;
+    Status_OP      = $0400;
+    Status_X       = $0200;
+    Status_IntMask = $000f;
+    Status_None    = 0;
     
 type 
     TOpcode = (Op_IVLD, Op_LI, Op_AI, Op_ANDI, Op_ORI, Op_CI, Op_STWP, Op_STST, Op_LWPI, Op_LIMI, Op_IDLE, Op_RSET, Op_RTWP, Op_CKON, Op_CKOF, Op_LREX, 
@@ -259,8 +260,8 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
                 if odd (T) or (reg <> 0) then
                     regval := readRegister (reg);
                 if T = 2 then
-                    addr := fetchInstruction;
-                if T = 3 then
+                    addr := fetchInstruction
+                else if T = 3 then
                     writeRegister (reg, uint16 (regval + 2 - ord (byteOp)));
                 getGeneralAddress := uint16 (addr + regval)
             end
@@ -361,14 +362,10 @@ procedure executeFormat2_1 (var instruction: TInstruction);
 	addr: uint16;
     begin
         addr := (readRegister (12) div 2 + int8 (instruction.disp)) and $0fff;
-	case instruction.opcode of
-	    Op_SBO:
-	        writeCru (addr, 1);
-	    Op_SBZ:
-	        writeCru (addr, 0);
-	    Op_TB:
-	        updateStatusBits (instruction, Status_EQ * readCru (addr))
-	end
+        if instruction.opcode = Op_TB then
+            updateStatusBits (instruction, Status_EQ * readCru (addr))
+        else // SBO, SBZ
+            writeCru (addr, ord (instruction.opcode = Op_SBO));
     end;
 
 procedure executeFormat3 (var instruction: TInstruction);
@@ -432,7 +429,7 @@ procedure executeFormat5 (var instruction: TInstruction);
     begin
 	count := instruction.count;
 	if count = 0 then
-            count := readRegister (0) and $000f;
+            count := readRegister (0) and $f;
 	if count = 0 then
 	    count := 16;
         inc (cycles, 2 * count);
@@ -514,7 +511,7 @@ procedure executeFormat7 (var instruction: TInstruction);
 		    wp := readRegister (13) and not 1;
    	        end;
  	    Op_RSET:
-	        st := st and not $f
+	        updateStatusBits (instruction, 0)
 	end
     end;
 
@@ -533,35 +530,23 @@ procedure executeFormat8 (var instruction: TInstruction);
 	    Op_LI:
 	        result := instruction.imm;
 	    Op_ORI:
-	        result := readRegister (instruction.w) or instruction.imm
+	        result := readRegister (instruction.w) or instruction.imm;
+	    Op_LIMI:
+	        status := instruction.imm;
+	    Op_LWPI:
+	        wp := instruction.imm and not 1
 	end;
 	
-        if instruction.opcode <> Op_CI then
+        if instruction.opcode in [Op_AI, Op_ANDI, Op_LI, Op_ORI] then
             writeRegister (instruction.w, result);
         if instruction.opcode in [Op_ANDI, Op_LI, Op_ORI] then
             status := getWordStatus (result);
 	updateStatusBits (instruction, status)
     end;
 
-procedure executeFormat8_1 (var instruction: TInstruction);
-    begin
-        instruction.imm := fetchInstruction;
-        case instruction.opcode of
-	    Op_LIMI:
-	        st := st and $fff0 or instruction.imm and $000f;
-	    Op_LWPI:
-	        wp := instruction.imm and not 1
-        end
-    end;
-
 procedure executeFormat8_2 (var instruction: TInstruction);
     begin
-        case instruction.opcode of
-            Op_STST:
-	        writeRegister (instruction.w, st);
-   	    Op_STWP:
-	        writeRegister (instruction.w, wp)
-        end
+        writeRegister (instruction.w, ifthen (instruction.opcode = Op_STST, st, wp))
     end;
 
 procedure executeFormat9 (var instruction: TInstruction);	
@@ -609,7 +594,7 @@ procedure executeFormat9 (var instruction: TInstruction);
 procedure executeInstruction (var instruction: TInstruction);
     const
 	dispatch: array [TInstructionFormat] of procedure (var instruction: TInstruction) = (
-	    executeFormat1, executeFormat2, executeFormat2_1, executeFormat3, executeFormat4, executeFormat5, executeFormat6, executeFormat7, executeFormat8, executeFormat8_1, executeFormat8_2, executeFormat9);
+	    executeFormat1, executeFormat2, executeFormat2_1, executeFormat3, executeFormat4, executeFormat5, executeFormat6, executeFormat7, executeFormat8, executeFormat8, executeFormat8_2, executeFormat9);
     var
 	prevPC: uint16;
 	prevCycles: int64;
@@ -655,7 +640,7 @@ procedure runCpu;
                 end;
   	    handleTimer (cycles);
   	    handleVDP (cycles);
-	    if (st and $000f >= 1) and tms9901IsInterrupt then 
+	    if (st and Status_IntMask <> 0) and tms9901IsInterrupt then 
   	        handleInterrupt (1)
         until cpuStopped
     end;
@@ -676,9 +661,9 @@ begin
     enterData (Op_STWP, $02a0, 'STWP', Format8_2,  8, Status_None);
     enterData (Op_STST, $02c0, 'STST', Format8_2,  8, Status_None);
     enterData (Op_LWPI, $02e0, 'LWPI', Format8_1, 10, Status_None);
-    enterData (Op_LIMI, $0300, 'LIMI', Format8_1, 16, Status_None);
+    enterData (Op_LIMI, $0300, 'LIMI', Format8_1, 16, Status_IntMask);
     enterData (Op_IDLE, $0340, 'IDLE', Format7,   12, Status_None);
-    enterData (Op_RSET, $0360, 'RSET', Format7,   12, Status_None);
+    enterData (Op_RSET, $0360, 'RSET', Format7,   12, Status_IntMask);
     enterData (Op_RTWP, $0380, 'RTWP', Format7,   14, Status_None);
     enterData (Op_CKON, $03a0, 'CKON', Format7,   12, Status_None);
     enterData (Op_CKOF, $03c0, 'CKOF', Format7,   12, Status_None);

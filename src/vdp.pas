@@ -11,8 +11,9 @@ const
     ActiveDisplayHeight = 192;
     TopBorder = 27;
     BottomBorder = 24;
-    LeftBorder = 13; 	LeftBorderText = 19;
-    RightBorder = 15;	RightBorderText = 25;
+    LeftBorder = 13; 	
+    LeftBorderText = 19;
+    RightBorder = 15;
     
     RenderWidth = ActiveDisplayWidth + LeftBorder + RightBorder;
     RenderHeight = ActiveDisplayHeight + TopBorder + BottomBorder;
@@ -49,8 +50,6 @@ uses tools, tms9901, config, timer, math;
 const
     VdpRAMSize = 16384;
     VdpRegisterCount = 8;
-    GraphicsWidth = 256;
-    DrawHeight = 192;
     Invalid = -1;
     
     FramesPerSecond = 50;	// 60/262 for 9918A
@@ -78,7 +77,6 @@ var
     colorTableMask, patternTableMask: 0..VdpRAMSize - 1;
     spriteSize4, spriteMagnification, textMode, bitmapMode, multiColorMode: boolean;
     
-    vdpStopped: boolean;
     vdpCallback: TVdpCallback;
     image: TScreenBitmap;
 
@@ -171,7 +169,7 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
         NrSprites = 32;
         LastSpriteIndicator = $d0;
     var 
-        spritePixel: array [0..GraphicsWidth - 1] of boolean;
+        spritePixel: array [0..ActiveDisplayWidth - 1] of boolean;
         coincidence: boolean;
         fifthSpriteIndex, spriteIndex, spriteCount: 0..NrSprites; 
         
@@ -184,7 +182,7 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                 for i := 15 downto 8 * ord (not spriteSize4) do
                     for j := false to spriteMagnification do
                         begin
-                            if (uint16 (xpos) < GraphicsWidth) and odd (pattern shr i) then
+                            if (uint16 (xpos) < ActiveDisplayWidth) and odd (pattern shr i) then
                                 if spritePixel [xpos] then
                                     coincidence := true
                                 else
@@ -258,33 +256,25 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     end;
     
 procedure drawScanline (scanline: uint16; bitmapPtr: TScreenBitmapPtr);
-    const
-        left: array [boolean] of uint8 = (LeftBorder, LeftBorderText);
-        right: array [boolean] of uint8 = (RightBorder, RightBorderText);
     begin
-        readVdpRegisters;
-        case succ (scanline) of
-            1..TopBorder, succ (TopBorder + ActiveDisplayHeight)..RenderHeight:
+        if scanline = renderHeight then 
+            begin
+                vdpStatus := vdpStatus or $80;
+                if odd (vdpRegister [1] shr 5) then
+                    tms9901setVdpInterrupt (true);
+                vdpCallback (image)
+            end
+        else if scanline < renderHeight then
+            begin
+                readVdpRegisters;
                 fillChar (bitmapPtr^, RenderWidth, bgColor);
-            succ (TopBorder)..TopBorder + ActiveDisplayHeight:
-                if not odd (vdpRegister [1] shr 6) then
-                    fillChar (bitmapPtr^, RenderWidth, bgColor)
-                else
+                if odd (vdpRegister [1] shr 6) and (scanline in [TopBorder..TopBorder + ActiveDisplayHeight - 1]) then
                     begin
-                        fillChar (bitmapPtr^, Left [TextMode], bgColor);
-                        drawImageScanline (scanline - TopBorder, bitmapPtr + left [textMode]);
+                        drawImageScanline (scanline - TopBorder, bitmapPtr + ifthen (textMode, LeftBorderText, LeftBorder));
                         if not textMode then
-                            drawSpritesScanline (scanline - TopBorder, bitmapPtr + left [textMode]);
-                        fillChar ((bitMapPtr + RenderWidth - right [textMode])^, right [textMode], bgColor)
+                            drawSpritesScanline (scanline - TopBorder, bitmapPtr + LeftBorder)
                     end;
-            succ (RenderHeight):
-                begin
-                    vdpStatus := vdpStatus or $80;
-                    if odd (vdpRegister [1] shr 5) then
-                        tms9901setVdpInterrupt (true);
-                    vdpCallback (image)
-                end
-        end
+            end;
     end;
 
 procedure handleVDP (cycles: int64);
@@ -306,4 +296,3 @@ begin
     fillChar (vdpRegister, sizeof (vdpRegister), 0);
     fillChar (vdpRAM, sizeof (vdpRAM), 0)
 end.
- 
