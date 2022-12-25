@@ -65,7 +65,7 @@ function cpuThreadProc (data: pointer): ptrint;
 procedure startThreads;
     begin
         beginThread (cpuThreadProc, nil, cpuThreadId);
-        startSound;
+        startSound
     end;
 
 procedure stopThreads;
