@@ -166,7 +166,7 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (about 4850 lines of Pascal source
+The implementation is rather concise (about 5000 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -198,7 +198,7 @@ Known Bugs and Limitations
 - Comparing the performance of a BASIC program with that of a real machine, 
   the simulator is about 10% too fast. 
 - The sound generator is sampled about 870 times per second and it is
-  assumed that the settings remain unchanged during the sampling interval.
+  assumed that its settings remain unchanged during the sampling interval.
   Changes occuring during that interval should be recorded with a CPU
   timestamp and handled when generating output.
 - An infinite recursion of "X" operations crashes the simulator with a stack

@@ -5,7 +5,6 @@ interface
 function createMapping (fn: string): pointer;
 function getMappingSize (p: pointer): int64;
 (* procedure closeMapping (p: pointer); *)
-procedure closeAllMappings;
 
 
 implementation
@@ -79,5 +78,10 @@ procedure closeAllMappings;
                 dispose (ptr)
             end
     end;
+    
+finalization
+    begin
+        closeAllMappings
+    end;
 
-end.            
+end.

@@ -27,39 +27,39 @@ type
         status, nameSize: uint8;
         name: array [0..255] of char
     end;
-    TPabPtr = ^TPab;
     
-procedure dumpPabOperation (pab: TPabPtr);
+procedure dumpPabOperation (var pab: TPab);
 
-procedure decodeNames (pab: TPabPtr; var devName, fileName: string);
+procedure decodeNames (var pab: TPab; var devName, fileName: string);
 
-function getDeviceName (pab: TPabPtr): string;
-function getFileName (pab: TPabPtr): string;
-function getOperation (pab: TPabPtr): TOperation;
-function getRecordType (pab: TPabPtr): TRecordType;
-function getDataType (pab: TPabPtr): TDataType;
-function getOperationMode (pab: TPabPtr): TOperationMode;
-function getAccessType (pab: TPabPtr): TAccessType;
-function getErrorCode (pab: TPabPtr): TErrorCode;
-function getBufferAddress (pab: TPabPtr): uint16;
-function getRecordLength (pab: TPabPtr): uint8;
-function getNumChars (pab: TPabPtr): uint8;
-function getRecordNumber (pab: TPabPtr): uint16;
-function getFileSize (pab: TPabPtr): uint16; 	// same as record number
-function getStatus (pab: TPabPtr): uint8;
+function getDeviceName (var pab: TPab): string;
+function getFileName (var pab: TPab): string;
+function getOperation (var pab: TPab): TOperation;
+function getRecordType (var pab: TPab): TRecordType;
+function getDataType (var pab: TPab): TDataType;
+function getOperationMode (var pab: TPab): TOperationMode;
+function getAccessType (var pab: TPab): TAccessType;
+function getErrorCode (var pab: TPab): TErrorCode;
+function getBufferAddress (var pab: TPab): uint16;
+function getRecordLength (var pab: TPab): uint8;
+function getNumChars (var pab: TPab): uint8;
+function getRecordNumber (var pab: TPab): uint16;
+function getFileSize (var pab: TPab): uint16; 	// same as record number
+function getStatus (var pab: TPab): uint8;
+function getNameSize (var pab: TPab): uint8;
 
-procedure setRecordLength (pab: TPabPtr; len: uint8);
-procedure setNumChars (pab: TPabPtr; n: uint8);
-procedure setErrorCode (pab: TPabPtr; errorCode: TErrorCode);
-procedure setRecordNumber (pab: TPabPtr; n: uint16);
-procedure setStatus (pab: TPabPtr; status: uint8);
+procedure setRecordLength (var pab: TPab; len: uint8);
+procedure setNumChars (var pab: TPab; n: uint8);
+procedure setErrorCode (var pab: TPab; errorCode: TErrorCode);
+procedure setRecordNumber (var pab: TPab; n: uint16);
+procedure setStatus (var pab: TPab; status: uint8);
 
     
 implementation
 
 uses cfuncs;
 
-procedure dumpPabOperation (pab: TPabPtr);    
+procedure dumpPabOperation (var pab: TPab);    
     const
         operationString: array [TOperation] of string = ('Open', 'Close', 'Read', 'Write', 'Rewind', 'Load', 'Save', 'Delete', 'Scratch', 'Status', 'Open (Interrupt)', 'Unknow Operation');
         recordTypeString: array [TRecordType] of string = ('Fixed', 'Variable');
@@ -83,7 +83,7 @@ procedure dumpPabOperation (pab: TPabPtr);
         writeln
     end;
     
-procedure decodeNames (pab: TPabPtr; var devName, fileName: string);
+procedure decodeNames (var pab: TPab; var devName, fileName: string);
     var
         i: uint8;
         pointFound: boolean;
@@ -91,16 +91,16 @@ procedure decodeNames (pab: TPabPtr; var devName, fileName: string);
         devName := '';
         fileName := '';
         pointFound := false;
-        for i := 0 to pred (pab^.nameSize) do
+        for i := 0 to pred (pab.nameSize) do
             if pointFound then
-                fileName := fileName + pab^.name [i]
-            else if pab^.name [i] <> '.' then
-                devName := devName + pab^.name [i]
+                fileName := fileName + pab.name [i]
+            else if pab.name [i] <> '.' then
+                devName := devName + pab.name [i]
             else
                 pointFound := true
     end;
   
-function getDeviceName (pab: TPabPtr): string;
+function getDeviceName (var pab: TPab): string;
     var
         devName, fileName: string;
     begin
@@ -108,7 +108,7 @@ function getDeviceName (pab: TPabPtr): string;
         getDeviceName := devName
     end;
     
-function getFileName (pab: TPabPtr): string;
+function getFileName (var pab: TPab): string;
     var
         devName, fileName: string;
     begin
@@ -116,94 +116,99 @@ function getFileName (pab: TPabPtr): string;
         getFileName := fileName;
     end;
 
-function getOperation (pab: TPabPtr): TOperation;
+function getOperation (var pab: TPab): TOperation;
     begin
-        if pab^.operation = $80 then
+        if pab.operation = $80 then
             getOperation := E_OpenInterrupt	// Special open for original RS232 DSR
-        else if pab^.operation <= ord (E_Status) then
-            getOperation := TOperation (pab^.operation)
+        else if pab.operation <= ord (E_Status) then
+            getOperation := TOperation (pab.operation)
         else
             getOperation := E_UnknowOperation
     end;
     
-function getRecordType (pab: TPabPtr): TRecordType;
+function getRecordType (var pab: TPab): TRecordType;
     begin
-        getRecordType := TRecordType (ord (pab^.errType and $10 <> 0))
+        getRecordType := TRecordType (ord (pab.errType and $10 <> 0))
     end;
     
-function getDataType (pab: TPabPtr): TDataType;
+function getDataType (var pab: TPab): TDataType;
     begin
-        getDataType := TDataType (ord (pab^.errType and $08 <> 0))
+        getDataType := TDataType (ord (pab.errType and $08 <> 0))
     end;
 
-function getOperationMode (pab: TPabPtr): TOperationMode;
+function getOperationMode (var pab: TPab): TOperationMode;
     begin
-        getOperationMode := TOperationMode ((pab^.errType shr 1) and $03)
+        getOperationMode := TOperationMode ((pab.errType shr 1) and $03)
     end;
         
-function getAccessType (pab: TPabPtr): TAccessType;
+function getAccessType (var pab: TPab): TAccessType;
     begin
-        getAccessType := TAccessType (odd (pab^.errType))
+        getAccessType := TAccessType (odd (pab.errType))
     end;
     
-function getErrorCode (pab: TPabPtr): TErrorCode;
+function getErrorCode (var pab: TPab): TErrorCode;
     begin
-        getErrorCode := TErrorCode (pab^.errType shr 5)
+        getErrorCode := TErrorCode (pab.errType shr 5)
     end;
     
-function getBufferAddress (pab: TPabPtr): uint16;
+function getBufferAddress (var pab: TPab): uint16;
     begin
-        getBufferAddress := ntohs (pab^.vdpBuffer)
+        getBufferAddress := ntohs (pab.vdpBuffer)
     end;
     
-function getRecordLength (pab: TPabPtr): uint8;
+function getRecordLength (var pab: TPab): uint8;
     begin
-        getRecordLength := pab^.recLength
+        getRecordLength := pab.recLength
     end;
     
-function getNumChars (pab: TPabPtr): uint8;
+function getNumChars (var pab: TPab): uint8;
     begin
-        getNumChars := pab^.numChars
+        getNumChars := pab.numChars
     end;
     
-function getRecordNumber (pab: TPabPtr): uint16;
+function getRecordNumber (var pab: TPab): uint16;
     begin
-        getRecordNumber := ntohs (pab^.recSize)
+        getRecordNumber := ntohs (pab.recSize)
     end;
     
-function getFileSize (pab: TPabPtr): uint16;
+function getFileSize (var pab: TPab): uint16;
     begin
         getFileSize := getRecordNumber (pab)
     end;
     
-function getStatus (pab: TPabPtr): uint8;
+function getStatus (var pab: TPab): uint8;
     begin
-        getStatus := pab^.status
+        getStatus := pab.status
     end;
     
-procedure setRecordLength (pab: TPabPtr; len: uint8);
+function getNameSize (var pab: TPab): uint8;
     begin
-        pab^.recLength := len
-    end;
-
-procedure setNumChars (pab: TPabPtr; n: uint8);
-    begin
-        pab^.numChars := n
-    end;
-
-procedure setErrorCode (pab: TPabPtr; errorCode: TErrorCode);
-    begin
-        pab^.errType := (pab^.errType and $1F) or (ord (errorCode) shl 5)
+        getNameSize := pab.nameSize
     end;
     
-procedure setRecordNumber (pab: TPabPtr; n: uint16);
+procedure setRecordLength (var pab: TPab; len: uint8);
     begin
-        pab^.recSize := htons (n)
+        pab.recLength := len
+    end;
+
+procedure setNumChars (var pab: TPab; n: uint8);
+    begin
+        pab.numChars := n
+    end;
+
+procedure setErrorCode (var pab: TPab; errorCode: TErrorCode);
+    begin
+        pab.errType := (pab.errType and $1F) or (ord (errorCode) shl 5)
+    end;
+    
+procedure setRecordNumber (var pab: TPab; n: uint16);
+    begin
+        pab.recSize := htons (n)
     end;    
     
-procedure setStatus (pab: TPabPtr; status: uint8);
+procedure setStatus (var pab: TPab; status: uint8);
     begin
-        pab^.status := status
+        pab.status := status
     end;
     
 end.

@@ -375,8 +375,7 @@ begin
             else if ParamStr (2) = 'remove' then
                 removeFile (p, ParamStr (3))
             else
-                help;
-            closeAllMappings
+                help
         end
     else
         help

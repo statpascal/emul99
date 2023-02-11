@@ -370,7 +370,7 @@ procedure executeFormat2_1 (var instruction: TInstruction);
 
 procedure executeFormat3 (var instruction: TInstruction);
     var
-	srcval, dstval: int16;
+	srcval, dstval: uint16;
     begin
 	srcval := readMemory (getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B));
 	dstval := readRegister (instruction.D);
@@ -603,7 +603,7 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cycles, instruction.cycles + getWaitStates);
-//        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
+(*        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC)) *)
     end;	
 
 procedure handleInterrupt (level: uint8);

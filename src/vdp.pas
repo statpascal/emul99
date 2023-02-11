@@ -5,6 +5,7 @@ interface
 uses types;
 
 const
+    VdpRAMSize = 16384;
     MaxColor = 15;
     
     ActiveDisplayWidth = 256;
@@ -38,7 +39,9 @@ procedure vdpWriteCommand (b: uint8);
 function vdpReadData: uint8;
 function vdpReadStatus: uint8;
 
-function getVdpRamPtr (a: uint16): pointer;
+procedure vdpWriteBlock (address, size: uint16; var buf);
+procedure vdpReadBlock (address, size: uint16; var buf);
+
 procedure handleVDP (cycles: int64);
 procedure setVdpCallback (p: TVdpCallback);
 
@@ -46,14 +49,14 @@ procedure setVdpCallback (p: TVdpCallback);
 implementation
 
 uses tools, tms9901, config, timer, math;
+(*$POINTERMATH ON*)
 
 const
-    VdpRAMSize = 16384;
     VdpRegisterCount = 8;
     Invalid = -1;
     
-    FramesPerSecond = 50;	// 60/262 for 9918A
-    TotalLines = 313;		
+    FramesPerSecond = 50;	// 60 for 9918A
+    TotalLines = 313;		// 262 for 9918A
     ScanlineTime = 1000 * 1000 * 1000 div (FramesPerSecond * TotalLines);
     
 type
@@ -131,9 +134,26 @@ function vdpReadStatus: uint8;
         tms9901setVdpInterrupt (false)
     end;
     
-function getVdpRamPtr (a: uint16): pointer;
+procedure vdpWriteBlock (address, size: uint16; var buf);
+    var
+        p: TUint8Ptr;
+        i: uint16;
     begin
-        getVdpRamPtr := addr (vdpRAM [a mod VdpRAMSize])
+        p := addr (buf);
+        if size <> 0 then
+            for i := 0 to pred (size) do
+                vdpRAM [(address + i) mod VdpRAMSize] := p [i]
+    end;
+    
+procedure vdpReadBlock (address, size: uint16; var buf);
+    var
+        p: TUint8Ptr;
+        i: uint16;
+    begin
+        p := addr (buf);
+        if size <> 0 then
+            for i := 0 to pred (size) do
+                p [i] := vdpRAM [(address + i) mod VdpRAMSize]
     end;
 
 procedure setVdpCallback (p: TVdpCallback);
@@ -144,6 +164,12 @@ procedure setVdpCallback (p: TVdpCallback);
 procedure readVdpRegisters;
     var 
         colorTableAddr, patternTableAddr: uint16;
+        
+    function getVdpRamPtr (a: uint16): pointer;
+        begin
+            getVdpRamPtr := addr (vdpRAM [a mod VdpRAMSize])
+        end;
+        
     begin
         textMode := odd (vdpRegister [1] shr 4);
         bitmapMode := odd (vdpRegister [0] shr 1);
@@ -157,13 +183,21 @@ procedure readVdpRegisters;
         spritePatternTable := getVdpRamPtr ((vdpRegister [6] and $07) shl 11);
         colorTableAddr := vdpRegister [3] shl 6;
         patternTableAddr := (vdpRegister [4] and $07) shl 11;
-        colorTableMask := ifthen (bitmapMode, colorTableAddr and $1fc0 or $003f, pred (VdpRamSize));
-        patternTableMask := ifthen (bitmapMode, patternTableAddr and $1800 or (colorTableMask or $07ff * ord (textMode or multiColorMode)) and $07ff, pred (VdpRamSize));
-        patternTable := getVdpRamPtr (ifthen (bitmapMode, patternTableAddr and $2000, patternTableAddr));
-        colorTable := getVdpRamPtr (ifthen (bitmapMode, colorTableAddr and $2000, colorTableAddr))
+        colorTableMask := pred (VdpRamSize);
+        patternTableMask := pred (VdpRamSize);
+        
+        if bitmapMode then
+            begin
+                colorTableMask := colorTableAddr and $1fc0 or $003f;
+                patternTableMask := patternTableAddr and $1800 or (colorTableMask or $07ff * ord (textMode or multiColorMode)) and $07ff;
+                patternTableAddr := patternTableAddr and $2000;
+                colorTableAddr := colorTableAddr and $2000
+            end;
+        
+        patternTable := getVdpRamPtr (patternTableAddr);
+        colorTable := getVdpRamPtr (colorTableAddr)
     end;
 
-(*$POINTERMATH ON*)
 procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     const
         NrSprites = 32;
@@ -173,33 +207,43 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
         coincidence: boolean;
         fifthSpriteIndex, spriteIndex, spriteCount: 0..NrSprites; 
         
-    procedure drawSpritePattern (xpos: int16; pattern: uint16; color: TPalette);
+    procedure drawSpritePattern (xpos: int16; p1, p2: int64; color: TPalette);
         var
-            i: 0..15;
-            j: boolean;
+            pattern: uint32;
         begin
-            if pattern <> 0 then
-                for i := 15 downto 8 * ord (not spriteSize4) do
-                    for j := false to spriteMagnification do
-                        begin
-                            if (uint16 (xpos) < ActiveDisplayWidth) and odd (pattern shr i) then
-                                if spritePixel [xpos] then
-                                    coincidence := true
-                                else
-                                    begin
-                                        if color <> 0 then
-                                            bitmapPtr [xpos] := color;
-                                        spritePixel [xpos] := true
-                                    end;
-                            inc (xpos)
-                        end
-        end;            
+            if spriteMagnification then
+                begin // duplicate bits, see https://graphics.stanford.edu/~seander/bithacks.html
+                    p1 := ((p1 * $0101010101010101) and $8040201008040201) * $0102040810204081;
+                    p2 := ((p2 * $0101010101010101) and $8040201008040201) * $0102040810204081;
+                    pattern := (p1 shr 33) and $55550000 or (p1 shr 32) and $AAAA0000 or (p2 shr 49) and $5555 or (p2 shr 48) and $AAAA
+                end
+            else
+                pattern := p1 shl 24 or p2 shl 16;
+            if xpos < 0 then
+                begin
+                    pattern := uint32 (pattern shl (-xpos));
+                    xpos := 0
+                end;
+            while (pattern <> 0) and (xpos < ActiveDisplayWidth) do
+                begin
+                    if odd (pattern shr 31) then
+                        if spritePixel [xpos] then
+                            coincidence := true
+                        else
+                            begin
+                                if color <> 0 then
+                                    bitmapPtr [xpos] := color;
+                                spritePixel [xpos] := true
+                            end;
+                    inc (xpos);
+                    pattern := uint32 (pattern shl 1)
+                end
+        end;     
         
     procedure handleSprite (spriteIndex: uint8; var spriteAttribute: TSpriteAttribute);
         var
             ypos: int16;
-            patternOffset: uint16;
-            yoffset: 0..15;
+            patternAddr: TUint8Ptr;
         begin
             ypos := succ (spriteAttribute.vpos - 256 * ord (spriteAttribute.vpos > LastSpriteIndicator));    
             if (displayLine >= ypos) and (displayLine < ypos + 8 shl (ord (spriteSize4) + ord (spriteMagnification))) then
@@ -209,9 +253,8 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                         fifthSpriteIndex := spriteIndex
                     else 
                         begin
-                            patternOffset := (spriteAttribute.pattern and not (3 * ord (spriteSize4))) shl 3;
-                            yoffset := (displayLine - ypos) shr ord (spriteMagnification);
-                            drawSpritePattern (spriteAttribute.hpos - (spriteAttribute.color and $80) shr 2, spritePatternTable [patternOffset + yOffset] shl 8 or ifthen (spriteSize4, spritePatternTable [patternOffset + yOffset + 16], 0), spriteAttribute.color and $0f)
+                            patternAddr := spritePatternTable + (spriteAttribute.pattern and not (3 * ord (spriteSize4))) shl 3 + (displayLine - ypos) shr ord (spriteMagnification);
+                            drawSpritePattern (spriteAttribute.hpos - (spriteAttribute.color and $80) shr 2, patternAddr [0], patternAddr [16] * ord (spriteSize4), spriteAttribute.color and $0f)
                         end
                 end
         end;
@@ -239,23 +282,35 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     var
         i: 0..7;
         col: 0..39;
-        offset: uint16;
+        offset, lineOffset, imageTableBase: uint16;
         pattern, colors: uint8;
     begin
+        lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
+        imageTableBase := (4 + ord (textMode)) * (displayLine and $f8);
         for col := 0 to 31 + 8 * ord (textMode) do 
             begin
-                offset := 8 * imageTable [(4 + ord (textMode)) * (displayLine and $f8) + col]  +  displayLine shr (2 * ord (multiColorMode)) and $07  +  32 * (displayLine and $c0) * ord (bitmapMode);
+                offset := 8 * imageTable [imageTableBase + col] + lineOffset;
                 pattern := patternTable [offset and patternTableMask];	// masks set to $3fff for non-bitmap modes
-                colors := ifthen (textMode, vdpRegister [7], ifthen (multiColorMode, pattern, colorTable [offset shr (6 * ord (not bitmapMode)) and colorTableMask]));
-                pattern := ifthen (multiColorMode, $f0, pattern);
+                if textMode then
+                    colors := vdpRegister [7]
+                else if multiColorMode then
+                    colors := pattern
+                else 
+                    colors := colorTable [offset shr (6 * ord (not bitmapMode)) and colorTableMask];
+                if multiColorMode then 
+                    pattern := $f0;
                 colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
                 for i := 7 downto 2 * ord (textMode) do
-                    bitmapPtr [7 - i] := (colors shr (4 * ((pattern shr i) and 1))) and $0f;
-                inc (bitmapPtr, 8 - 2 * ord (textMode))
+                    begin
+                        bitmapPtr^ := (colors shr (4 * ((pattern shr i) and 1))) and $0f;
+                        inc (bitmapPtr)
+                    end
             end
     end;
     
-procedure drawScanline (scanline: uint16; bitmapPtr: TScreenBitmapPtr);
+procedure drawScanline (scanline: uint16);
+    var
+        bitmapPtr: TScreenBitmapPtr;
     begin
         if scanline = renderHeight then 
             begin
@@ -267,6 +322,7 @@ procedure drawScanline (scanline: uint16; bitmapPtr: TScreenBitmapPtr);
         else if scanline < renderHeight then
             begin
                 readVdpRegisters;
+                bitMapPtr := addr (image [scanline]);                
                 fillChar (bitmapPtr^, RenderWidth, bgColor);
                 if odd (vdpRegister [1] shr 6) and (scanline in [TopBorder..TopBorder + ActiveDisplayHeight - 1]) then
                     begin
@@ -284,7 +340,7 @@ procedure handleVDP (cycles: int64);
     begin
         while cyclesHandled < cycles do
             begin
-                drawScanline (scanline, addr (image [scanline]));
+                drawScanline (scanline);
                 inc (cyclesHandled, ScanlineTime div getCycleTime);
                 scanline := succ (scanline) mod TotalLines
             end

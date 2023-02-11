@@ -50,9 +50,11 @@ procedure pcodeDiskSubSectorIO;
         if (cmd^.drive in [1..NumberDrives]) and (sectorNumber < diskSectors [cmd^.drive]) then
             begin
                 if (cmd^.rw <> 0) then
-                    move (diskBuffers [cmd^.drive]^[sectorNumber], getVdpRamPtr (ntohs (cmd^.bufptr))^, SectorSize)
+//                    move (diskBuffers [cmd^.drive]^[sectorNumber], getVdpRamPtr (ntohs (cmd^.bufptr))^, SectorSize)
+                    vdpWriteBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber])
                 else
-                    move (getVdpRamPtr (ntohs (cmd^.bufptr))^, diskBuffers [cmd^.drive]^[sectorNumber], SectorSize);
+//                    move (getVdpRamPtr (ntohs (cmd^.bufptr))^, diskBuffers [cmd^.drive]^[sectorNumber], SectorSize);
+                    vdpReadBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber]);
                 cmd^.sectorNumberOut := cmd^.sectorNumberin;
                 cmd^.errorCode := E_NoError
             end

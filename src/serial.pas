@@ -42,7 +42,7 @@ procedure serialSimPowerup;
     begin
     end;
     
-procedure parseSerialModifiers (pab: TPabPtr; var modifiers: TSerialModifiers; var serialPort: TSerialPort);
+procedure parseSerialModifiers (var pab: TPab; var modifiers: TSerialModifiers; var serialPort: TSerialPort);
     const
         NumDevices = 8;
         DeviceNames: array [1..NumDevices] of record name: string; out: TSerialPort end = (
@@ -70,7 +70,7 @@ procedure parseSerialModifiers (pab: TPabPtr; var modifiers: TSerialModifiers; v
                 serialPort := DeviceNames [i].out
     end;
     
-procedure openSerialPort (pab: TPabPtr);
+procedure openSerialPort (var pab: TPab);
     begin
         if getRecordLength (pab) = 0 then
             setRecordLength (pab, 80);
@@ -79,17 +79,20 @@ procedure openSerialPort (pab: TPabPtr);
         setRecordNumber (pab, 0);
     end;
     
-procedure writeSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFileHandle);
+procedure writeSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: TFileHandle);
     const
         displayBytes: array [1..8] of uint8 = ($0d, $0a, 0, 0, 0, 0, 0, 0);
+    var
+        buf: array [0..255] of uint8;
     begin
         if handle = InvalidFileHandle then
             setErrorCode (pab, E_DeviceError)
         else
             begin
                 if getDataType (pab) = E_Internal then
-                    fileWrite (handle, addr (pab^.numChars), 1);
-                fileWrite (handle, getVdpRamPtr (getBufferAddress (pab)), getNumChars (pab));
+                    fileWrite (handle, addr (pab.numChars), 1);
+                vdpReadBlock (getBufferAddress (pab), getNumChars (pab), buf);
+                fileWrite (handle, addr (buf), getNumChars (pab));
                 if (getDataType (pab) = E_Display) and (getRecordType (pab) = E_Variable) then 
                     begin
                         if not modifiers.cr then
@@ -128,36 +131,35 @@ function readPort (handle: TFileHandle; var ch: uint8): TPortStatus;
         until done
     end;
         
-procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFileHandle);
+procedure readSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: TFileHandle);
     var
         count, numChars, ch: uint8;
         done: boolean;
-        vdpBuffer: TUint8Ptr;
+        buf: array [0..255] of uint8;
     begin
         if handle = InvalidFileHandle then
             setErrorCode (pab, E_DeviceError)
         else
             begin
                 if getDataType (pab) = E_Internal then
-                    readPort (handle, ch)
+                    readPort (handle, ch)	// TODO: numchars?
                 else
                     numChars := getRecordLength (pab);
-                vdpBuffer := getVdpRamPtr (getBufferAddress (pab));
                 done := false; 
                 count := 0;
                 while (count < numChars) and not done do
                     if readPort (handle, ch) = DataRead then
                         begin
-                            vdpBuffer^ := ch;
-                            inc (vdpBuffer);
+                            buf [count] := ch;
                             inc (count)
                         end
                     else
                         begin
                             setErrorCode (pab, E_DeviceError);
-                            pab^.status := pab^.status or PabStatusEOFReached;
+                            pab.status := pab.status or PabStatusEOFReached;
                             done := true
                         end;
+                vdpWriteBlock (getBufferAddress (pab), count, buf);
                 setNumChars (pab, count)
             end
     end;
@@ -165,11 +167,15 @@ procedure readSerialPort (pab: TPabPtr; modifiers: TSerialModifiers; handle: TFi
 (*$POINTERMATH ON*)    
 procedure serialSimDSR;
     var
-        pab: TPabPtr;
+        pab: TPab;
+        pabaddr: uint16;
         modifiers: TSerialModifiers;
         serialPort: TSerialPort;
     begin
-        pab := TPabPtr (getVdpRamPtr (readMemory ($8356) - readMemory ($8354) - 10));
+        pabAddr := uint16 (readMemory ($8356) - (readMemory ($8354) and $ff) - 10);
+        vdpReadBlock (pabAddr, 10, pab);
+        vdpReadBlock (pabAddr + 10, getNameSize (pab), pab.name);
+
         setErrorCode (pab, E_NoError);
         setStatus (pab, 0);
         parseSerialModifiers (pab, modifiers, serialPort);
@@ -194,7 +200,8 @@ procedure serialSimDSR;
                 ;
             else
                 setErrorCode (pab, E_IllegalOpcode)
-        end                
+        end;
+        vdpWriteBlock (pabAddr, 10, pab)        // write back changes 
     end;
     
 function readSerial (addr: uint16): uint16;

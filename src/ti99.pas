@@ -323,9 +323,6 @@ begin
     setVDPCallback (screenCallback);    
     startThreads;
     g_timeout_add (20, addr (checkScreenUpdate), window);
-    
     gtk_main;
-
-    stopThreads;
-    closeAllMappings
+    stopThreads
 end.
