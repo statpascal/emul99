@@ -41,10 +41,10 @@ them as command line argument; e.g.  "ti99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
 
-Currently it is not possible to change any part of configuration (e.g., disk
-images or cartridges) while the simulator is running. This can be mitigated
-by running multiple instances with different configurations simultaneously
-on the same disk images (see below).
+Currently it is not possible to change any part of the configuration (e.g.,
+disk images or cartridges) while the simulator is running. This can be
+mitigated by running multiple instances with different configurations
+simultaneously on the same disk images (see below).
 
 
 ROM files
@@ -91,7 +91,7 @@ The images files can be created with dd; e.g. use
 dd if=/dev/zero of=blank.disk bs=512 count=32768 
 
 to create a disk image of maximal size. A UCSD file system can then be
-added from within the P-code sytem with the Filer.
+added from within the P-code system with the Filer.
 
 Moreover, an internal 80x24 screen image is maintained at memory address
 >2000. The simulator provides a flag to use this image instead of the
