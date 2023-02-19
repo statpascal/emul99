@@ -75,9 +75,9 @@ var
 
 function makeHostFileName (var pab: TPab): string;
     const
-        n = 3;
-        s1: array [1..n] of char = ('.', '/', '\');
-        s2: array [1..n] of string = ('', '\s', '\b');
+        n = 2;
+        s1: array [1..n] of char = ('/', '\');
+        s2: array [1..n] of string = ('\s', '\b');
     var
         i: int64;
         j: 1..n + 1;
@@ -107,15 +107,21 @@ procedure diskSimSubFiles (numberOfFiles: uint8);
         fileBufferBegin: uint16;
     begin
 //        writeln ('CALL FILES (', numberOfFiles, ')');
-        fileBufferBegin := $3DEF - numberOfFiles * 518 - 5;
-        writeMemory ($8370, fileBufferBegin - 1);
-        fileBufferAreaHeader [5] := numberOfFiles;
-        vdpWriteBlock (fileBufferBegin, sizeof (fileBufferAreaHeader), fileBufferAreaHeader);
-        writeMemory ($8350, readMemory ($8350) and $00ff)
+        if numberOfFiles in [1..16] then
+            begin
+                fileBufferBegin := $3DEF - numberOfFiles * 518 - 5;
+                writeMemory ($8370, fileBufferBegin - 1);
+                fileBufferAreaHeader [5] := numberOfFiles;
+                vdpWriteBlock (fileBufferBegin, sizeof (fileBufferAreaHeader), fileBufferAreaHeader);
+                writeMemory ($8350, readMemory ($8350) and $00ff)
+            end
+        else
+            writeMemory ($8350, readMemory ($8350) and $00ff or $0200) // TODO: Bad attribute - check if correct error code
     end;
 
 procedure diskSimPowerUpRoutine;
     begin
+    (* Do we really need to reserve these buffers? The UCSD editor crashes when no buffer is present but it cannot use this DSR anyway. *)
         if readMemory ($8370) = $3fff then
             diskSimSubFiles (3)
     end;        
@@ -646,17 +652,8 @@ procedure diskSimSubFileOutput;
     end;
     
 procedure diskSimSubNumberOfFiles;
-    var
-        n: uint8;
     begin
-        n := getMemoryPtr ($834c)^;
-        if (n >= 1) and (n <= 16) then
-            begin
-                diskSimSubFiles (n);
-                getMemoryPtr ($8350)^ := 0
-            end
-        else
-            getMemoryPtr ($8350)^ := 2;	// TODO: Bad attribute - check if correct error code
+        diskSimSubFiles (readMemory ($834c) shr 8)
     end;
 
 procedure initFileBuffers;

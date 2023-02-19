@@ -39,14 +39,6 @@ procedure setNoiseData (b: uint8);
         noiseIsWhite := odd (b shr 2)
     end;
 
-procedure handleData (b: uint8);
-    begin
-        if selectedRegister = NoiseGenerator then
-            setNoiseData (b)
-        else
-            toneDivider [selectedRegister] := (toneDivider [selectedRegister] and $f) or (b and $3f) shl 4
-    end;
-    
 procedure handleCommand (b: uint8);
     begin
         selectedRegister := (b shr 5) and $03;
@@ -62,8 +54,10 @@ procedure soundWriteData (b: uint8);
     begin
         if odd (b shr 7) then
             handleCommand (b)
+        else if selectedRegister = NoiseGenerator then
+            setNoiseData (b)
         else
-            handleData (b)
+            toneDivider [selectedRegister] := (toneDivider [selectedRegister] and $f) or (b and $3f) shl 4
     end;
 
 (*$POINTERMATH ON*)
@@ -83,7 +77,7 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
                                 begin
                                     generatorCounter [NoiseGenerator] := toneDivider [NoiseGenerator - ord (toneDivider [NoiseGenerator] = $100)];
                                     noiseShift := noiseShift shr 1 or ord (odd (noiseShift shr 1) xor (noiseIsWhite and odd (noiseShift shr 3))) shl 15;
-                                    generatorOutput [NoiseGenerator] := noiseShift and 1
+                                    generatorOutput [NoiseGenerator] := 1 - 2 * (noiseShift and 1)
                                 end
                             else
                                 begin

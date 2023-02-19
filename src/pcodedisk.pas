@@ -42,7 +42,7 @@ procedure pcodeDiskSubSectorIO;
         end;
         TSectorIOCmdPtr = ^TSectorIOCmd;
     var
-        cmd: ^TSectorIOCmd;
+        cmd: TSectorIOCmdPtr;
         sectorNumber: uint16;
     begin
         cmd := TSectorIOCmdPtr (getMemoryPtr ($834a));
@@ -50,10 +50,8 @@ procedure pcodeDiskSubSectorIO;
         if (cmd^.drive in [1..NumberDrives]) and (sectorNumber < diskSectors [cmd^.drive]) then
             begin
                 if (cmd^.rw <> 0) then
-//                    move (diskBuffers [cmd^.drive]^[sectorNumber], getVdpRamPtr (ntohs (cmd^.bufptr))^, SectorSize)
                     vdpWriteBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber])
                 else
-//                    move (getVdpRamPtr (ntohs (cmd^.bufptr))^, diskBuffers [cmd^.drive]^[sectorNumber], SectorSize);
                     vdpReadBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber]);
                 cmd^.sectorNumberOut := cmd^.sectorNumberin;
                 cmd^.errorCode := E_NoError

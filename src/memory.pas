@@ -43,10 +43,8 @@ type
 
 var
     mem: array [0..MaxAddress div 2] of uint16;
-    memB: array [0..MaxAddress] of uint8 absolute mem;
 	
     cart: array [0..MaxCardBanks - 1, $3000..$3FFF] of uint16;
-    cartB: array [0..MaxCardBanks - 1, $6000..$7FFF] of uint8 absolute cart;
     cartBanks: 1..MaxCardBanks;
     activeCartBank: 0..MaxCardBanks - 1;
     cartROMInverted: boolean;
@@ -205,9 +203,10 @@ function readMemory (addr: uint16): uint16;
            end 
     end;
     
+(*$POINTERMATH ON*)
 function getMemoryPtr (s: uint16): TUint8Ptr;
     begin
-        getMemoryPtr := addr (memB [s])
+        getMemoryPtr := TUint8Ptr (addr (mem)) + s
     end;
     
 function getWaitStates: uint8;

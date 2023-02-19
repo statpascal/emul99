@@ -365,7 +365,7 @@ procedure executeFormat2_1 (var instruction: TInstruction);
         if instruction.opcode = Op_TB then
             updateStatusBits (instruction, Status_EQ * readCru (addr))
         else // SBO, SBZ
-            writeCru (addr, ord (instruction.opcode = Op_SBO));
+            writeCru (addr, ord (instruction.opcode = Op_SBO))
     end;
 
 procedure executeFormat3 (var instruction: TInstruction);
@@ -434,9 +434,11 @@ procedure executeFormat5 (var instruction: TInstruction);
 	    count := 16;
         inc (cycles, 2 * count);
 	val := readRegister (instruction.w);
-        overflow := (count = 16) and (val <> 0) or
-	            (count <> 16) and (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count)); // SLA only
-	carry := odd (val shr (pred (count) + (17 - 2 * count) * ord (instruction.opcode = Op_SLA)));
+        if count = 16 then
+            overflow := val <> 0
+        else
+            overflow := (val shr (15 - count) <> 0) and (succ (val shr (15 - count)) <> 1 shl succ (count)); // SLA only
+        carry := odd (val shr ifthen (instruction.opcode = Op_SLA, 16 - count, pred (count)));
 	
 	case instruction.opcode of
 	    Op_SLA:
@@ -508,7 +510,7 @@ procedure executeFormat7 (var instruction: TInstruction);
 	        begin
 		    st := readRegister (15);
 		    pc := readRegister (14) and not 1;
-		    wp := readRegister (13) and not 1;
+		    wp := readRegister (13) and not 1
    	        end;
  	    Op_RSET:
 	        updateStatusBits (instruction, 0)
@@ -557,8 +559,8 @@ procedure executeFormat9 (var instruction: TInstruction);
 	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
         case instruction.opcode of
             Op_XOP:
-                if instruction.D = 0 then
-                    handleXop (srcaddr) 	// simulator hook for XOP 0 
+                if (instruction.D = 0) and (pc >= $4000) and (pc < $6000) then
+                    handleXop (srcaddr) 	// simulator hook for XOP 0 in DSR
                 else
                     begin
                         switchContext ($0040 + 2 * instruction.D);

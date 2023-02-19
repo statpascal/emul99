@@ -7,9 +7,9 @@ const
     MaxCruAddress = 4191;
     NumberDrives = 3;
     
+    PcodeDiskCruAddress = $1000;    
     FdcCardCruAddress = $1100;
     DiskSimCruAddress = $1200;
-    PcodeDiskCruAddress = $1000;    
     SerialSimCruAddress = $1500;
     PcodeCardCruAddress = $1f00;
 

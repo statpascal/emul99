@@ -66,7 +66,7 @@ type
     end;
 
 var
-    commandByteBuffer: int16;
+    commandByte1: Invalid..$ff;
     prefetchedRead: uint8;
     readWriteAddress: uint16;
 
@@ -86,24 +86,13 @@ var
 procedure advanceReadWriteAddress;
     begin
         readWriteAddress := succ (readWriteAddress) mod VdpRAMSize;
-        commandByteBuffer := Invalid
+        commandByte1 := Invalid
     end;
     
 procedure prefetchReadData;
     begin
         prefetchedRead := vdpRAM [readWriteAddress];
         advanceReadWriteAddress
-    end;
-
-procedure executeCommand (command, commandByte1, commandByte2: uint8);
-    begin
-        if command = 2 then
-            vdpRegister [commandByte2 mod VdpRegisterCount] := commandByte1
-        else if command <= 1 then
-            readWriteAddress := commandByte1 + 256 * commandByte2;
-        if command = 0 then
-            prefetchReadData;
-        commandByteBuffer := Invalid
     end;
 
 procedure vdpWriteData (b: uint8);
@@ -114,10 +103,22 @@ procedure vdpWriteData (b: uint8);
 
 procedure vdpWriteCommand (b: uint8);
     begin
-        if commandByteBuffer <> Invalid then
-            executeCommand (b shr 6, commandByteBuffer, b and $3f)
+        if commandByte1 <> Invalid then
+            begin
+                case b shr 6 of
+                    0, 1:
+                        begin
+                            readWriteAddress := commandByte1 + 256 * (b and $3f);
+                            if b shr 6 = 0 then
+                                prefetchReadData
+                        end;
+                    2:
+                        vdpRegister [b mod VdpRegisterCount] := commandByte1
+                end;
+                commandByte1 := Invalid
+            end
         else
-            commandByteBuffer := b
+            commandByte1 := b
     end;
 
 function vdpReadData: uint8;
@@ -128,7 +129,7 @@ function vdpReadData: uint8;
 
 function vdpReadStatus: uint8;
     begin
-        commandByteBuffer := Invalid;
+        commandByte1 := Invalid;
         vdpReadStatus := vdpStatus;
         vdpStatus := vdpStatus and $1f;
         tms9901setVdpInterrupt (false)
@@ -162,8 +163,6 @@ procedure setVdpCallback (p: TVdpCallback);
     end;    
     
 procedure readVdpRegisters;
-    var 
-        colorTableAddr, patternTableAddr: uint16;
         
     function getVdpRamPtr (a: uint16): pointer;
         begin
@@ -181,21 +180,21 @@ procedure readVdpRegisters;
         imageTable := getVdpRamPtr ((vdpRegister [2] and $0f) shl 10);
         spriteAttributeTable := getVdpRamPtr ((vdpRegister [5] and $7f) shl 7);
         spritePatternTable := getVdpRamPtr ((vdpRegister [6] and $07) shl 11);
-        colorTableAddr := vdpRegister [3] shl 6;
-        patternTableAddr := (vdpRegister [4] and $07) shl 11;
-        colorTableMask := pred (VdpRamSize);
-        patternTableMask := pred (VdpRamSize);
         
         if bitmapMode then
             begin
-                colorTableMask := colorTableAddr and $1fc0 or $003f;
-                patternTableMask := patternTableAddr and $1800 or (colorTableMask or $07ff * ord (textMode or multiColorMode)) and $07ff;
-                patternTableAddr := patternTableAddr and $2000;
-                colorTableAddr := colorTableAddr and $2000
-            end;
-        
-        patternTable := getVdpRamPtr (patternTableAddr);
-        colorTable := getVdpRamPtr (colorTableAddr)
+                patternTable := getVdpRamPtr ((vdpRegister [4] and $04) shl 11);
+                colorTable := getVdpRamPtr ((vdpRegister [3] and $80) shl 6);
+                patternTableMask := (vdpRegister [4] and $03) shl 11 or ifthen (textMode or multiColorMode, $1f, vdpRegister [3] and $1f) shl 6 or $003f;
+                colorTableMask := (vdpRegister [3] and $7f) shl 6 or $003f
+            end
+        else
+            begin
+                patternTable := getVdpRamPtr ((vdpRegister [4] and $07) shl 11);
+                colorTable := getVdpRamPtr (vdpRegister [3] shl 6);
+                patternTableMask := pred (VdpRamSize);
+                colorTableMask := pred (VdpRamSize)
+            end
     end;
 
 procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
@@ -215,15 +214,12 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                 begin // duplicate bits, see https://graphics.stanford.edu/~seander/bithacks.html
                     p1 := ((p1 * $0101010101010101) and $8040201008040201) * $0102040810204081;
                     p2 := ((p2 * $0101010101010101) and $8040201008040201) * $0102040810204081;
-                    pattern := (p1 shr 33) and $55550000 or (p1 shr 32) and $AAAA0000 or (p2 shr 49) and $5555 or (p2 shr 48) and $AAAA
+                    pattern := ((p1 shr 33) and $55550000 or (p1 shr 32) and $AAAA0000 or (p2 shr 49) and $5555 or (p2 shr 48) and $AAAA) shl max (0, -xpos)
                 end
             else
-                pattern := p1 shl 24 or p2 shl 16;
-            if xpos < 0 then
-                begin
-                    pattern := uint32 (pattern shl (-xpos));
-                    xpos := 0
-                end;
+                pattern := (p1 shl 24 or p2 shl 16) shl max (0, -xpos);
+            xpos := max (0, xpos);
+                            
             while (pattern <> 0) and (xpos < ActiveDisplayWidth) do
                 begin
                     if odd (pattern shr 31) then
@@ -300,17 +296,13 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                 if multiColorMode then 
                     pattern := $f0;
                 colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
-                for i := 7 downto 2 * ord (textMode) do
-                    begin
-                        bitmapPtr^ := (colors shr (4 * ((pattern shr i) and 1))) and $0f;
-                        inc (bitmapPtr)
-                    end
+                for i := 0 to 7 - 2 * ord (textMode) do
+                    bitmapPtr [i] := (colors shr (4 * ((pattern shr (7 - i)) and 1))) and $0f;
+                inc (bitmapPtr, 8 - 2 * ord (textMode));
             end
     end;
     
 procedure drawScanline (scanline: uint16);
-    var
-        bitmapPtr: TScreenBitmapPtr;
     begin
         if scanline = renderHeight then 
             begin
@@ -322,13 +314,12 @@ procedure drawScanline (scanline: uint16);
         else if scanline < renderHeight then
             begin
                 readVdpRegisters;
-                bitMapPtr := addr (image [scanline]);                
-                fillChar (bitmapPtr^, RenderWidth, bgColor);
-                if odd (vdpRegister [1] shr 6) and (scanline in [TopBorder..TopBorder + ActiveDisplayHeight - 1]) then
+                fillChar (image [scanline], RenderWidth, bgColor);
+                if odd (vdpRegister [1] shr 6) and (scanline >= TopBorder) and (scanline < TopBorder + ActiveDisplayHeight) then
                     begin
-                        drawImageScanline (scanline - TopBorder, bitmapPtr + ifthen (textMode, LeftBorderText, LeftBorder));
+                        drawImageScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]));
                         if not textMode then
-                            drawSpritesScanline (scanline - TopBorder, bitmapPtr + LeftBorder)
+                            drawSpritesScanline (scanline - TopBorder, addr (image [scanline, LeftBorder]))
                     end;
             end;
     end;
@@ -347,7 +338,7 @@ procedure handleVDP (cycles: int64);
     end;
     
 begin
-    commandByteBuffer := Invalid;
+    commandByte1 := Invalid;
     vdpStatus := 0;
     fillChar (vdpRegister, sizeof (vdpRegister), 0);
     fillChar (vdpRAM, sizeof (vdpRAM), 0)
