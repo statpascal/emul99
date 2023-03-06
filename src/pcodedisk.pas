@@ -5,6 +5,8 @@ interface
 uses types;
 
 procedure pcodeDiskSubSectorIO;
+procedure pcodeDiskPowerup;
+
 function readPcodeDisk (addr: uint16): uint16;
 
 procedure initPcodeDisk (dsrFilename: string);
@@ -13,7 +15,7 @@ procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);
     
 implementation
 
-uses vdp, memory, memmap, cfuncs, tools;
+uses vdp, memory, pab, memmap, cfuncs, tools;
 
 const 
     MaxSectors = 65536;
@@ -49,16 +51,18 @@ procedure pcodeDiskSubSectorIO;
         sectorNumber := ntohs (cmd^.sectorNumberIn);
         if (cmd^.drive in [1..NumberDrives]) and (sectorNumber < diskSectors [cmd^.drive]) then
             begin
-                if (cmd^.rw <> 0) then
-                    vdpWriteBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber])
-                else
-                    vdpReadBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber]);
+                vdpTransferBlock (ntohs (cmd^.bufptr), SectorSize, diskBuffers [cmd^.drive]^[sectorNumber], TVdpDirection (ord (cmd^.rw <> 0)));
                 cmd^.sectorNumberOut := cmd^.sectorNumberin;
                 cmd^.errorCode := E_NoError
             end
         else
             cmd^.errorCode := E_DeviceError
     end;    
+    
+procedure pcodeDiskPowerup;
+    begin
+        reserveVdpFileBuffers (1, PcodeDiskCruAddress)
+    end;
 
 function readPcodeDisk (addr: uint16): uint16;
     begin

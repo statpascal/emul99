@@ -1,14 +1,10 @@
 ; Minimal DSR for PCode system
-; Power up routine sets up single file buffer in VDP RAM
-; XOP call for subroutine >10 (sector I/O) is handled in pcodedisk.pas
 ; Assemble with:
 ;
 ; python3 ~/bin/xas99.py -R -b pcodedisk.a99
 
-pcode_sub_10	equ >000a
-vdpwa   	equ >8c02
-vdpwd   	equ >8c00
-nfiles		equ 1		; file buffers reserved in VDP ram
+pcode_pwrup	equ >000a
+pcode_sub_10	equ >000b
 
 	aorg >4000
 
@@ -61,31 +57,7 @@ sub_10:
 	b *r11
 
 pwrup:
-	mov @>8370, r0
-	ci r0, >3fff
-	jne pwrup_done
-
-	li r0, >3def - 6 - (nfiles * 518)
-	mov r0, @>8370
-	inc r0
-	ori r0, >4000
-	swpb r0
-	movb r0, @vdpwa
-	swpb r0
-	movb r0, @vdpwa
-
-	li r1, 5
-	li r0, header_data
-!l1
-	movb *r0+, @vdpwd
-	dec r1
-	jne -!l1
-	movb r1, @>8350
-
-pwrup_done:
+	xop @pcode_pwrup, 0
 	b *r11
-
-header_data:
-	byte >aa, >3f, >ff, >10, nfiles	;  file buffers with CRU base >1300
 
 	end

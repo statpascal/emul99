@@ -91,7 +91,7 @@ procedure writeSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: T
             begin
                 if getDataType (pab) = E_Internal then
                     fileWrite (handle, addr (pab.numChars), 1);
-                vdpReadBlock (getBufferAddress (pab), getNumChars (pab), buf);
+                vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), buf, VdpRead);
                 fileWrite (handle, addr (buf), getNumChars (pab));
                 if (getDataType (pab) = E_Display) and (getRecordType (pab) = E_Variable) then 
                     begin
@@ -159,7 +159,7 @@ procedure readSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: TF
                             pab.status := pab.status or PabStatusEOFReached;
                             done := true
                         end;
-                vdpWriteBlock (getBufferAddress (pab), count, buf);
+                vdpTransferBlock (getBufferAddress (pab), count, buf, VdpWrite);
                 setNumChars (pab, count)
             end
     end;
@@ -173,8 +173,8 @@ procedure serialSimDSR;
         serialPort: TSerialPort;
     begin
         pabAddr := uint16 (readMemory ($8356) - (readMemory ($8354) and $ff) - 10);
-        vdpReadBlock (pabAddr, 10, pab);
-        vdpReadBlock (pabAddr + 10, getNameSize (pab), pab.name);
+        vdpTransferBlock (pabAddr, 10, pab, VdpRead);
+        vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
 
         setErrorCode (pab, E_NoError);
         setStatus (pab, 0);
@@ -201,7 +201,7 @@ procedure serialSimDSR;
             else
                 setErrorCode (pab, E_IllegalOpcode)
         end;
-        vdpWriteBlock (pabAddr, 10, pab)        // write back changes 
+        vdpTransferBlock (pabAddr, 10, pab, VdpWrite)        // write back changes 
     end;
     
 function readSerial (addr: uint16): uint16;

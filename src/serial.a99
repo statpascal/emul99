@@ -3,8 +3,8 @@
 ;
 ; python3 ~/bin/xas99.py -R -b serial.a99
 
-serial_pwrup 	equ >000b
-serial_dsr	equ >000c
+serial_pwrup 	equ >000c
+serial_dsr	equ >000d
 
 	aorg >4000
 

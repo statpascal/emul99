@@ -26,6 +26,7 @@ type
         r, g, b: uint8
     end;
     TVdpCallback = procedure (var bitmap: TScreenBitmap);
+    TVdpDirection = (VdpRead, VdpWrite);
     
 const
     palette: array [TPalette] of TRgbValue = (
@@ -39,8 +40,7 @@ procedure vdpWriteCommand (b: uint8);
 function vdpReadData: uint8;
 function vdpReadStatus: uint8;
 
-procedure vdpWriteBlock (address, size: uint16; var buf);
-procedure vdpReadBlock (address, size: uint16; var buf);
+procedure vdpTransferBlock (address, size: uint16; var buf; direction: TVdpDirection);
 
 procedure handleVDP (cycles: int64);
 procedure setVdpCallback (p: TVdpCallback);
@@ -105,16 +105,12 @@ procedure vdpWriteCommand (b: uint8);
     begin
         if commandByte1 <> Invalid then
             begin
-                case b shr 6 of
-                    0, 1:
-                        begin
-                            readWriteAddress := commandByte1 + 256 * (b and $3f);
-                            if b shr 6 = 0 then
-                                prefetchReadData
-                        end;
-                    2:
-                        vdpRegister [b mod VdpRegisterCount] := commandByte1
-                end;
+                if b shr 6 <= 1 then
+                    readWriteAddress := commandByte1 + 256 * (b and $3f)
+                else if b shr 6 = 2 then
+                    vdpRegister [b mod VdpRegisterCount] := commandByte1;
+                if b shr 6 = 0 then
+                    prefetchReadData;
                 commandByte1 := Invalid
             end
         else
@@ -135,7 +131,7 @@ function vdpReadStatus: uint8;
         tms9901setVdpInterrupt (false)
     end;
     
-procedure vdpWriteBlock (address, size: uint16; var buf);
+procedure vdpTransferBlock (address, size: uint16; var buf; direction: TVdpDirection);
     var
         p: TUint8Ptr;
         i: uint16;
@@ -143,18 +139,10 @@ procedure vdpWriteBlock (address, size: uint16; var buf);
         p := addr (buf);
         if size <> 0 then
             for i := 0 to pred (size) do
-                vdpRAM [(address + i) mod VdpRAMSize] := p [i]
-    end;
-    
-procedure vdpReadBlock (address, size: uint16; var buf);
-    var
-        p: TUint8Ptr;
-        i: uint16;
-    begin
-        p := addr (buf);
-        if size <> 0 then
-            for i := 0 to pred (size) do
-                p [i] := vdpRAM [(address + i) mod VdpRAMSize]
+                if direction = VdpWrite then
+                    vdpRAM [(address + i) mod VdpRAMSize] := p [i]
+                else
+                    p [i] := vdpRAM [(address + i) mod VdpRAMSize]
     end;
 
 procedure setVdpCallback (p: TVdpCallback);
@@ -320,8 +308,8 @@ procedure drawScanline (scanline: uint16);
                         drawImageScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]));
                         if not textMode then
                             drawSpritesScanline (scanline - TopBorder, addr (image [scanline, LeftBorder]))
-                    end;
-            end;
+                    end
+            end
     end;
 
 procedure handleVDP (cycles: int64);

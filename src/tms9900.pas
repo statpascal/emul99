@@ -534,7 +534,7 @@ procedure executeFormat8 (var instruction: TInstruction);
 	    Op_ORI:
 	        result := readRegister (instruction.w) or instruction.imm;
 	    Op_LIMI:
-	        status := instruction.imm;
+	        status := instruction.imm and Status_IntMask;
 	    Op_LWPI:
 	        wp := instruction.imm and not 1
 	end;

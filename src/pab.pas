@@ -2,6 +2,8 @@ unit pab;
 
 interface
 
+uses types;
+
 const
     PabStatusFileNotFound = $80;
     PabStatusWriteProtected = $40;
@@ -54,10 +56,11 @@ procedure setErrorCode (var pab: TPab; errorCode: TErrorCode);
 procedure setRecordNumber (var pab: TPab; n: uint16);
 procedure setStatus (var pab: TPab; status: uint8);
 
+procedure reserveVdpFileBuffers (nFiles: uint8; diskCruBase: TCruR12Address);
     
 implementation
 
-uses cfuncs;
+uses cfuncs, vdp, memory;
 
 procedure dumpPabOperation (var pab: TPab);    
     const
@@ -209,6 +212,25 @@ procedure setRecordNumber (var pab: TPab; n: uint16);
 procedure setStatus (var pab: TPab; status: uint8);
     begin
         pab.status := status
+    end;
+
+procedure reserveVdpFileBuffers (nFiles: uint8; diskCruBase: TCruR12Address);
+    const
+        fileBufferAreaHeader: array [1..5] of uint8 = ($aa, $3f, $ff, 0, 0);
+    var
+        fileBufferBegin: uint16;
+    begin
+        if nFiles in [1..16] then
+            begin
+                fileBufferBegin := $3DEF - nFiles * 518 - 5;
+                writeMemory ($8370, fileBufferBegin - 1);
+                fileBufferAreaHeader [4] := diskCruBase shr 8;
+                fileBufferAreaHeader [5] := nFiles;
+                vdpTransferBlock (fileBufferBegin, sizeof (fileBufferAreaHeader), fileBufferAreaHeader, VdpWrite);
+                writeMemory ($8350, readMemory ($8350) and $00ff)
+            end
+        else
+            writeMemory ($8350, readMemory ($8350) and $00ff or $0200) // TODO: Bad attribute - check if correct error code
     end;
     
 end.

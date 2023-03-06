@@ -178,7 +178,8 @@ with real time.
 The DSRs for the simulated devices (serial, host and special P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
 specifying the requested operation as a dummy source address. The simulated
-TMS9900 dispatches these XOP calls in the file "xophandler.pas."
+TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
+occur in the DSR ROM address range. 
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the
