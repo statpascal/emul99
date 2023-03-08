@@ -186,7 +186,7 @@ procedure configureMiniMemory;
 
 procedure writeMemory (addr, w: uint16);
     begin
-        readMemory (addr);	// read before write is always performed
+//        readMemory (addr);	// read before write is always performed?
         with memoryMap [addr shr 1] do
             begin
                 writer (addr and $fffe, w);

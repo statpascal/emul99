@@ -161,6 +161,8 @@ function disassembleInstruction (var instruction: TInstruction; addr: uint16): s
             Format2_1:
                 textstr := textstr + decimalstr (instruction.disp)
         end;
+        if instruction.instr = $1000 then
+            textstr := 'NOP';
         disassembleInstruction := codestr + stringOfChar (' ', 22 - length (codestr)) + textstr
     end;        
 
@@ -462,7 +464,7 @@ procedure executeFormat6 (var instruction: TInstruction);
 	addr, val, status: uint16;
     begin
 	addr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
-	if instruction.opcode <> Op_BLWP then
+	if not (instruction.opcode in [Op_CLR, Op_BLWP]) then
             val := readMemory (addr);
 	status := 0;
 	
@@ -605,7 +607,7 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cycles, instruction.cycles + getWaitStates);
-(*        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC)) *)
+//        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
     end;	
 
 procedure handleInterrupt (level: uint8);

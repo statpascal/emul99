@@ -55,8 +55,10 @@ const
     VdpRegisterCount = 8;
     Invalid = -1;
     
-    FramesPerSecond = 50;	// 60 for 9918A
-    TotalLines = 313;		// 262 for 9918A
+    FramesPerSecond = 50;	// 9929
+    TotalLines = 313;		
+//    FramesPerSecond = 60;	// 9918A
+//    TotalLines = 262;	
     ScanlineTime = 1000 * 1000 * 1000 div (FramesPerSecond * TotalLines);
     
 type
@@ -107,7 +109,7 @@ procedure vdpWriteCommand (b: uint8);
             begin
                 if b shr 6 <= 1 then
                     readWriteAddress := commandByte1 + 256 * (b and $3f)
-                else if b shr 6 = 2 then
+                else if b shr 6 = 2 then 
                     vdpRegister [b mod VdpRegisterCount] := commandByte1;
                 if b shr 6 = 0 then
                     prefetchReadData;
@@ -180,8 +182,8 @@ procedure readVdpRegisters;
             begin
                 patternTable := getVdpRamPtr ((vdpRegister [4] and $07) shl 11);
                 colorTable := getVdpRamPtr (vdpRegister [3] shl 6);
-                patternTableMask := pred (VdpRamSize);
-                colorTableMask := pred (VdpRamSize)
+                patternTableMask := $3fff;
+                colorTableMask := $3fff
             end
     end;
 
@@ -269,7 +271,7 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
         offset, lineOffset, imageTableBase: uint16;
         pattern, colors: uint8;
     begin
-        lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
+        lineOffset := (displayLine shr (2 * ord (multiColorMode))) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
         imageTableBase := (4 + ord (textMode)) * (displayLine and $f8);
         for col := 0 to 31 + 8 * ord (textMode) do 
             begin
@@ -280,7 +282,7 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                 else if multiColorMode then
                     colors := pattern
                 else 
-                    colors := colorTable [offset shr (6 * ord (not bitmapMode)) and colorTableMask];
+                    colors := colorTable [(offset shr (6 * ord (not bitmapMode))) and colorTableMask];
                 if multiColorMode then 
                     pattern := $f0;
                 colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
@@ -292,7 +294,7 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     
 procedure drawScanline (scanline: uint16);
     begin
-        if scanline = renderHeight then 
+        if scanline = RenderHeight then
             begin
                 vdpStatus := vdpStatus or $80;
                 if odd (vdpRegister [1] shr 5) then

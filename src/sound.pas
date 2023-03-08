@@ -85,7 +85,7 @@ procedure getSamples (buffer: TSampleDataPtr; len: uint32);
                                     generatorOutput [j] := -generatorOutput [j]
                                 end;
                         inc (buffer [i], generatorOutput [j] * volume [attenuator [j]])
-                    end;
+                    end
     end;
       
 var 

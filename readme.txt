@@ -204,7 +204,6 @@ Known Bugs and Limitations
   timestamp and handled when generating output.
 - An infinite recursion of "X" operations crashes the simulator with a stack
   overflow.
-- The recent "Copper Demo" does not work well.
 
 
 Acknowledgements
