@@ -23,7 +23,6 @@ var
     cpuThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
     currentScreenBitmap: TScreenBitmap;
-    newImage: boolean;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
     begin
@@ -224,15 +223,6 @@ procedure preparePalette;
                 gtkColor [i] := r shl 16 + g shl 8 + b
     end;
 
-procedure screenCallback (var screenBitmap: TScreenBitmap);
-    begin
-        if compareByte (currentScreenBitmap, screenBitmap, sizeof (currentScreenBitmap)) <> 0 then
-            begin
-                currentScreenBitmap := screenBitmap;
-                newImage := true
-            end;
-    end;
-
 (*$POINTERMATH ON*)    
 procedure renderScreen (var screenBitmap: TScreenBitmap; bitmap: PCairoSurface);
     var 
@@ -241,18 +231,14 @@ procedure renderScreen (var screenBitmap: TScreenBitmap; bitmap: PCairoSurface);
         p: ^uint32 absolute row;
         q: ^TPalette;
     begin
-        if newImage then 
+        row := cairo_image_surface_get_data (bitmap);
+        stride := cairo_image_surface_get_stride (bitmap);
+        for y := 0 to pred (RenderHeight) do
             begin
-                newImage := false;
-                row := cairo_image_surface_get_data (bitmap);
-                stride := cairo_image_surface_get_stride (bitmap);
-                for y := 0 to pred (RenderHeight) do
-                    begin
-                        q := addr (screenBitmap [y]);
-                        for x := 0 to pred (RenderWidth) do
-                            p [x] := gtkColor [q [x]];
-                        inc (row, stride)
-                    end
+                q := addr (screenBitmap [y]);
+                for x := 0 to pred (RenderWidth) do
+                    p [x] := gtkColor [q [x]];
+                inc (row, stride)
             end
     end;
     
@@ -273,11 +259,10 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
         drawCallback := true
     end;
     
-function checkScreenUpdate (user_data: gpointer): boolean; export;
+function updateScreen (user_data: gpointer): boolean; export;
     begin
-        if newImage or usePcode80 then
-            gtk_widget_queue_draw (PGtkWidget (user_data));
-        checkScreenUpdate := true
+        gtk_widget_queue_draw (PGtkWidget (user_data));
+        updateScreen := false
     end;
 
 procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
@@ -291,6 +276,15 @@ var
     window, drawingArea: PGtkWidget;
     bitmap: PCairoSurface;
     
+procedure screenCallback (var screenBitmap: TScreenBitmap);
+    begin
+        if not usePCode80 and (compareByte (currentScreenBitmap, screenBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
+            begin
+                currentScreenBitmap := screenBitmap;
+                g_idle_add (addr (updateScreen), window)
+            end;
+    end;
+
 begin
     if ParamCount >= 1 then
         loadConfig (ParamStr (1))
@@ -322,7 +316,6 @@ begin
     fillKeyMap;
     setVDPCallback (screenCallback);    
     startThreads;
-    g_timeout_add (20, addr (checkScreenUpdate), window);
     gtk_main;
     stopThreads
 end.
