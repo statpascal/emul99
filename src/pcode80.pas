@@ -15,13 +15,14 @@ implementation
 
 uses memory, types;
 
-const FontSize = 20;
-      hMargin = 20;
-      vMargin = 20;
-      hSpacing = 12;
-      vSpacing = 26;
-      Width = 80;
-      Height = 24;
+const 
+    FontSize = 20;
+    hMargin = 20;
+    vMargin = 20;
+    hSpacing = 12;
+    vSpacing = 26;
+    Width = 80;
+    Height = 24;
       
 var
     renderedScreen: array [0..Height - 1, 0..Width - 1] of uint8;
