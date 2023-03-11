@@ -267,33 +267,33 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
 procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     var
         pattern, colors: uint8;
-        i: 0..7;
-        j: 0..39;
+        charEnd: TScreenBitmapPtr;
         offset: uint16;
-        imageTableLinePtr: TUint8Ptr;
+        linePtr, lineEnd: TUint8Ptr;
     begin
         offset := (displayLine shr (2 * ord (multiColorMode))) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
-        imageTableLinePtr := imageTable + (4 + ord (textMode)) * (displayLine and $f8);
-        for j := 31 + 8 * ord (textMode) downto 0 do 
-            begin
-                pattern := patternTable [(8 * imageTableLinePtr^ + offset) and patternTableMask];	// masks set to $3fff for non-bitmap modes
-                if textMode then
-                    colors := vdpRegister [7]
-                else if multiColorMode then
-                    colors := pattern
-                else 
-                    colors := colorTable [((8 * imageTableLinePtr^ + offset) shr (6 * ord (not bitmapMode))) and colorTableMask];
-                if multiColorMode then 
-                    pattern := $f0;
-                inc (imageTableLinePtr);
-                colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
-                for i := 7 -  2 * ord (textMode) downto 0 do
-                    begin
-                        bitmapPtr^ := colors shr (pattern shr 5 and $04) and $0f;
-                        inc (bitmapPtr);
-                        pattern := uint8 (pattern shl 1)
-                    end
-            end
+        linePtr := imageTable + (4 + ord (textMode)) * (displayLine and $f8);
+        lineEnd := linePtr + 32 + 8 * ord (textMode);
+        repeat
+            pattern := patternTable [(8 * linePtr^ + offset) and patternTableMask];	// masks set to $3fff for non-bitmap modes
+            if textMode then
+                colors := vdpRegister [7]
+            else if multiColorMode then
+                colors := pattern
+            else 
+                colors := colorTable [((8 * linePtr^ + offset) shr (6 * ord (not bitmapMode))) and colorTableMask];
+            if multiColorMode then 
+                pattern := $f0;
+            inc (linePtr);
+            
+            colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
+            charEnd := bitMapPtr + (8 - 2 * ord (textMode));
+            repeat
+                bitmapPtr^ := colors shr (pattern shr 5 and $04) and $0f;
+                pattern := uint8 (pattern shl 1);
+                inc (bitmapPtr)
+            until bitmapPtr = charEnd
+        until linePtr = lineEnd
     end;
     
 procedure drawScanline (scanline: uint16);
