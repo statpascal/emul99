@@ -26,9 +26,10 @@ function tms9901IsInterrupt: boolean;
 procedure tms9901setVDPInterrupt (f: boolean);
 procedure tms9901setPeripheralInterrupt (f: boolean);
 
-procedure handleTimer (cycles: int64);
 procedure setKeyPressed (key: TKeys; pressed: boolean);
 function readKeyboard (addr, col: uint8): boolean;
+
+procedure handleTimer (cycles: int64);
 
 
 implementation
@@ -48,7 +49,7 @@ function readKeyboard (addr, col: uint8): boolean;
     
 procedure setKeyPressed (key: TKeys; pressed: boolean);
     begin
-        keyboardMatrix [3 + ord (key) div 8, ord (key) mod 8] := not pressed
+        keyboardMatrix [3 + ord (key) div 8, ord (key) mod 8] := pressed
     end;
     
 procedure tms9901Reset;
@@ -89,7 +90,7 @@ function tms9901ReadBit (addr: TTms9901CRUAddress): TCRUBit;
                 2: 
                     tms9901ReadBit := ord (not vdpInterrupt);
                 3..10:
-                    tms9901ReadBit := ord (readKeyboard (addr, 4 * cruBit [20] + 2 * cruBit [19] + cruBit [18]))
+                    tms9901ReadBit := ord (not keyboardMatrix [addr, 4 * cruBit [20] + 2 * cruBit [19] + cruBit [18]])
             end;
         if addr = 27 then
             tms9901ReadBit := cruTapeInput
@@ -175,5 +176,5 @@ procedure handleTimer (cycles: int64);
     
 begin
     tms9901Reset;
-    fillChar (keyboardMatrix, sizeof (keyboardMatrix), true)
+    fillChar (keyboardMatrix, sizeof (keyboardMatrix), false)
 end.

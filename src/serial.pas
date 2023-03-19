@@ -107,7 +107,7 @@ procedure writeSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: T
     
 function checkClearKey: boolean;
     begin
-        checkClearKey := not readKeyBoard (7, 0) and not readKeyBoard (7, 3)	// FCTN + 4
+        checkClearKey := readKeyboard (7, 0) and  readKeyboard (7, 3)	// FCTN + 4
     end;
     
 type

@@ -266,34 +266,33 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
 
 procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     var
-        pattern, colors: uint8;
-        charEnd: TScreenBitmapPtr;
         offset: uint16;
-        linePtr, lineEnd: TUint8Ptr;
-    begin
-        offset := (displayLine shr (2 * ord (multiColorMode))) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
-        linePtr := imageTable + (4 + ord (textMode)) * (displayLine and $f8);
-        lineEnd := linePtr + 32 + 8 * ord (textMode);
-        repeat
-            pattern := patternTable [(8 * linePtr^ + offset) and patternTableMask];	// masks set to $3fff for non-bitmap modes
-            if textMode then
-                colors := vdpRegister [7]
-            else if multiColorMode then
-                colors := pattern
-            else 
-                colors := colorTable [((8 * linePtr^ + offset) shr (6 * ord (not bitmapMode))) and colorTableMask];
-            if multiColorMode then 
-                pattern := $f0;
-            inc (linePtr);
-            
+        linePtr: TUint8Ptr;
+        col: 0..39;
+        
+    procedure drawBlock (pattern, colors: uint8; blockEnd: TScreenBitmapPtr);
+        begin
             colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
-            charEnd := bitMapPtr + (8 - 2 * ord (textMode));
             repeat
                 bitmapPtr^ := colors shr (pattern shr 5 and $04) and $0f;
                 pattern := uint8 (pattern shl 1);
                 inc (bitmapPtr)
-            until bitmapPtr = charEnd
-        until linePtr = lineEnd
+            until bitmapPtr = blockEnd
+        end;
+        
+    begin
+        offset := (displayLine shr (2 * ord (multiColorMode))) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
+        linePtr := imageTable + (4 + ord (textMode)) * (displayLine and $f8);
+        for col := 0 to 31 + 8 * ord (textMode) do
+            drawBlock (ifthen (multiColorMode, 
+                               $f0, 
+                               patternTable [(8 * linePtr [col] + offset) and patternTableMask]), 
+                       ifthen (textMode,  
+                               vdpRegister [7],
+                               ifthen (multiColorMode, 
+                                       patternTable [(8 * linePtr [col] + offset)],
+                                       colorTable [((8 * linePtr [col] + offset) shr (6 * ord (not bitmapMode))) and colorTableMask])),
+                       bitMapPtr + (8 - 2 * ord (textMode)))
     end;
     
 procedure drawScanline (scanline: uint16);
