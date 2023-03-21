@@ -264,7 +264,7 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
             vdpStatus := vdpStatus and not $1f or ifthen (fifthSpriteIndex <> 0, fifthSpriteIndex or $40, min ($1f, spriteIndex))
     end;
 
-procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
+procedure drawScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
     var
         offset: uint16;
         linePtr: TUint8Ptr;
@@ -292,10 +292,12 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                                ifthen (multiColorMode, 
                                        patternTable [(8 * linePtr [col] + offset)],
                                        colorTable [((8 * linePtr [col] + offset) shr (6 * ord (not bitmapMode))) and colorTableMask])),
-                       bitMapPtr + (8 - 2 * ord (textMode)))
+                       bitMapPtr + (8 - 2 * ord (textMode)));
+        if not textMode then
+            drawSpritesScanline (displayLine, bitmapPtr - 32 * 8)
     end;
     
-procedure drawScanline (scanline: uint16);
+procedure handleScanline (scanline: uint16);
     begin
         if scanline = RenderHeight then
             begin
@@ -309,11 +311,7 @@ procedure drawScanline (scanline: uint16);
                 readVdpRegisters;
                 fillChar (image [scanline], RenderWidth, bgColor);
                 if odd (vdpRegister [1] shr 6) and (scanline >= TopBorder) and (scanline < TopBorder + ActiveDisplayHeight) then
-                    begin
-                        drawImageScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]));
-                        if not textMode then
-                            drawSpritesScanline (scanline - TopBorder, addr (image [scanline, LeftBorder]))
-                    end
+                        drawScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]));
             end
     end;
 
@@ -324,7 +322,7 @@ procedure handleVDP (cycles: int64);
     begin
         while cyclesHandled < cycles do
             begin
-                drawScanline (scanline);
+                handleScanline (scanline);
                 inc (cyclesHandled, ScanlineTime div getCycleTime);
                 scanline := succ (scanline) mod TotalLines
             end

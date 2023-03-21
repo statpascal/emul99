@@ -260,12 +260,6 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
         drawCallback := true
     end;
     
-function updateScreen (user_data: gpointer): boolean; export;
-    begin
-        gtk_widget_queue_draw (PGtkWidget (user_data));
-        updateScreen := false
-    end;
-
 procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
     begin
         gtk_main_quit
@@ -276,7 +270,7 @@ procedure screenCallback (var screenBitmap: TScreenBitmap);
         if not usePCode80 and (compareByte (currentScreenBitmap, screenBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
             begin
                 currentScreenBitmap := screenBitmap;
-                g_idle_add (addr (updateScreen), mainWindow)
+                g_idle_add (addr (gtk_widget_queue_draw), mainWindow)
             end;
     end;
     
