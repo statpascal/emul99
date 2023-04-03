@@ -1,4 +1,4 @@
-; Dummy ROM for emulator
+; Dummy ROM for simulator
 ;
 ; Assemble with:
 ;
@@ -37,10 +37,10 @@ romstart:
 	
 	; clear interrupt workspace
 	li r1, 15
-!l0:	
+!
 	clr @intws (r1)
 	dec r1
-	joc -!l0
+	joc -!
 	
 	; enable VDP interrupts
 	clr r12
@@ -64,13 +64,13 @@ showmsg:
 	blwp @setvdpwa
 
 	clr r0
-!l1:
+!
 	movb *r2+, r1
 	cb r1, r0
-	jeq !l2
+	jeq !
 	movb r1, @vdpwd
-	jmp -!l1
-!l2:
+	jmp -!
+!
 	rt
 
 ; setupvdp - initialise VDP registers and character table
@@ -80,13 +80,13 @@ setupvdp:
 	li r0, >8000
 	li r1, vdpregs
 	li r2, 8
-!l1:
+!
 	movb *r1+, @vdpwa
 	nop
 	movb r0, @vdpwa
 	ai r0, >0100
 	dec r2
-	jne -!l1
+	jne -!
 
 	; load character set
 	li r0, >0800 + (8 * 32)
@@ -94,20 +94,20 @@ setupvdp:
 	
 	li r1, charset_begin
 	li r2, charset_end - charset_begin
-!l2:
+!
 	movb *r1+, @vdpwd
 	dec r2
-	jne -!l2
+	jne -!
 
 	; clear screen	
 	clr r0
 	blwp @setvdpwa
 	li r0, >2000	; blank
 	li r1, 24*40
-!l3:
+!
 	movb r0, @vdpwd
 	dec r1
-	jne -!l3
+	jne -!
 
 	rt
 
@@ -118,25 +118,24 @@ intstart:
 	movb @vdpsta, r0	; clear VDP interrupt
 	inc r1
 	ci r1, 50		; console with 50 interrupts/sec
-	jl !l2
+	jl !!
 	clr r1
 	
 	inc r2			; r2: seconds
 	ci r2, 60
-	jl !l1
+	jl !
 	clr r2
 	
 	inc r3			; r3: minutes
 	ci r3, 60
-	jl !l1
+	jl !
 	clr r3
 	
 	inc r4			; r4: hours
 	ci r4, 24
-	jl !l1
+	jl !
 	clr r4
-
-!l1:	
+!
 	li r0, 32
 	blwp @setvdpwa
 	
@@ -150,8 +149,7 @@ intstart:
 
 	mov r2, r7
 	bl @disp_dec2
-	
-!l2:
+!
 	rtwp
 	
 disp_dec2:
@@ -172,9 +170,8 @@ disp_dec2:
 ; R0: write address to set
 
 setvdpwa:
-	data utilws, !l1
-
-!l1:
+	data utilws, !
+!
 	mov *r13, r0
 	ori r0, >4000
 	swpb r0
@@ -187,8 +184,8 @@ setvdpwa:
 ; initialized data
 	
 msg_1 	text >05, >03, 'This is ti99.pas - dummy ROM', >00
-msg_2	text >00, >06, 'The original ROM is copyrighted and', >00
-msg_3   text >00, >07, 'cannot be distributed with the emulator.', >00
+msg_2	text >00, >06, 'The original ROMs are copyrighted and', >00
+msg_3   text >00, >07, 'cannot be included in the simulator.', >00
 msg_4   text >00, >0a, 'See readme.txt for details where the', >00
 msg_5   text >00, >0b, 'ROM files need to be installed.', >00
 colon   byte ':'

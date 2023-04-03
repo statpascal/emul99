@@ -264,25 +264,21 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
             vdpStatus := vdpStatus and not $1f or ifthen (fifthSpriteIndex <> 0, fifthSpriteIndex or $40, min ($1f, spriteIndex))
     end;
 
-procedure drawScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
+procedure drawImageScanline (offset: uint16; linePtr: TUint8Ptr; bitmapPtr: TScreenBitmapPtr);
     var
-        offset: uint16;
-        linePtr: TUint8Ptr;
         col: 0..39;
         
-    procedure drawBlock (pattern, colors: uint8; blockEnd: TScreenBitmapPtr);
+    procedure drawBlock (pattern: uint16; colors: uint8; blockEnd: TScreenBitmapPtr);
         begin
             colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
             repeat
                 bitmapPtr^ := colors shr (pattern shr 5 and $04) and $0f;
-                pattern := uint8 (pattern shl 1);
+                pattern := pattern shl 1;
                 inc (bitmapPtr)
             until bitmapPtr = blockEnd
         end;
         
     begin
-        offset := (displayLine shr (2 * ord (multiColorMode))) and $07 + 32 * (displayLine and $c0) * ord (bitmapMode);
-        linePtr := imageTable + (4 + ord (textMode)) * (displayLine and $f8);
         for col := 0 to 31 + 8 * ord (textMode) do
             drawBlock (ifthen (multiColorMode, 
                                $f0, 
@@ -292,9 +288,14 @@ procedure drawScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
                                ifthen (multiColorMode, 
                                        patternTable [(8 * linePtr [col] + offset)],
                                        colorTable [((8 * linePtr [col] + offset) shr (6 * ord (not bitmapMode))) and colorTableMask])),
-                       bitMapPtr + (8 - 2 * ord (textMode)));
+                       bitMapPtr + (8 - 2 * ord (textMode)))
+    end;
+                       
+procedure drawScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
+    begin
+        drawImageScanline (displayLine shr (2 * ord (multiColorMode)) and $07 + displayLine and $c0 * (32 * ord (bitmapMode)), imageTable + (4 + ord (textMode)) * (displayLine and $f8), bitmapPtr);
         if not textMode then
-            drawSpritesScanline (displayLine, bitmapPtr - 32 * 8)
+            drawSpritesScanline (displayLine, bitmapPtr)
     end;
     
 procedure handleScanline (scanline: uint16);
@@ -311,7 +312,7 @@ procedure handleScanline (scanline: uint16);
                 readVdpRegisters;
                 fillChar (image [scanline], RenderWidth, bgColor);
                 if odd (vdpRegister [1] shr 6) and (scanline >= TopBorder) and (scanline < TopBorder + ActiveDisplayHeight) then
-                        drawScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]));
+                    drawScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]))
             end
     end;
 
