@@ -292,11 +292,11 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
         
     var
         col: 0..39;
+        lineOffset: uint16;
     begin
+        lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + ord (bitmapMode) * 32 * (displayLine and $c0);
         for col := 0 to 31 + 8 * ord (textMode) do
-            drawBlock (8 * screenImage [(4 + ord (textMode)) * (displayLine and $f8) + col] + 
-                       displayLine shr (2 * ord (multiColorMode)) and $07 + 
-                       displayLine and $c0 * (32 * ord (bitmapMode)))
+            drawBlock (8 * screenImage [(4 + ord (textMode)) * (displayLine and $f8) + col] + lineOffset)
     end;
                        
 procedure drawScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
