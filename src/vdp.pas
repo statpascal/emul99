@@ -269,6 +269,8 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
         var
             i: 0..7;
         begin
+            if textMode then
+                colors := vdpRegister [7];
             colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
             for i := 7 downto 2 * ord (textMode) do
                 begin
@@ -278,13 +280,14 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
         end;
         
     procedure drawBlock (indexPatternColor: uint16);
+        var
+            pattern: uint8;
         begin
+            pattern := patternTable [indexPatternColor and patternTableMask];
             if multiColorMode then
-                draw ($f0, 
-                      ifthen (textMode, vdpRegister [7], patternTable [indexPatternColor and patternTableMask]))
+                draw ($f0, pattern)
             else
-                draw (patternTable [indexPatternColor and patternTableMask], 
-                      ifthen (textMode, vdpRegister [7], colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask]))
+                draw (pattern, colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask])
         end;
         
     var
