@@ -21,11 +21,11 @@ const
 
 type
     TPalette = 0..MaxColor;
-    TScreenBitmap = array [0..RenderHeight - 1, 0..RenderWidth - 1] of TPalette;
+    TRenderedBitmap = array [0..RenderHeight - 1, 0..RenderWidth - 1] of TPalette;
     TRgbValue = record
         r, g, b: uint8
     end;
-    TVdpCallback = procedure (var bitmap: TScreenBitmap);
+    TVdpCallback = procedure (var bitmap: TRenderedBitmap);
     TVdpDirection = (VdpRead, VdpWrite);
     
 const
@@ -62,7 +62,7 @@ const
     ScanlineTime = 1000 * 1000 * 1000 div (FramesPerSecond * TotalLines);
     
 type
-    TScreenBitmapPtr = ^TPalette;
+    TRenderedBitmapPtr = ^TPalette;
     TSpriteAttribute = record
         vpos, hpos, pattern, color: uint8
     end;
@@ -77,13 +77,13 @@ var
     vdpStatus: uint8;
     
     bgColor: TPalette;
-    imageTable, patternTable, colorTable, spritePatternTable: TUint8Ptr;
+    screenImage, patternTable, colorTable, spritePatternTable: TUint8Ptr;
     spriteAttributeTable: ^TSpriteAttribute;
     colorTableMask, patternTableMask: 0..VdpRAMSize - 1;
     spriteSize4, spriteMagnification, textMode, bitmapMode, multiColorMode: boolean;
     
     vdpCallback: TVdpCallback;
-    image: TScreenBitmap;
+    renderedBitmap: TRenderedBitmap;
 
 procedure advanceReadWriteAddress;
     begin
@@ -167,7 +167,7 @@ procedure readVdpRegisters;
         spriteSize4 := odd (vdpRegister [1] shr 1);
         bgColor := vdpRegister [7] and $0f;
         
-        imageTable := getVdpRamPtr ((vdpRegister [2] and $0f) shl 10);
+        screenImage := getVdpRamPtr ((vdpRegister [2] and $0f) shl 10);
         spriteAttributeTable := getVdpRamPtr ((vdpRegister [5] and $7f) shl 7);
         spritePatternTable := getVdpRamPtr ((vdpRegister [6] and $07) shl 11);
         
@@ -187,7 +187,7 @@ procedure readVdpRegisters;
             end
     end;
 
-procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
+procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
     const
         NrSprites = 32;
         LastSpriteIndicator = $d0;
@@ -264,36 +264,41 @@ procedure drawSpritesScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
             vdpStatus := vdpStatus and not $1f or ifthen (fifthSpriteIndex <> 0, fifthSpriteIndex or $40, min ($1f, spriteIndex))
     end;
 
-procedure drawImageScanline (offset: uint16; linePtr: TUint8Ptr; bitmapPtr: TScreenBitmapPtr);
-    var
-        col: 0..39;
-        
-    procedure drawBlock (pattern: uint16; colors: uint8; blockEnd: TScreenBitmapPtr);
+procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
+    procedure draw (pattern, colors: uint8);
+        var
+            i: 0..7;
         begin
             colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
-            repeat
-                bitmapPtr^ := colors shr (pattern shr 5 and $04) and $0f;
-                pattern := pattern shl 1;
-                inc (bitmapPtr)
-            until bitmapPtr = blockEnd
+            for i := 7 downto 2 * ord (textMode) do
+                begin
+                    bitmapPtr^ := colors shr (pattern shr i and 1 shl 2) and $0f;
+                    inc (bitmapPtr)
+                end
         end;
         
+    procedure drawBlock (indexPatternColor: uint16);
+        begin
+            if multiColorMode then
+                draw ($f0, 
+                      ifthen (textMode, vdpRegister [7], patternTable [indexPatternColor and patternTableMask]))
+            else
+                draw (patternTable [indexPatternColor and patternTableMask], 
+                      ifthen (textMode, vdpRegister [7], colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask]))
+        end;
+        
+    var
+        col: 0..39;
     begin
         for col := 0 to 31 + 8 * ord (textMode) do
-            drawBlock (ifthen (multiColorMode, 
-                               $f0, 
-                               patternTable [(8 * linePtr [col] + offset) and patternTableMask]), 
-                       ifthen (textMode,  
-                               vdpRegister [7],
-                               ifthen (multiColorMode, 
-                                       patternTable [(8 * linePtr [col] + offset)],
-                                       colorTable [((8 * linePtr [col] + offset) shr (6 * ord (not bitmapMode))) and colorTableMask])),
-                       bitMapPtr + (8 - 2 * ord (textMode)))
+            drawBlock (8 * screenImage [(4 + ord (textMode)) * (displayLine and $f8) + col] + 
+                       displayLine shr (2 * ord (multiColorMode)) and $07 + 
+                       displayLine and $c0 * (32 * ord (bitmapMode)))
     end;
                        
-procedure drawScanline (displayLine: uint8; bitmapPtr: TScreenBitmapPtr);
+procedure drawScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
     begin
-        drawImageScanline (displayLine shr (2 * ord (multiColorMode)) and $07 + displayLine and $c0 * (32 * ord (bitmapMode)), imageTable + (4 + ord (textMode)) * (displayLine and $f8), bitmapPtr);
+        drawImageScanline (displayLine, bitmapPtr);
         if not textMode then
             drawSpritesScanline (displayLine, bitmapPtr)
     end;
@@ -305,14 +310,14 @@ procedure handleScanline (scanline: uint16);
                 vdpStatus := vdpStatus or $80;
                 if odd (vdpRegister [1] shr 5) then
                     tms9901setVdpInterrupt (true);
-                vdpCallback (image)
+                vdpCallback (renderedBitmap)
             end
         else if scanline < renderHeight then
             begin
                 readVdpRegisters;
-                fillChar (image [scanline], RenderWidth, bgColor);
+                fillChar (renderedBitmap [scanline], RenderWidth, bgColor);
                 if odd (vdpRegister [1] shr 6) and (scanline >= TopBorder) and (scanline < TopBorder + ActiveDisplayHeight) then
-                    drawScanline (scanline - TopBorder, addr (image [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]))
+                    drawScanline (scanline - TopBorder, addr (renderedBitmap [scanline, ifthen (textMode, LeftBorderText, LeftBorder)]))
             end
     end;
 

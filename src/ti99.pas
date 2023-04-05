@@ -22,7 +22,7 @@ var
     pressCount: array [TKeys] of int64;
     cpuThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
-    currentScreenBitmap: TScreenBitmap;
+    currentScreenBitmap: TRenderedBitmap;
     mainWindow: PGtkWidget;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
@@ -225,7 +225,7 @@ procedure preparePalette;
     end;
 
 (*$POINTERMATH ON*)    
-procedure renderScreen (var screenBitmap: TScreenBitmap; bitmap: PCairoSurface);
+procedure renderScreen (var renderedBitmap: TRenderedBitmap; bitmap: PCairoSurface);
     var 
         y, x, stride: uint16;
         row: PChar;
@@ -236,7 +236,7 @@ procedure renderScreen (var screenBitmap: TScreenBitmap; bitmap: PCairoSurface);
         stride := cairo_image_surface_get_stride (bitmap);
         for y := 0 to pred (RenderHeight) do
             begin
-                q := addr (screenBitmap [y]);
+                q := addr (renderedBitmap [y]);
                 for x := 0 to pred (RenderWidth) do
                     p [x] := gtkColor [q [x]];
                 inc (row, stride)
@@ -265,11 +265,11 @@ procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
         gtk_main_quit
     end;
 
-procedure screenCallback (var screenBitmap: TScreenBitmap);
+procedure screenCallback (var renderedBitmap: TRenderedBitmap);
     begin
-        if not usePCode80 and (compareByte (currentScreenBitmap, screenBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
+        if not usePCode80 and (compareByte (currentScreenBitmap, renderedBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
             begin
-                currentScreenBitmap := screenBitmap;
+                currentScreenBitmap := renderedBitmap;
                 g_idle_add (addr (gtk_widget_queue_draw), mainWindow)
             end;
     end;
