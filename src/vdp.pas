@@ -55,7 +55,7 @@ const
     VdpRegisterCount = 8;
     Invalid = -1;
     
-    FramesPerSecond = 50;	// 9929
+    FramesPerSecond = 50;	// 9929A
     TotalLines = 313;		
 //    FramesPerSecond = 60;	// 9918A
 //    TotalLines = 262;	
@@ -107,9 +107,9 @@ procedure vdpWriteCommand (b: uint8);
     begin
         if commandByte1 <> Invalid then
             begin
-                if b shr 6 <= 1 then
+                if b shr 7 = 0 then
                     readWriteAddress := commandByte1 + 256 * (b and $3f)
-                else if b shr 6 = 2 then 
+                else 
                     vdpRegister [b mod VdpRegisterCount] := commandByte1;
                 if b shr 6 = 0 then
                     prefetchReadData;
@@ -280,23 +280,22 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
         end;
         
     procedure drawBlock (indexPatternColor: uint16);
-        var
-            pattern: uint8;
         begin
-            pattern := patternTable [indexPatternColor and patternTableMask];
             if multiColorMode then
-                draw ($f0, pattern)
+                draw ($f0, patternTable [indexPatternColor and patternTableMask])
             else
-                draw (pattern, colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask])
+                draw (patternTable [indexPatternColor and patternTableMask], 
+                      colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask])
         end;
         
+    const
+        lineLength: array [boolean] of uint8 = (32, 40);
     var
-        col: 0..39;
-        lineOffset: uint16;
+        i, lineOffset: uint16;
     begin
-        lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + ord (bitmapMode) * 32 * (displayLine and $c0);
-        for col := 0 to 31 + 8 * ord (textMode) do
-            drawBlock (8 * screenImage [(4 + ord (textMode)) * (displayLine and $f8) + col] + lineOffset)
+        lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + ord (bitmapMode) * $800 * (displayLine shr 6);
+        for i := lineLength [textMode] * (displayLine shr 3) to pred (lineLength [textMode] * succ (displayLine shr 3)) do
+            drawBlock (8 * screenImage [i] + lineOffset)
     end;
                        
 procedure drawScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
