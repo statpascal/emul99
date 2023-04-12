@@ -3,8 +3,8 @@
 ;
 ; python3 ~/bin/xas99.py -R -b pcodedisk.a99
 
-pcode_pwrup	equ >000a
-pcode_sub_10	equ >000b
+pcode_pwrup	equ >1000
+pcode_sub_10	equ >1001
 
 	aorg >4000
 

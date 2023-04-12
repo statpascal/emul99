@@ -4,16 +4,16 @@
 ;
 ; python3 ~/bin/xas99.py -R -b disksim.a99
 
-dsk_pwrup    	equ  >0000
-dsk_dsr 	equ  >0001
-dsk_sub_files 	equ  >0002
-dsk_sub_10	equ  >0003
-dsk_sub_11	equ  >0004
-dsk_sub_12	equ  >0005
-dsk_sub_13	equ  >0006
-dsk_sub_14	equ  >0007
-dsk_sub_15	equ  >0008
-dsk_sub_16	equ  >0009
+dsk_pwrup    	equ  >1200
+dsk_dsr 	equ  >1201
+dsk_sub_files 	equ  >1202
+dsk_sub_10	equ  >1203
+dsk_sub_11	equ  >1204
+dsk_sub_12	equ  >1205
+dsk_sub_13	equ  >1206
+dsk_sub_14	equ  >1207
+dsk_sub_15	equ  >1208
+dsk_sub_16	equ  >1209
 
 	aorg >4000
 

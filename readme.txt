@@ -32,25 +32,28 @@ Development is mainly done under openSUSE Tumbleweed on x64.
 
 Executing the build script "compile-fpc.sh" generates the binaries "ti99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
-in the "bin" directory. Changing to the "bin" directory and executing
-"ti99" starts the simulator with a simple dummy ROM image displaying a
-message.
+in the "bin" directory. The assembly of the DSR ROMs for the simulated
+devices and the dummy ROM is optional; these binaries are included in the
+distribution.
+
+Changing to the "bin" directory and executing "ti99" starts the simulator
+with a simple dummy ROM image displaying a message.
 
 The simulator is configured using text files which can be loaded by giving
 them as command line argument; e.g.  "ti99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
 
-Currently it is not possible to change any part of the configuration (e.g.,
-disk images or cartridges) while the simulator is running. This can be
-mitigated by running multiple instances with different configurations
-simultaneously on the same disk images (see below).
+It is not possible to change any part of the configuration (e.g., disk
+images or cartridges) while the simulator is running. This can be mitigated
+by running multiple instances with different configurations simultaneously
+on the same disk images (see below).
 
 
 ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
-simulator. For a minimal setup, at least the console ROM and GROMs (combined
+simulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. 
 
 Additional ROMs that can be utilized are the original disk controller DSR
@@ -188,8 +191,8 @@ additional library was utilized to test its bindings.
 
 Known Bugs and Limitations
 
-- The unofficial video modes of the VDP are implemented but remain untested 
-  (no software seems to use them).
+- The unofficial video modes of the VDP should work but remain untested 
+  as no software seems to use them.
 - The directory based disk DSR does not provide sector based
   access and cannot read directory information. Software requiring this may
   use the original disk controller DSR.
@@ -222,7 +225,7 @@ The dummy ROM uses a 5x8 font from X11 which is governed by the MIT license.
 
 License
 
-Copyright (C) 2022 Michael Thomas
+Copyright 2022, 2023 Michael Thomas
 
 ti99.pas is licensed under the GNU General Public License version 2 - see
 the file "COPYING" in this directory for details.
