@@ -44,7 +44,7 @@ type
 var
     pc, wp, st: uint16;
     cpuStopped: boolean;
-    cycles: int64;
+    cpuCycles: int64;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
 
@@ -74,7 +74,7 @@ procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat:
 	result.cycles := cycles;
 	result.statusBits := statusBits;
 	
-	if instructionFormat in [Format1, Format2, Format3, Format4, Format6, Format9] then
+	if instructionFormat in [Format1, Format3, Format4, Format6, Format9] then
 	    decodeGeneralSource;
 	case instructionFormat of
 	    Format1:
@@ -354,7 +354,7 @@ procedure executeFormat2 (var instruction: TInstruction);
         with JumpCondition [instruction.opcode] do
 	    if (st and flags <> 0) = val then
 		begin
-  		    inc (cycles, 2);
+  		    inc (cpuCycles, 2);
 		    pc := uint16 (pc + 2 * int8 (instruction.disp))
  	        end
     end;
@@ -434,7 +434,7 @@ procedure executeFormat5 (var instruction: TInstruction);
             count := readRegister (0) and $f;
 	if count = 0 then
 	    count := 16;
-        inc (cycles, 2 * count);
+        inc (cpuCycles, 2 * count);
 	val := readRegister (instruction.w);
         if count = 16 then
             overflow := val <> 0
@@ -464,7 +464,7 @@ procedure executeFormat6 (var instruction: TInstruction);
 	addr, val, status: uint16;
     begin
 	addr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
-	if not (instruction.opcode in [Op_CLR, Op_BLWP]) then
+	if instruction.opcode <> Op_BLWP then
             val := readMemory (addr);
 	status := 0;
 	
@@ -473,7 +473,7 @@ procedure executeFormat6 (var instruction: TInstruction);
                 if int16 (val) < 0 then
                     writeMemory (addr, uint16 (-val))
                 else
-                    dec (cycles, 2);
+                    dec (cpuCycles, 2);
             Op_B, Op_BL:
                 begin
                     if instruction.opcode = Op_BL then
@@ -565,7 +565,7 @@ procedure executeFormat9 (var instruction: TInstruction);
                     handleXop (srcaddr) 	// simulator hook for XOP 0 in DSR
                 else
                     begin
-                        switchContext ($0040 + 2 * instruction.D);
+                        switchContext ($0040 + 4 * instruction.D);
                         writeRegister (11, srcaddr);
                         st := st or Status_X
                     end;
@@ -589,7 +589,7 @@ procedure executeFormat9 (var instruction: TInstruction);
                     else
                         begin
                             st := st or Status_OV;
-                            dec (cycles, instruction.cycles - 16)
+                            dec (cpuCycles, instruction.cycles - 16)
                         end
                 end
         end
@@ -604,22 +604,22 @@ procedure executeInstruction (var instruction: TInstruction);
 	prevCycles: int64;
     begin
         prevPC := uint16 (pc - 2);
-        prevCycles := cycles;
+        prevCycles := cpuCycles;
 	dispatch [instruction.instructionFormat] (instruction);
-	inc (cycles, instruction.cycles + getWaitStates);
-//        writeln (cycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
+	inc (cpuCycles, instruction.cycles + getWaitStates);
+//        writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
     end;	
 
 procedure handleInterrupt (level: uint8);
     begin
 	switchContext (4 * level);
-	inc (cycles, 22);
+	inc (cpuCycles, 22);
         dec (st)
     end;
 
 function getCycles: int64;
     begin
-        getCycles := cycles
+        getCycles := cpuCycles
     end;
     
 procedure runCpu;
@@ -628,7 +628,7 @@ procedure runCpu;
 	lastSleepCycles, msCycles: int64;
     begin
         cpuStopped := false;
-    	cycles := 0;
+    	cpuCycles := 0;
     	lastSleepCycles := 0;
     	msCycles := 1000 * 1000 div getCycleTime;
         st := 0;
@@ -637,13 +637,13 @@ procedure runCpu;
     	time := getCurrentTime;
     	repeat
             executeInstruction (decodedInstruction [fetchInstruction]);
-            if cycles - lastSleepCycles > msCycles then 
+            if cpuCycles - lastSleepCycles > msCycles then 
                 begin
-    	            sleepUntil (time + cycles * getCycleTime);
-    	            lastSleepCycles := cycles
+    	            sleepUntil (time + cpuCycles * getCycleTime);
+    	            lastSleepCycles := cpuCycles
                 end;
-  	    handleTimer (cycles);
-  	    handleVDP (cycles);
+  	    handleTimer (cpuCycles);
+  	    handleVDP (cpuCycles);
 	    if (st and Status_IntMask <> 0) and tms9901IsInterrupt then 
   	        handleInterrupt (1)
         until cpuStopped

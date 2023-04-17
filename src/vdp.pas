@@ -56,7 +56,7 @@ const
     Invalid = -1;
     
     FramesPerSecond = 50;	// 9929A
-    TotalLines = 313;		
+    TotalLines = 313;
 //    FramesPerSecond = 60;	// 9918A
 //    TotalLines = 262;	
     ScanlineTime = 1000 * 1000 * 1000 div (FramesPerSecond * TotalLines);

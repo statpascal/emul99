@@ -191,7 +191,7 @@ additional library was utilized to test its bindings.
 
 Known Bugs and Limitations
 
-- The unofficial video modes of the VDP should work but remain untested 
+- The unofficial video modes of the VDP might work but remain untested 
   as no software seems to use them.
 - The directory based disk DSR does not provide sector based
   access and cannot read directory information. Software requiring this may
@@ -200,7 +200,7 @@ Known Bugs and Limitations
   6K is reached. This behaviour is implemented in "grom.pas" but may be
   incompatible with larger 3rd party GROMs.
 - Comparing the performance of a BASIC program with that of a real machine, 
-  the simulator is about 10% too fast. 
+  the simulator is about 5% too fast. 
 - The sound generator is sampled about 870 times per second and it is
   assumed that its settings remain unchanged during the sampling interval.
   Changes occuring during that interval should be recorded with a CPU

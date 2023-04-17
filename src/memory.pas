@@ -154,9 +154,15 @@ procedure writeGROM (addr, w: uint16);
 function readGROM (addr: uint16): uint16;
     begin
 	if odd (addr shr 1) then
-	    readGROM := readGromAddress (groms) shl 8
+	    begin
+    	        readGROM := readGromAddress (groms) shl 8;
+    	        inc (waitStates, 17)
+            end
         else
-	    readGROM := readGromData (groms) shl 8
+            begin
+    	        readGROM := readGromData (groms) shl 8;
+    	        inc (waitStates, 23)
+            end
     end;
 
 procedure setMemoryMap (startAddr, endAddr: uint16; writeFunc: TMemoryWriter; writeWs: uint8; readFunc: TMemoryReader; readWs: uint8);
@@ -186,7 +192,6 @@ procedure configureMiniMemory;
 
 procedure writeMemory (addr, w: uint16);
     begin
-//        readMemory (addr);	// read before write is always performed?
         with memoryMap [addr shr 1] do
             begin
                 writer (addr and $fffe, w);
@@ -300,11 +305,11 @@ begin
     setMemoryMap ($4000, $5ffe, writeDsrROM, 4, readDsrROM, 4);
     setMemoryMap ($6000, $7ffe, writeCart, 4, readCart, 4);
     setMemoryMap ($8000, $83fe, writePAD, 0, readPAD, 0);
-    setMemoryMap ($8400, $85fe, writeSound, 4, readNull, 4);
+    setMemoryMap ($8400, $85fe, writeSound, 32, readNull, 4);
     setMemoryMap ($8800, $8bfe, writeNull, 4, readVDP, 4);
     setMemoryMap ($8c00, $8ffe, writeVDP, 4, readNull, 4);
-    setMemoryMap ($9800, $9bfe, writeNull, 4, readGROM, 4);
-    setMemoryMap ($9c00, $9ffe, writeGROM, 23, readNull, 4);
+    setMemoryMap ($9800, $9bfe, writeNull, 4, readGROM, 0);
+    setMemoryMap ($9c00, $9ffe, writeGROM, 22, readNull, 4);
         
     fillChar (mem, sizeof (mem), 0);
     fillChar (groms, sizeof (groms), 0);

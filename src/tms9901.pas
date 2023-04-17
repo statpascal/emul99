@@ -125,6 +125,10 @@ procedure tms9901WriteBit (addr: TTms9901CRUAddress; value: TCRUBit);
                 0:
                     if value = 1 then
                         enterTimerMode;
+                1:
+                    peripheralInterrupt := false;
+                2:
+                    vdpInterrupt := false;
                 3:
                     timerInterrupt := false;
                 22, 23:
@@ -148,7 +152,6 @@ procedure tms9901setVDPInterrupt (f: boolean);
 
 procedure tms9901setPeripheralInterrupt (f: boolean);
     begin
-        (* Not used in simulator: How is it reset? *)
         peripheralInterrupt := f
     end;
     
