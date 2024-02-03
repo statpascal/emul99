@@ -31,17 +31,17 @@ sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
 Development is mainly done under openSUSE Tumbleweed on x64. 
 
-Executing the build script "compile-fpc.sh" generates the binaries "ti99"
+Executing the build script "compile-fpc.sh" generates the binaries "emul99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
 in the "bin" directory. The assembly of the DSR ROMs for the simulated
 devices and the dummy ROM is optional; these binaries are included in the
 distribution.
 
-Changing to the "bin" directory and executing "ti99" starts the simulator
+Changing to the "bin" directory and executing "emul99" starts the simulator
 with a simple dummy ROM image displaying a message.
 
 The simulator is configured using text files which can be loaded by giving
-them as command line argument; e.g.  "ti99 exbasic.cfg".  If no argument is
+them as command line argument; e.g.  "emul99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
 
