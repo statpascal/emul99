@@ -10,6 +10,10 @@ DSR ROM of DS/SD diskette controller (optional):
 
   8192 Apr 15  1996 Disk.Bin
 
+DSR ROM of TiPi:
+
+  8192 Feb  3  tipi.bin
+
 GROMs and DSR ROMs of the P-code card (optional):
 
   6144 May  7  2016 pcode_grom0.u11

@@ -1,11 +1,11 @@
-ti99.pas
+Emul99
 
-ti99.pas is a simulator of the TI 99/4A home computer, implemented in the
+Emul99 is a simulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
 compiled with the Free Pascal Compiler under Linux.
 
-ti99.pas provides the following features:
+Emul99 provides the following features:
 
 - emulation of console with 32K extension
 - P-code card with optional 80 column display
@@ -14,10 +14,11 @@ ti99.pas provides the following features:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
   * Program/data files in TIFILES format in host system directory
   * DSR for P-code system with disk images of up to 16 MByte
+- TiPi access via its WebSocket interface
 - cassette input/output using WAV files
 
 
-Compiling ti99.pas
+Compiling Emul99
 
 To compile the simulator, the GTK3, SDL2 and C library need to be
 installed. E.g., under Debian 11, this can be achieved with
@@ -57,9 +58,10 @@ simulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. 
 
 Additional ROMs that can be utilized are the original disk controller DSR
-ROM and the ROMs/GROMs of the P-code card. The latter ones consist of 8
-files with the GROMs (6 KB each), a 4 KB file with the lower part of the DSR
-ROM and an 8 KB file with the two upper banks. 
+ROM, the DSR ROM of the TiPi (included in the package) and the ROMs/GROMs of
+the P-code card.  The latter ones consist of 8 files with the GROMs (6 KB
+each), a 4 KB file with the lower part of the DSR ROM and an 8 KB file with
+the two upper banks.
 
 The directory "roms" contains a file "roms.txt" showing the file names and
 their sizes as they are expected by the various configuration files.
@@ -79,6 +81,21 @@ be obtained by using Caps-Lock on the PC keyboard. The first joystick is
 mapped to the keys 4, 6, 8 and 2 in the numeric pad (with NumLock enabled)
 and the left "Alt" key is the fire button. These mappings are defined in
 the file "ti99.pas" and can only be changed by editing the source file.
+
+
+TiPi
+
+The TiPi hardware is simulated and can be used with the original DSR ROM (an
+assembled version is included in the "rom" directory. On the Raspberry Pi
+side, WebSocket emulation mode needs to be enabled; the file README.md in
+the emulation directory of the tipi installation provides further details.
+IP and port of the WebSocket server are set in the configuration file of
+Emul99; see example.cfg or tipi.cfg for an example.
+
+Please note that the code does almost no error checking; if the connection
+to the WebSocket server cannot be established or gets broken the emulated
+system will either freeze or perform a reset. Mouse simulation is not yet
+tested and will probably not work.
 
 
 P-code simulation
@@ -117,7 +134,8 @@ also be desirable. The example configuration in ucsd-80.cfg uses a fivefold
 speed (15 MHz) which is close to making the keyboard unusable. However,
 with some caution it is possible to start a second instance of the simulator
 running on the same disk images at maximum speed to execute the compiler
-(see ucsd-80-fast.cfg and the next section).
+(see ucsd-80-fast.cfg and the next section - this will also put a high load
+on the host system).
 
 
 Multiple Instances
@@ -178,15 +196,16 @@ CPU, VDP and the 9901 timer are interleaved and executed in a seperate
 thread; this thread will perform a sleep every millisecond to synchronize
 with real time.
 
-The DSRs for the simulated devices (serial, host and special P-Code disk
+The DSRs for the simulated devices (serial, host directory and P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
 specifying the requested operation as a dummy source address. The simulated
 TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
-occur in the DSR ROM address range. 
+occur in the DSR ROM address range. The high byte of the source address
+equals the CRU base of the simulated device.
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the
-additional library was utilized to test its bindings.
+additional library is utilized to test its bindings.
 
 
 Known Bugs and Limitations
@@ -218,14 +237,19 @@ Moustgaard's JS99er (https://js99er.net), Mike Brent's Classic99
 (http://harmlesslion.com/software/classic99) and Marc Rousseau's TI-99/Sim
 (https://www.mrousseau.org/programs/ti99sim) were helpful. Many ideas, e.g. 
 implementing the 32K word address space of the TMS9900 as an array of
-read/write functions, were taken from JS99er.
-
-The dummy ROM uses a 5x8 font from X11 which is governed by the MIT license.
+read/write functions, were taken from JS99er while the wait states for
+the memory mapped devices are based upon Classic99.
 
 
 License
 
-Copyright 2022, 2023 Michael Thomas
+Copyright 2022, 2024 Michael Thomas
 
-ti99.pas is licensed under the GNU General Public License version 2 - see
+Emul99 is licensed under the GNU General Public License version 2 - see
 the file "COPYING" in this directory for details.
+
+The TiPi DSR ROM (file roms/tipi.bin) is public domain software released
+under the Unlicense.
+
+The dummy ROM uses a 5x8 font from X11 which is governed by the MIT license.
+

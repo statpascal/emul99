@@ -60,6 +60,10 @@ const
     
     POLLIN = 1;
     POLLOUT = 4;
+    
+    AF_INET = 2;
+    SOCK_STREAM = 1;
+    SOCK_DGRAM = 2;
 
 type
     cfile = record end;
@@ -84,6 +88,22 @@ type
         events, revents: int16
     end;
     ptr_pollfd = ^pollfd;
+    
+    in_addr_t = uint32;
+    in_addr = record
+        s_addr: in_addr_t
+    end;
+    sockaddr = record
+        sa_family: uint16;
+        sa_data: array [0..13] of char
+    end;
+    sockaddr_in = record
+        sin_family: uint16;
+        sin_port: uint16;
+        sin_addr: in_addr;
+        sin_zero: array [0..7] of char
+    end;
+        
 
 function clock_gettime (clockid: clockid_t; var res: timespec): int32; cdecl; external;
 function clock_nanosleep (clockid: clockid_t; flags: int32; var request, remain: timespec): int32; cdecl; external;
@@ -103,12 +123,17 @@ function waitpid (pid: pid_t; var wstatus: integer; options: integer): pid_t; cd
 
 function htons (n: uint16): uint16; cdecl; external;
 function ntohs (n: uint16): uint16; cdecl; external;
+function htonl (n: uint32): uint32; cdecl; external;
+function ntohl (n: uint32): uint32; cdecl; external;
+function socket (domain, stype, protocol: int32): int32; cdecl; external;
+function connect (sockfd: int32; var addr: sockaddr; addrlen: uint32): int32; cdecl; external;
+function inet_addr (cp: pchar): in_addr_t; cdecl; external;
 
-function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external 'libc' name 'open';
-function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'read';
-function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external 'libc' name 'write';
+function fdopen (pathname: pchar; flags, mode: int32): int32; cdecl; external name 'open';
+function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external  name 'read';
+function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external name 'write';
 function lseek (fd: int32; offset: int64; whence: int32): int64; cdecl; external;
-function fdclose (fd: int32): int32; cdecl; external 'libc' name 'close';
+function fdclose (fd: int32): int32; cdecl; external name 'close';
 function poll (fds: ptr_pollfd; nfds: int64; timeout: int32): int32; cdecl; external;
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;

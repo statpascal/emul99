@@ -286,7 +286,7 @@ procedure initGui;
         argv := nil;
         gtk_init (argc, argv);
         mainWindow := gtk_window_new (GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_title (mainWindow, 'TI 99/4A Simulator');
+        gtk_window_set_title (mainWindow, 'Emul99');
         gtk_widget_add_events (mainWindow, GDK_KEY_PRESS_MASK);
         drawingArea := gtk_drawing_area_new;
         gtk_container_add (mainWindow, drawingArea);
