@@ -37,28 +37,27 @@ var
     tipiPort: uint16;
     s: int32;
     
+type
+    TTransferFunc = function (s: int32; data: pointer; length: int64): int64; cdecl;
     
-procedure transferSocket (s: int32; data: pchar; length: uint32; doRead: boolean);
+procedure transferSocket (s: int32; data: pchar; length: uint32; transferFunc: TTransferFunc);
     var
         count: uint32;
     begin
         count := 0;
         repeat
-            if doRead then
-                inc (count, max (0, fdread (s, data + count, length - count)))
-            else
-                inc (count, max (0, fdwrite (s, data + count, length - count)))
+            inc (count, max (0, transferFunc (s, data + count, length - count)))
         until count = length
     end;
 
 procedure readSocket (s: int32; data: pchar; length: uint32);
     begin
-        transferSocket (s, data, length, true)
+        transferSocket (s, data, length, fdread)
     end;
 
 procedure writeSocket (s: int32; data: pchar; length: uint32);
     begin
-        transferSocket (s, data, length, false);
+        transferSocket (s, data, length, fdwrite);
     end;
 
 procedure initWebsocket;
@@ -77,7 +76,7 @@ procedure initWebsocket;
     procedure writeString (msg: string);
         begin
             msg := msg + chr (13) + chr (10);
-            fdwrite (s, addr (msg [1]), length (msg))
+            writeSocket (s, addr (msg [1]), length (msg))
         end;
         
     var
@@ -95,11 +94,11 @@ procedure initWebsocket;
         // read server reply until end of HTTP upgrade
         count := 0;
         repeat
-            if fdread (s, addr (ch), 1) = 1 then
-                if (ch = chr (13)) or (ch = chr (10)) then
-                    inc (count)
-                else
-                    count := 0
+            readSocket (s, addr (ch), 1);
+            if (ch = chr (13)) or (ch = chr (10)) then
+                inc (count)
+            else
+                count := 0
         until count = 4;
         
         transferIndex := -2;
@@ -109,22 +108,19 @@ procedure initWebsocket;
 procedure receiveMessage;
     var
         opcode, payloadLen: uint8;
-        exPayloadLen, bytesRead: uint16;
+        exPayloadLen: uint16;
     begin
         repeat
-            fdread (s, addr (opcode), 1);
-            fdread (s, addr (payloadLen), 1);
+            readSocket (s, addr (opcode), 1);
+            readSocket (s, addr (payloadLen), 1);
             if payloadLen = WebSock_ExPayload then
                 begin
-                    fdread (s, addr (exPayloadLen), 2);
+                    readSocket (s, addr (exPayloadLen), 2);
                     receiveLength := ntohs (exPayloadLen)
                 end
             else
                 receiveLength := payloadLen;
-            bytesRead := 0;
-            repeat
-                inc (bytesRead, max (0, fdread (s, addr (receiveBuffer [bytesRead]), receiveLength - bytesRead)))
-            until bytesRead = receiveLength
+            readSocket (s, addr (receiveBuffer [0]), receiveLength)
         until opcode and $7 <> WebSock_OpText;	// skip text frame
         receiveBuffer [-2] := receiveLength div 256;
         receiveBuffer [-1] := receiveLength mod 256;
@@ -143,9 +139,9 @@ procedure transferMessage;
         header.exPayloadLen := htons (transferLength);
         header.payloadLen := $80 or min (WebSock_ExPayload, transferLength);
         mask := 0;
-        fdwrite (s, addr (header), 2 + 2 * ord (transferLength >= WebSock_ExPayload));
-        fdwrite (s, addr (mask), sizeof (mask));
-        fdwrite (s, addr (transferBuffer [0]), transferLength);
+        writeSocket (s, addr (header), 2 + 2 * ord (transferLength >= WebSock_ExPayload));
+        writeSocket (s, addr (mask), sizeof (mask));
+        writeSocket (s, addr (transferBuffer [0]), transferLength);
         transferIndex := -2
     end;
     
