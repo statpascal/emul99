@@ -23,40 +23,67 @@ const
     
     WebSock_FinBinary = $82;
     WebSock_ExPayload = 126;
-
+    WebSock_OpText = $01;
+    
+    MaxTransferSize = 65535;	// actual maximum should be much lower
+    
 var
     dsrRom: TDsrRom;
     regTd, regRd, regRc: uint8;
-    transferIndex, receiveIndex: -2..65535;
-    transferLength, receiveLength: uint16;
-    transferBuffer, receiveBuffer: array [uint16] of uint8;
+    transferIndex, receiveIndex: -2..MaxTransferSize;
+    transferLength, receiveLength: 0..MaxTransferSize;
+    transferBuffer, receiveBuffer: array [-2..MaxTransferSize] of uint8;
     tipiIp: string;
     tipiPort: uint16;
     s: int32;
-    saddr: sockaddr_in;
-
-procedure connectTipi;
-    begin
-        s := socket (AF_INET, SOCK_STREAM, 0);
-        saddr.sin_family := AF_INET;
-        saddr.sin_addr.s_addr := inet_addr (addr (tipiIp [1]));
-        saddr.sin_port := htons (tipiPort);
-        if connect (s, sockaddr (saddr), sizeof (saddr)) <> 0 then
-            writeln ('Connection to ', tipiIp, ':', tipiPort, ' failed')
-    end;
-
-procedure writeString (msg: string);
-    begin
-        msg := msg + chr (13) + chr (10);
-        fdwrite (s, addr (msg [1]), length (msg))
-    end;
     
-procedure initWebsocket;
-    const 
-        bufSize = 65536;
+    
+procedure transferSocket (s: int32; data: pchar; length: uint32; doRead: boolean);
     var
-        buf: array [uint16] of char;
-        readLen: int64;
+        count: uint32;
+    begin
+        count := 0;
+        repeat
+            if doRead then
+                inc (count, max (0, fdread (s, data + count, length - count)))
+            else
+                inc (count, max (0, fdwrite (s, data + count, length - count)))
+        until count = length
+    end;
+
+procedure readSocket (s: int32; data: pchar; length: uint32);
+    begin
+        transferSocket (s, data, length, true)
+    end;
+
+procedure writeSocket (s: int32; data: pchar; length: uint32);
+    begin
+        transferSocket (s, data, length, false);
+    end;
+
+procedure initWebsocket;
+    procedure connectTipi;
+        var
+            saddr: sockaddr_in;
+        begin
+            s := socket (AF_INET, SOCK_STREAM, 0);
+            saddr.sin_family := AF_INET;
+            saddr.sin_addr.s_addr := inet_addr (addr (tipiIp [1]));
+            saddr.sin_port := htons (tipiPort);
+            if connect (s, sockaddr (saddr), sizeof (saddr)) <> 0 then
+                writeln ('Connection to ', tipiIp, ':', tipiPort, ' failed')
+        end;
+
+    procedure writeString (msg: string);
+        begin
+            msg := msg + chr (13) + chr (10);
+            fdwrite (s, addr (msg [1]), length (msg))
+        end;
+        
+    var
+        ch: char;
+        count: uint8;
+        
     begin
         connectTipi;
         writeString ('GET /tipi HTTP/1.1');
@@ -65,10 +92,46 @@ procedure initWebsocket;
         writeString ('Connection: keep-alive, Upgrade');
         writeString ('Upgrade: websocket');
         writeString ('');
-        readLen := fdread (s, addr (buf), bufSize)
+        // read server reply until end of HTTP upgrade
+        count := 0;
+        repeat
+            if fdread (s, addr (ch), 1) = 1 then
+                if (ch = chr (13)) or (ch = chr (10)) then
+                    inc (count)
+                else
+                    count := 0
+        until count = 4;
+        
+        transferIndex := -2;
+        receiveLength := 0
     end;                
     
-procedure writeWSBinary (var buffer; length: uint16);
+procedure receiveMessage;
+    var
+        opcode, payloadLen: uint8;
+        exPayloadLen, bytesRead: uint16;
+    begin
+        repeat
+            fdread (s, addr (opcode), 1);
+            fdread (s, addr (payloadLen), 1);
+            if payloadLen = WebSock_ExPayload then
+                begin
+                    fdread (s, addr (exPayloadLen), 2);
+                    receiveLength := ntohs (exPayloadLen)
+                end
+            else
+                receiveLength := payloadLen;
+            bytesRead := 0;
+            repeat
+                inc (bytesRead, max (0, fdread (s, addr (receiveBuffer [bytesRead]), receiveLength - bytesRead)))
+            until bytesRead = receiveLength
+        until opcode and $7 <> WebSock_OpText;	// skip text frame
+        receiveBuffer [-2] := receiveLength div 256;
+        receiveBuffer [-1] := receiveLength mod 256;
+        receiveIndex := -2
+    end;
+    
+procedure transferMessage;
     var
         header: record
             msg, payloadLen: uint8;
@@ -77,78 +140,33 @@ procedure writeWSBinary (var buffer; length: uint16);
         mask: uint32;
     begin
         header.msg := WebSock_finBinary;
-        header.exPayloadLen := htons (length);
-        header.payloadLen := $80 or min (WebSock_ExPayload, length);
+        header.exPayloadLen := htons (transferLength);
+        header.payloadLen := $80 or min (WebSock_ExPayload, transferLength);
         mask := 0;
-        fdwrite (s, addr (header), 2 + 2 * ord (length >= WebSock_ExPayload));
+        fdwrite (s, addr (header), 2 + 2 * ord (transferLength >= WebSock_ExPayload));
         fdwrite (s, addr (mask), sizeof (mask));
-        fdwrite (s, addr (buffer), length)
-    end;
-    
-procedure readWSBinary (var buffer; var length: uint16; var opcode: uint8);
-    var
-        payloadLen: uint8;
-        exPayloadLen: uint16;
-    begin
-        fdread (s, addr (opcode), 1);
-        fdread (s, addr (payloadLen), 1);
-        if payloadLen = WebSock_ExPayload then
-            begin
-                fdread (s, addr (exPayloadLen), 2);
-                length := ntohs (exPayloadLen)
-            end
-        else
-            length := payloadLen;
-        fdread (s, addr (buffer), length);
-        opcode := opcode and $7
-    end;
-    
-procedure receiveMessage;
-    var 
-        opcode: uint8;
-    begin
-        repeat
-            readWSBinary (receiveBuffer, receiveLength, opcode)
-        until opcode <> $01;	// text frame
-        receiveIndex := -2
+        fdwrite (s, addr (transferBuffer [0]), transferLength);
+        transferIndex := -2
     end;
     
 function readReceiveBuffer: uint8;
     begin
         if receiveLength = 0 then
             receiveMessage;
+        readReceiveBuffer := receiveBuffer [receiveIndex];
         inc (receiveIndex);
-        if receiveIndex = -1 then
-            readReceiveBuffer := receiveLength div 256
-        else if receiveIndex = 0 then
-            readReceiveBuffer := receiveLength mod 256
-        else 
-            begin
-                readReceiveBuffer := receiveBuffer [pred (receiveIndex)];
-                if receiveIndex = receiveLength then 
-                    receiveLength := 0;
-            end
-    end;
-    
-procedure transferMessage;
-    begin
-        transferIndex := -2;
-        writeWSBinary (transferBuffer, transferLength)
+        if receiveIndex = receiveLength then
+            receiveLength := 0
     end;
     
 procedure appendTransferBuffer (val: uint8);
     begin
+        transferBuffer [transferIndex] := val;
         inc (transferindex);
-        if transferIndex = - 1 then
-            transferLength := val * 256
-        else if transferIndex = 0 then
-            inc (transferLength, val)
-        else
-            begin
-                transferBuffer [pred (transferIndex)] := val;
-                if transferIndex = transferLength then
-                    transferMessage
-            end
+        if transferIndex = 0 then
+            transferLength := 256 * transferBuffer [-2] + transferBuffer [-1];
+        if transferIndex = transferLength then
+            transferMessage
     end;
     
 procedure processByte (tc: uint8);
@@ -195,8 +213,4 @@ procedure initTipi (value: string);
         initWebsocket
     end;
     
-begin
-    transferIndex := -2;
-    receiveIndex := -2;
-    receiveLength := 0
 end.

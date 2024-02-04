@@ -86,7 +86,7 @@ the file "ti99.pas" and can only be changed by editing the source file.
 TiPi
 
 The TiPi hardware is simulated and can be used with the original DSR ROM (an
-assembled version is included in the "rom" directory. On the Raspberry Pi
+assembled version is included in the "roms" directory). On the Raspberry Pi
 side, WebSocket emulation mode needs to be enabled; the file README.md in
 the emulation directory of the tipi installation provides further details.
 IP and port of the WebSocket server are set in the configuration file of
@@ -187,7 +187,7 @@ with the "Transfer" option of the "Filer."
 
 Implementation Notes
 
-The implementation is rather concise (about 5000 lines of Pascal source
+The implementation is rather concise (about 5200 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -200,8 +200,9 @@ The DSRs for the simulated devices (serial, host directory and P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
 specifying the requested operation as a dummy source address. The simulated
 TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
-occur in the DSR ROM address range. The high byte of the source address
-equals the CRU base of the simulated device.
+occur in the DSR ROM address range. The high byte of the dummy source address
+equals the CRU base of the simulated device (the CRU bases are defined in
+types.pas)
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
 as the simulator serves mainly as a test program for a Pascal compiler, the
