@@ -265,12 +265,19 @@ procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
         gtk_main_quit
     end;
 
+// TODO: Bug in Pcode generator of StatPascal: cannot export imported routines.
+    
+procedure queueRedraw (w: PGtkWidget); export;
+    begin
+        gtk_widget_queue_draw (w)
+    end;    
+
 procedure screenCallback (var renderedBitmap: TRenderedBitmap);
     begin
         if not usePCode80 and (compareByte (currentScreenBitmap, renderedBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
             begin
                 currentScreenBitmap := renderedBitmap;
-                g_idle_add (addr (gtk_widget_queue_draw), mainWindow)
+                g_idle_add (addr (queueRedraw), mainWindow)
             end;
     end;
     

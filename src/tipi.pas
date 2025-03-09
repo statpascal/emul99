@@ -8,7 +8,7 @@ procedure writeTipi (addr, val: uint16);
 function readTipi (addr: uint16): uint16;
 
 procedure loadTipiDsr (filename: string);
-procedure initTipi (value: string);
+procedure initTipi (service: string);
 
 
 implementation
@@ -95,10 +95,7 @@ procedure initWebsocket;
         count := 0;
         repeat
             readSocket (s, addr (ch), 1);
-            if (ch = chr (13)) or (ch = chr (10)) then
-                inc (count)
-            else
-                count := 0
+            count := succ (count) * ord ((ch = chr (13)) or (ch = chr (10)))
         until count = 4;
         
         transferIndex := -2;
@@ -165,23 +162,20 @@ procedure appendTransferBuffer (val: uint8);
             transferMessage
     end;
     
-procedure processByte (tc: uint8);
-    begin
-        if tc = $f1 then    // reset
-            transferIndex := -2
-        else if tc and $fe = $02 then
-            appendTransferBuffer (regTd)
-        else if tc and $fe = $06 then
-            regRd := readReceiveBuffer;
-        regRc := tc
-    end;
-    
 procedure writeTipi (addr, val: uint16);
     begin
         if addr = TipiTD then
             regTd := val
         else if (addr = TipiTC) and (val <> regRc) then
-            processByte (val)
+            begin
+                if val = $f1 then    // reset
+                    transferIndex := -2
+                else if val and $fe = $02 then
+                    appendTransferBuffer (regTd)
+                else if val and $fe = $06 then
+                    regRd := readReceiveBuffer;
+                regRc := val
+            end
     end;
     
 function readTipi (addr: uint16): uint16;
@@ -199,13 +193,13 @@ procedure loadTipiDsr (filename: string);
         loadBlock (dsrRom, $2000, 0, filename)
     end;
 
-procedure initTipi (value: string);
+procedure initTipi (service: string);
     var
         p, code: uint16;
     begin
-        p := pos (':', value);
-        tipiIp := copy (value, 1, pred (p));
-        val (copy (value, p + 1, 5), tipiPort, code);
+        p := pos (':', service);
+        tipiIp := copy (service, 1, pred (p));
+        val (copy (service, p + 1, 5), tipiPort, code);
         initWebsocket
     end;
     
