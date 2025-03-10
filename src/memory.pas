@@ -29,6 +29,8 @@ uses tms9901, vdp, sound, grom, fdccard, disksim, pcodecard, pcodedisk, tools, c
 
 const
     MaxCardBanks = 64;
+    SAMSPageSize = 4096;
+    SAMSPageCount = 256;
 
 type
     TMemoryHandler = record
@@ -37,13 +39,20 @@ type
         rws, wws: uint8;
     end;
 
-var
-    mem: array [0..MaxAddress div 2] of uint16;
+    
+const
+    mapSAMS: array [boolean, 0..15] of 0..4095 = 
+        ((0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 10, 11, 12, 13, 14, 15),
+         (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 	
+var
+    samsMem: array [0..SAMSPageCount - 1, 0..SAMSPageSize div 2 - 1] of uint16;
+    mem: array [0..MaxAddress div 2] of uint16;	  (* only used for scratch pad/Mini Memory *)
     cart: array [0..MaxCardBanks - 1, $3000..$3FFF] of uint16;
     cartBanks: 1..MaxCardBanks;
     activeCartBank: 0..MaxCardBanks - 1;
     cartROMInverted: boolean;
+    samsMappingMode: boolean;
     
     memoryMap: array [0..MaxAddress div 2] of TMemoryHandler;
 
@@ -60,14 +69,22 @@ function readNull (addr: uint16): uint16;
 	readNull := 0
     end;
     
+function getMemoryPtr16 (address: uint16): TUint16Ptr;
+    begin
+        if mapSAMS [false, address div SAMSPageSize] <> 0  then
+            getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize and pred (SAMSPageCount)], address and $0ffe div 2])
+        else
+  	    getMemoryPtr16 := addr (mem [address shr 1])
+    end;
+    
 procedure writeMem (addr, w: uint16);
     begin
-	mem [addr shr 1] := htons (w)
+        getMemoryPtr16 (addr)^ := htons (w);
     end;
 
 function readMem (addr: uint16): uint16;
     begin
-	readMem := ntohs (mem [addr shr 1])
+	readMem := ntohs (getMemoryPtr16 (addr)^)
     end;
 
 procedure writePAD (addr, w: uint16);
@@ -117,6 +134,17 @@ function readCart (addr: uint16): uint16;
 	readCart := ntohs (cart [activeCartBank, addr shr 1])
     end;
     
+procedure writeSAMSRegister (addr, w: uint16);
+    begin
+        writeln ('SAMS: ', addr and $1e shr 1, ' <- ', htons (w) and $0fff); 
+        mapSAMS [true, addr and $1e shr 1] := htons (w) and $0fff
+    end;
+    
+function readSAMSRegister (addr: uint16): uint16;
+    begin
+        readSamsRegister := mapSAMS [true, addr and $1e shr 1]
+    end;
+    
 procedure writeDsr (addr, val: uint16);
     begin
         case activeDsrBase of
@@ -124,6 +152,8 @@ procedure writeDsr (addr, val: uint16);
                 writeFdcCard (addr, val);
             TipiCruAddress:
                 writeTipi (addr, val);
+            SAMSCruAddress:
+                writeSAMSRegister (addr, val);
             PcodeCardCruAddress:
                 writePcodeCard (addr, val)
 	end
@@ -138,6 +168,8 @@ function readDsr (addr: uint16): uint16;
 	        readDsr := readDiskSim (addr);
             TipiCruAddress:
                 readDsr := readTipi (addr);
+            SAMSCruAddress:
+                readDsr := readSAMSRegister (addr);
             PcodeDiskCruAddress:
                 readDsr := readPcodeDisk (addr);
 	    PcodeCardCruAddress:
@@ -176,10 +208,9 @@ function readMemory (addr: uint16): uint16;
        inc (waitStates, memoryMap [addr shr 1].rws)
     end;
     
-(*$POINTERMATH ON*)
 function getMemoryPtr (s: uint16): TUint8Ptr;
     begin
-        getMemoryPtr := TUint8Ptr (addr (mem)) + s
+        getMemoryPtr := TUint8Ptr (getMemoryPtr16 (s))
     end;
     
 function getWaitStates: uint8;
@@ -247,7 +278,8 @@ function readCru (addr: TCruAddress): TCruBit;
 
 procedure writeCru (addr: TCruAddress; value: TCruBit);
     var
-       addr12: TCruR12Address;
+        addr12: TCruR12Address;
+        samsBit : 0..7;
     begin
         addr12 := addr shl 1;
   	if addr < Tms9901MaxCruAddress then
@@ -261,7 +293,14 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
                         writeFdcCardCru (addr12, value);
                     PcodeCardCruAddress:
                         writePcodeCardCru (addr12, value)
-		end
+		end;
+		if (addr12 >= SAMSCruAddress) and (addr12 <= SAMSCruAddress + $ff) then
+		    begin
+		        samsBit := addr12 and $0f shr 1;
+                        if samsBit = 1 then
+                            samsMappingMode := value = 1
+                    end;
+		    
 	    end
     end;
     
@@ -326,5 +365,6 @@ begin
     activeDsrBase := 0;
     cartBanks := 1;
     activeCartBank := 0;
-    waitStates := 0
+    waitStates := 0;
+    samsMappingMode := false;
 end.

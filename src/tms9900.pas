@@ -625,21 +625,23 @@ function getCycles: int64;
 procedure runCpu;
     var
 	time: TNanoTimestamp;
-	lastSleepCycles, msCycles: int64;
+	lastSleepCycles, msCycles, cycleTime: int64;
     begin
         cpuStopped := false;
     	cpuCycles := 0;
     	lastSleepCycles := 0;
-    	msCycles := 1000 * 1000 div getCycleTime;
         st := 0;
     	switchContext (0);
     	
     	time := getCurrentTime;
     	repeat
+            cycleTime := getCycleTime;
+            msCycles := (1000 * 1000) div getCycleTime;
             executeInstruction (decodedInstruction [fetchInstruction]);
             if cpuCycles - lastSleepCycles > msCycles then 
                 begin
-    	            sleepUntil (time + cpuCycles * getCycleTime);
+    	            sleepUntil (time + 1000 * 1000);
+    	            time := getCurrentTime;
     	            lastSleepCycles := cpuCycles
                 end;
   	    handleTimer (cpuCycles);
@@ -653,7 +655,7 @@ procedure stopCpu;
     begin
 	cpuStopped := true
     end;
-
+    
 begin
     fillChar (decodedInstruction, sizeof (decodedInstruction), 0);
     instructionString [Op_IVLD] := 'DATA';

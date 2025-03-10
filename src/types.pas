@@ -12,6 +12,7 @@ const
     DiskSimCruAddress = $1200;
     TipiCruAddress = $1300;
     SerialSimCruAddress = $1500;
+    SAMSCruAddress = $1e00;
     PcodeCardCruAddress = $1f00;
 
 type
@@ -19,6 +20,7 @@ type
     TCruR12Address = 0..2 * MaxCruAddress;
     TCruBit = 0..1;
     TUint8Ptr = ^uint8;
+    TUint16Ptr = ^uint16;
     TDiskDrive = 1..NumberDrives;
     
     TDsrRom = record

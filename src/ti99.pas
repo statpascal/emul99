@@ -207,6 +207,18 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
         event: PTGdkEventKey absolute p;
     begin
 //        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
+        if event^.eventtype = GDK_KEY_PRESS then
+            case event^.keyval of
+                GDK_KEY_F5:
+                    setCpuFrequency (getDefaultCpuFrequency);
+                GDK_KEY_F6:
+                    setCpuFrequency (120 * 1000 * 1000);	
+                GDK_KEY_F7:
+                    if getCpuFrequency > 1000 * 1000 then
+                        setCpuFrequency (getCpuFrequency - 1000 * 1000);
+                GDK_KEY_F8:
+                    setCpuFrequency (getCpuFrequency + 1000 * 1000)
+            end;
         with event^ do
             if (eventtype = GDK_KEY_RELEASE) and (hardwareKeyIndex [hardware_keycode] <> 0) then
                 keyUp (uint8 (hardware_keycode))

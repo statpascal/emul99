@@ -8,7 +8,10 @@ function usePcode80: boolean;
 function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
 
-function getCycleTime: int64;	// nanoseconds
+function getCpuFrequency: int64;
+function getCycleTime: int64;
+function getDefaultCpuFrequency: int64;
+procedure setCpuFrequency (freq: int64);
 
 implementation
 
@@ -20,7 +23,7 @@ var
     cartBank, pcodeGromCount: uint8;
     diskDsr: string;
     pcodeRomFilenames: TPcodeRomFilenames;
-    cycleTime: int64;
+    cpuFrequency, defaultCpuFrequency, cycleTime: int64;
 
 procedure loadConfigFile (fn: string; level: uint8);
     type
@@ -53,7 +56,10 @@ procedure loadConfigFile (fn: string; level: uint8);
 	    keyType := findKey (upcase (key));
             case keyType of
                 CpuFreq:
-                    cycleTime := (1000 * 1000 * 1000) div n;
+                    begin
+                        defaultCpuFrequency := n;
+                        setCpuFrequency (defaultCpuFrequency)
+                    end;
                 Mem32KExt:
                     if n = 1 then 
                         configure32KExtension;
@@ -200,9 +206,27 @@ function getWindowScaleWidth: uint8;
         getWindowScaleWidth := scaleWidth
     end;
     
+function getCpuFrequency: int64;
+    begin
+        getCpuFrequency := cpuFrequency
+    end;
+    
 function getCycleTime: int64;
     begin
         getCycleTime := cycleTime
     end;
+    
+function getDefaultCpuFrequency: int64;
+    begin
+        getDefaultCpuFrequency := defaultCpuFrequency
+    end;
+    
+procedure setCpuFrequency (freq: int64);
+    begin
+        cpuFrequency := freq;
+        cycleTime := (1000 * 1000 * 1000) div cpuFrequency;
+        writeln ('CPU frequency set to ', cpuFrequency, ' MHz')
+    end;
+    
 
 end.
