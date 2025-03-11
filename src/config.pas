@@ -225,7 +225,7 @@ procedure setCpuFrequency (freq: int64);
     begin
         cpuFrequency := freq;
         cycleTime := (1000 * 1000 * 1000) div cpuFrequency;
-        writeln ('CPU frequency set to ', cpuFrequency, ' MHz')
+        writeln ('CPU frequency set to ', cpuFrequency, ' Hz')
     end;
     
 

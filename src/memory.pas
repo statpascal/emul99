@@ -136,13 +136,13 @@ function readCart (addr: uint16): uint16;
     
 procedure writeSAMSRegister (addr, w: uint16);
     begin
-        writeln ('SAMS: ', addr and $1e shr 1, ' <- ', htons (w) and $0fff); 
-        mapSAMS [true, addr and $1e shr 1] := htons (w) and $0fff
+        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', ntohs (w) and $0fff); 
+        mapSAMS [true, addr and $1e shr 1] := ntohs (w) and $0fff
     end;
     
 function readSAMSRegister (addr: uint16): uint16;
     begin
-        readSamsRegister := mapSAMS [true, addr and $1e shr 1]
+        readSamsRegister := htons (mapSAMS [true, addr and $1e shr 1])
     end;
     
 procedure writeDsr (addr, val: uint16);
@@ -277,6 +277,9 @@ function readCru (addr: TCruAddress): TCruBit;
     end;
 
 procedure writeCru (addr: TCruAddress; value: TCruBit);
+    const
+        offon: array [0..1] of string = ('off', 'on');
+        passmap: array [0..1] of string = ('pass', 'map');
     var
         addr12: TCruR12Address;
         samsBit : 0..7;
@@ -297,8 +300,15 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
 		if (addr12 >= SAMSCruAddress) and (addr12 <= SAMSCruAddress + $ff) then
 		    begin
 		        samsBit := addr12 and $0f shr 1;
-                        if samsBit = 1 then
-                            samsMappingMode := value = 1
+		        case samsBit of
+		            0:
+		                writeln ('SAMS: ', offon [value]);
+                            1:
+                                begin
+                                    samsMappingMode := value = 1;
+                                    writeln ('SAMS: ', passmap [value]);
+                                end
+                        end    
                     end;
 		    
 	    end
