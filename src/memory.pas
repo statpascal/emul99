@@ -72,7 +72,7 @@ function readNull (addr: uint16): uint16;
 function getMemoryPtr16 (address: uint16): TUint16Ptr;
     begin
         if mapSAMS [false, address div SAMSPageSize] <> 0  then
-            getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize and pred (SAMSPageCount)], address and $0ffe div 2])
+            getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize and pred (SAMSPageCount)] and $ff, address and $0ffe div 2])
         else
   	    getMemoryPtr16 := addr (mem [address shr 1])
     end;
