@@ -4,7 +4,7 @@ After creating a FIFO in the Linux file system with
 
 mkfifo /tmp/rs232_1_in.dat
 
-it can be connected with to the REMIN: device of the UCSD P-Code system
+it can be connected to the REMIN: device of the UCSD P-Code system
 with a configuration file containing the lines:
 
 serial_dsr = ../roms/serial.bin
@@ -41,7 +41,7 @@ two lines into the program, followed by EOF:
 
 echo "This is the first line" > /tmp/rs232_1_in.dat
 echo "This is the second line" > /tmp/rs232_1_in.dat
-echo -n $'\x03' >> /tmp/rs232_1_in.dat
+echo -n $'\x03' > /tmp/rs232_1_in.dat
 
 Reading a file in this manner does not yet work with the Transfer menu
 option of the UCSD Filer.
