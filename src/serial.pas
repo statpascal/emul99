@@ -189,7 +189,11 @@ procedure serialSimDSR;
             E_Open:
                 openSerialPort (pab);
             E_Write:
-                writeSerialPort (pab, modifiers, serialFiles [serialPort, PortOut]);
+                begin
+                    if serialFiles [serialPort, PortOut] = -1 then
+                        writeln ('ERROR: No output file assigned to device ', getDeviceName (pab));
+                    writeSerialPort (pab, modifiers, serialFiles [serialPort, PortOut])
+                end;
             E_Read:
                 readSerialPort (pab, modifiers, serialFiles [serialPort, PortIn]);
             E_Close:
@@ -222,7 +226,9 @@ procedure initSerial (dsrFilename: string);
     
 procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDirection; fileName: string);
     begin
-        serialFiles [serialPort, direction] := fileOpen (fileName, true, direction = PortOut)
+        serialFiles [serialPort, direction] := fileOpen (fileName, true, direction = PortOut);
+        if serialFiles [serialPort, direction] = -1 then
+            writeln ('ERROR: Cannot open ', filename, ' for serial/parallel output')
     end;
     
 end.
