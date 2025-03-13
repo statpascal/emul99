@@ -29,7 +29,7 @@ var
     
 function screenBufferChanged: boolean;
     begin
-        screenBufferChanged := compareByte (renderedScreen, getMemoryPtr ($2000)^, Width * Height) <> 0
+        screenBufferChanged := compareByte (renderedScreen, getPcodeScreenBuffer^, Width * Height) <> 0
     end;
       
 function getPcodeScreenWidth: uint32;
@@ -48,7 +48,7 @@ procedure renderPcodeScreen (cr: PCairoT);
         x: 0..Width - 1;
         buf: array [0..1] of char;
     begin
-        move (getMemoryPtr ($2000)^, renderedScreen, Width * Height);
+        move (getPcodeScreenBuffer^, renderedScreen, Width * Height);
         buf [1] := chr (0);
         cairo_select_font_face (cr, 'monospace', 0, 0);
         cairo_set_font_size (cr, FontSize);

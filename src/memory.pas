@@ -9,7 +9,9 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
 
 procedure writeMemory (addr, val: uint16);
 function readMemory (addr: uint16): uint16;
+
 function getMemoryPtr (s: uint16): TUint8Ptr;
+function getPcodeScreenBuffer: TUint8Ptr;
 
 function getWaitStates: uint8;
 
@@ -75,6 +77,12 @@ function getMemoryPtr16 (address: uint16): TUint16Ptr;
             getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize and pred (SAMSPageCount)] and $ff, address and $0ffe div 2])
         else
   	    getMemoryPtr16 := addr (mem [address shr 1])
+    end;
+
+function getPcodeScreenBuffer: TUint8Ptr;
+    begin
+        getPcodeScreenBuffer := addr (samsMem [mapSAMS [false, 2], 0])
+//        getPcodeScreenBuffer := getMemoryPtr ($2000)
     end;
     
 procedure writeMem (addr, w: uint16);
