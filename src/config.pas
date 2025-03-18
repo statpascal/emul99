@@ -15,7 +15,7 @@ procedure setCpuFrequency (freq: int64);
 
 implementation
 
-uses memory, tms9900, fdccard, disksim, tape, pcodecard, pcodedisk, serial, tipi, tools, sysutils;
+uses memory, tms9900, fdccard, rs232card, disksim, tape, pcodecard, pcodedisk, serial, tipi, tools, sysutils;
 
 var 
     pcode80: boolean;
@@ -28,11 +28,11 @@ var
 procedure loadConfigFile (fn: string; level: uint8);
     type
         TKeyType = (CpuFreq, Mem32KExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
-                    SerialDsr, SerialPort1In, SerialPort2In, SerialPort3In, SerialPort4In, ParallelPort1In, ParallelPort2In, SerialPort1Out, SerialPort2Out, SerialPort3Out, SerialPort4Out, ParallelPort1Out, ParallelPort2Out, TipiDsr, TipiAddr, Invalid);
+                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, SerialPort3In, SerialPort4In, ParallelPort1In, ParallelPort2In, SerialPort1Out, SerialPort2Out, SerialPort3Out, SerialPort4Out, ParallelPort1Out, ParallelPort2Out, TipiDsr, TipiAddr, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
              ('cpu_freq', 'mem_32k_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
-              'serial_dsr', 'RS232/1_in', 'RS232/2_in', 'RS232/3_in', 'RS232/4_in', 'PIO/1_in', 'PIO/2_in', 'RS232/1_out', 'RS232/2_out', 'RS232/3_out', 'RS232/4_out', 'PIO/1_out', 'PIO/2_out', 'tipi_dsr', 'tipi_addr', '');
+              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'RS232/3_in', 'RS232/4_in', 'PIO/1_in', 'PIO/2_in', 'RS232/1_out', 'RS232/2_out', 'RS232/3_out', 'RS232/4_out', 'PIO/1_out', 'PIO/2_out', 'tipi_dsr', 'tipi_addr', '');
         MaxConfigLevel = 10;
         
     procedure evaluateKey (key, value, path: string);
@@ -116,10 +116,12 @@ procedure loadConfigFile (fn: string; level: uint8);
                     scaleHeight := n;
                 SerialDsr:
                     initSerial (path);
+                RS232Dsr:
+                    initRs232Card (path);
                 SerialPort1In..ParallelPort2In:
                     setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1In)), PortIn, path);
                 SerialPort1Out..ParallelPort2Out:
-                    setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1Out)), PortOut, path);
+                        setSerialFileName (TSerialPort (ord (keyType) - ord (SerialPort1Out)), PortOut, path);
                 TipiDsr:
                     loadTipiDsr (path);
                 TipiAddr:

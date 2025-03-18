@@ -10,7 +10,7 @@ const
 type
     TFileHandle = int32;
    
-function fileOpen (fileName: string; writable, alwaysCreate: boolean): TFileHandle;
+function fileOpen (fileName: string; writable, create, append, trunc: boolean): TFileHandle;
 function fileWrite (handle: TFileHandle; buf: pointer; size: int64): int64;
 function fileRead (handle: TFileHandle; buf: pointer; size: int64): int64;
 function fileSize (handle: TFileHandle): int64;
@@ -28,9 +28,10 @@ implementation
 
 uses cfuncs;
 
-function fileOpen (fileName: string; writable, alwaysCreate: boolean): TFileHandle;
+function fileOpen (fileName: string; writable, create, append, trunc: boolean): TFileHandle;
     begin
-        fileOpen := fdopen (addr (fileName [1]), O_RDWR * ord (writable) + O_CREAT * ord (alwaysCreate), &644)
+        fileOpen := fdopen (addr (fileName [1]), O_RDWR * ord (writable) + O_CREAT * ord (create) +
+                                                 O_APPEND * ord (append) + O_TRUNC * ord (trunc), &644)
     end;
     
 function fileWrite (handle: TFileHandle; buf: pointer; size: int64): int64;

@@ -33,10 +33,14 @@ type
         pa: (_N, _E, _O);
         tw, ch, cr, lf, ec, nu: boolean
     end;
+    TSerialFile = record
+        handle: TFileHandle;
+        nozero: boolean
+    end;
 
 var
     dsrRom: TDsrRom;
-    serialFiles: array [TSerialPort, TSerialPortDirection] of TFileHandle;
+    serialFiles: array [TSerialPort, TSerialPortDirection] of TSerialFile;
     
 procedure serialSimPowerup;
     begin
@@ -72,6 +76,7 @@ procedure parseSerialModifiers (var pab: TPab; var modifiers: TSerialModifiers; 
     
 procedure openSerialPort (var pab: TPab);
     begin
+        writeln ('Open: ', pab.name);
         if getRecordLength (pab) = 0 then
             setRecordLength (pab, 80);
         if getAccessType (pab) = E_Relative then
@@ -79,28 +84,36 @@ procedure openSerialPort (var pab: TPab);
         setRecordNumber (pab, 0);
     end;
     
-procedure writeSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: TFileHandle);
+procedure writeSerialPort (var pab: TPab; modifiers: TSerialModifiers; serialFile: TSerialFile);
     const
         displayBytes: array [1..8] of uint8 = ($0d, $0a, 0, 0, 0, 0, 0, 0);
     var
-        buf: array [0..255] of uint8;
+        buf: array [1..256] of uint8;
+        i: uint8;
     begin
-        if handle = InvalidFileHandle then
+        if serialFile.handle = InvalidFileHandle then
             setErrorCode (pab, E_DeviceError)
         else
             begin
                 if getDataType (pab) = E_Internal then
-                    fileWrite (handle, addr (pab.numChars), 1);
+                    fileWrite (serialFile.handle, addr (pab.numChars), 1);
                 vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), buf, VdpRead);
-                fileWrite (handle, addr (buf), getNumChars (pab));
+
+                if (getDataType (pab) = E_Internal) or not serialFile.nozero then
+                    fileWrite (serialFile.handle, addr (buf), getNumChars (pab))
+                else
+                    for i := 1 to getNumChars (pab) do
+                        if buf [i] <> 0 then
+                            fileWrite (serialFile.handle, addr (buf [i]), 1); 
+                
                 if (getDataType (pab) = E_Display) and (getRecordType (pab) = E_Variable) then 
                     begin
                         if not modifiers.cr then
-                            fileWrite (handle, addr (displayBytes [1]), 1);
+                            fileWrite (serialFile.handle, addr (displayBytes [1]), 1);
                         if modifiers.nu then
-                            fileWrite (handle, addr (displayBytes [3]), 6);
+                            fileWrite (serialFile.handle, addr (displayBytes [3]), 6);
                         if not modifiers.lf then
-                            fileWrite (handle, addr (displayBytes [2]), 1)
+                            fileWrite (serialFile.handle, addr (displayBytes [2]), 1)
                     end
             end
     end;
@@ -131,24 +144,24 @@ function readPort (handle: TFileHandle; var ch: uint8): TPortStatus;
         until done
     end;
         
-procedure readSerialPort (var pab: TPab; modifiers: TSerialModifiers; handle: TFileHandle);
+procedure readSerialPort (var pab: TPab; modifiers: TSerialModifiers; serialFile: TSerialFile);
     var
         count, numChars, ch: uint8;
         done: boolean;
         buf: array [0..255] of uint8;
     begin
-        if handle = InvalidFileHandle then
+        if serialFile.handle = InvalidFileHandle then
             setErrorCode (pab, E_DeviceError)
         else
             begin
                 if getDataType (pab) = E_Internal then
-                    readPort (handle, ch)	// TODO: numchars?
+                    readPort (serialFile.handle, ch)	// TODO: numchars?
                 else
                     numChars := getRecordLength (pab);
                 done := false; 
                 count := 0;
                 while (count < numChars) and not done do
-                    if readPort (handle, ch) = DataRead then
+                    if readPort (serialFile.handle, ch) = DataRead then
                         begin
                             buf [count] := ch;
                             inc (count)
@@ -179,7 +192,7 @@ procedure serialSimDSR;
         setErrorCode (pab, E_NoError);
         setStatus (pab, 0);
         parseSerialModifiers (pab, modifiers, serialPort);
-
+        
         case getOperation (pab) of
             E_OpenInterrupt:
                 begin
@@ -190,7 +203,7 @@ procedure serialSimDSR;
                 openSerialPort (pab);
             E_Write:
                 begin
-                    if serialFiles [serialPort, PortOut] = -1 then
+                    if serialFiles [serialPort, PortOut].handle = -1 then
                         writeln ('ERROR: No output file assigned to device ', getDeviceName (pab));
                     writeSerialPort (pab, modifiers, serialFiles [serialPort, PortOut])
                 end;
@@ -221,14 +234,32 @@ procedure initSerial (dsrFilename: string);
         loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
         for i := RS232_1 to PIO_2 do
             for j := PortIn to PortOut do
-                serialFiles [i, j] := -1
+                serialFiles [i, j].handle := -1
     end;
     
 procedure setSerialFileName (serialPort: TSerialPort; direction: TSerialPortDirection; fileName: string);
+    var 
+        p: integer;
+        options: string;
+        optAppend, optNozero: boolean;
     begin
-        serialFiles [serialPort, direction] := fileOpen (fileName, true, direction = PortOut);
-        if serialFiles [serialPort, direction] = -1 then
-            writeln ('ERROR: Cannot open ', filename, ' for serial/parallel output')
+        optAppend := false;
+        optNozero := false;
+        p := pos (',', fileName);
+        if p <> 0 then
+            begin
+                options := upcase (copy (filename, succ (p), length (filename) - p));
+                filename := trim (copy (filename, 1, pred (p)));
+                optAppend := pos ('APPEND', options) <> 0;
+                optNozero := pos ('NOZERO', options) <> 0
+            end;
+        with serialFiles [serialPort, direction] do 
+            begin
+                handle := fileOpen (fileName, true, direction = PortOut, (direction = PortOut) and optAppend, (direction = PortOut) and not optAppend);
+                nozero := optNozero;
+                if handle = -1 then
+                    writeln ('ERROR: Cannot open ', filename, ' for serial/parallel output')
+            end
     end;
     
 end.

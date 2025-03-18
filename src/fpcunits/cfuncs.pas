@@ -48,6 +48,8 @@ const
     O_WRONLY = 1;
     O_RDWR = 2;
     O_CREAT = 64;
+    O_TRUNC = 512;
+    O_APPEND = 1024;
     SEEK_SET = 0;
     SEEK_CUR = 1;
     SEEK_END = 2;

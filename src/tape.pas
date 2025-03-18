@@ -63,7 +63,7 @@ procedure outputWaveHeader;
     
 procedure setCassetteOutput (fn: string);
     begin
-        fOutput := fileOpen (fn, true, true);
+        fOutput := fileOpen (fn, true, true, false, true);
         if fOutput <> InvalidFileHandle then
             outputWaveHeader
         else
@@ -148,7 +148,7 @@ procedure setCassetteInput (fn: string);
         toggleStatus := 0;
         count := 0;
         startPos := 0;
-        f := fileOpen (fn, false, false);
+        f := fileOpen (fn, false, false, false, false);
         if f <> InvalidFileHandle then
             begin
                 togglesAllocated := fileSize (f);	// rough upper bound for possible toggles 

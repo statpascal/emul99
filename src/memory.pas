@@ -27,7 +27,7 @@ procedure loadCartGROM (filename: string);
 
 implementation
 
-uses tms9901, vdp, sound, grom, fdccard, disksim, pcodecard, pcodedisk, tools, cfuncs, serial, tipi;
+uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, serial, tipi;
 
 const
     MaxCardBanks = 64;
@@ -174,6 +174,8 @@ function readDsr (addr: uint16): uint16;
                 readDsr := readFdcCard (addr);
 	    DiskSimCruAddress:
 	        readDsr := readDiskSim (addr);
+            RS232CruAddress:
+               readDsr := readRs232Card (addr);
             TipiCruAddress:
                 readDsr := readTipi (addr);
             SAMSCruAddress:
@@ -277,6 +279,8 @@ function readCru (addr: TCruAddress): TCruBit;
 	    case activeDsrBase of
                 FdcCardCruAddress:
                      readCru := readFdcCardCru (addr shl 1);
+                RS232CruAddress:
+                    readCru := readRs232CardCru (addr shl 1);
 	        PcodeCardCruAddress:
 	            readCru := readPcodeCardCru (addr shl 1)
 	        else
@@ -302,6 +306,8 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
                 case activeDsrBase of
                     FdcCardCruAddress:
                         writeFdcCardCru (addr12, value);
+                    RS232CruAddress:
+                        writeRs232CardCru (addr12, value);
                     PcodeCardCruAddress:
                         writePcodeCardCru (addr12, value)
 		end;

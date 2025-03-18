@@ -65,7 +65,7 @@ function loadBlock (var dest; size, offset: int64; fileName: string): int64;
         bytesRead: int64;
     begin
         bytesRead := 0;
-        handle := fileOpen (fileName, false, false);
+        handle := fileOpen (fileName, false, false, false, false);
         if handle = InvalidFileHandle then
             writeln ('File ', fileName, ': cannot open')
         else
@@ -83,7 +83,7 @@ function saveBlock (var src; size: int64; fileName: string): int64;
         bytesWritten: int64;
     begin
         bytesWritten := 0;
-        handle := fileOpen (fileName, true, true);
+        handle := fileOpen (fileName, true, true, false, false);
         if handle = InvalidFileHandle then
             writeln ('File ', fileName, ': cannot open')
         else
@@ -100,7 +100,7 @@ function getFileSize (fileName: string): int64;
     var
         handle: TFileHandle;
     begin
-        handle := fileOpen (fileName, false, false);
+        handle := fileOpen (fileName, false, false, false, false);
         getFileSize := fileSize (handle);
         fileClose (handle)
     end;

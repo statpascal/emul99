@@ -29,7 +29,7 @@ function createMapping (fn: string): pointer;
         newMapping: TMappingNode;
     begin
         newMapping.fn := fn;
-        newMapping.fd := fileOpen (fn, true, false);
+        newMapping.fd := fileOpen (fn, true, false, false, false);
         newMapping.p := nil;
         newMapping.next := mappings;
         

@@ -10,7 +10,8 @@ const
     PcodeDiskCruAddress = $1000;    
     FdcCardCruAddress = $1100;
     DiskSimCruAddress = $1200;
-    TipiCruAddress = $1300;
+    RS232CruAddress = $1300;
+    TipiCruAddress = $1400;
     SerialSimCruAddress = $1500;
     SAMSCruAddress = $1e00;
     PcodeCardCruAddress = $1f00;
