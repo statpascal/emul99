@@ -17,6 +17,7 @@ function oddParity (val: uint8): boolean;
 
 function getHighLow (val: uint16; highByte: boolean): uint8;
 procedure setHighLow (var val: uint16; highByte: boolean; b: uint8);
+function swapBytes (val: uint16): uint16;
 
 procedure errorExit (s: string);
 
@@ -137,6 +138,11 @@ function getHighLow (val: uint16; highByte: boolean): uint8;
 procedure setHighLow (var val: uint16; highByte: boolean; b: uint8);
     begin
         val := val and ($ff00 shr (8 * ord (highByte))) or (b shl (8 * ord (highByte)))
+    end;
+    
+function swapBytes (val: uint16): uint16;
+    begin
+        swapBytes := val shr 8 or (val and $ff) shl 8
     end;
     
 procedure errorExit (s: string);

@@ -32,7 +32,7 @@ uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedis
 const
     MaxCardBanks = 64;
     SAMSPageSize = 4096;
-    SAMSPageCount = 256;
+    SAMSPageCount = 4096;
 
 type
     TMemoryHandler = record
@@ -74,7 +74,7 @@ function readNull (addr: uint16): uint16;
 function getMemoryPtr16 (address: uint16): TUint16Ptr;
     begin
         if mapSAMS [false, address div SAMSPageSize] <> 0  then
-            getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize and pred (SAMSPageCount)] and $ff, address and $0ffe div 2])
+            getMemoryPtr16 := addr (samsMem [mapSAMS [samsMappingMode, address div SAMSPageSize], address and $0ffe div 2])
         else
   	    getMemoryPtr16 := addr (mem [address shr 1])
     end;
@@ -144,13 +144,14 @@ function readCart (addr: uint16): uint16;
     
 procedure writeSAMSRegister (addr, w: uint16);
     begin
-        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', ntohs (w) and $0fff); 
-        mapSAMS [true, addr and $1e shr 1] := ntohs (w) and $0fff
+        w := swapBytes (w) and $0fff;
+        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
+        mapSAMS [true, addr and $1e shr 1] := w
     end;
     
 function readSAMSRegister (addr: uint16): uint16;
     begin
-        readSamsRegister := htons (mapSAMS [true, addr and $1e shr 1])
+        readSamsRegister := swapBytes (mapSAMS [true, addr and $1e shr 1])
     end;
     
 procedure writeDsr (addr, val: uint16);

@@ -7,6 +7,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
+    VersionString = '0.1 beta 1';
 
 type
     TKeyMapEntry = record
@@ -212,7 +213,7 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
                 GDK_KEY_F5:
                     setCpuFrequency (getDefaultCpuFrequency);
                 GDK_KEY_F6:
-                    setCpuFrequency (120 * 1000 * 1000);	
+                    setCpuFrequency (1000 * 1000 * 1000);	
                 GDK_KEY_F7:
                     if getCpuFrequency > 1000 * 1000 then
                         setCpuFrequency (getCpuFrequency - 1000 * 1000);
@@ -323,6 +324,7 @@ procedure initGui;
     end;
 
 begin
+    writeln ('emul99 version ', VersionString, ' starting');
     if ParamCount >= 1 then
         loadConfig (ParamStr (1))
     else
