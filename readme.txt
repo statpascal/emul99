@@ -7,15 +7,17 @@ compiled with the Free Pascal Compiler under Linux.
 
 Emul99 provides the following features:
 
-- emulation of console with 32K extension
+- Emulation of console with 32K extension/SAMS with 16 MByte
+- Hotkeys to change speed of simulated system (for compiling large programs)
+- Emulation of RS232 card
 - P-code card with optional 80 column display
 - Transfer tool for text files between host system and UCSD disk images
-- several disk systems:
+- Several disk systems:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
   * Program/data files in TIFILES format in host system directory
   * DSR for P-code system with disk images of up to 16 MByte
 - TiPi access via its WebSocket interface
-- cassette input/output using WAV files
+- Cassette input/output using WAV files
 
 
 Compiling Emul99
@@ -25,9 +27,15 @@ installed. E.g., under Debian 11, this can be achieved with
 
 apt-get install fpc gtk+3 libsdl2-dev
 
+under Debian Bookworm (the current base of Raspberry Pi OS) with
+
+apt-get install fpc libgtk-3-dev libsdl2-dev
+
 and under Ubuntu 21/Linux Mint with
 
 sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
+
+A recent of version of the Free Pascal Compiler (3.2.x) is required.
 
 Development is mainly done under openSUSE Tumbleweed on x64. 
 
@@ -58,10 +66,10 @@ simulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. 
 
 Additional ROMs that can be utilized are the original disk controller DSR
-ROM, the DSR ROM of the TiPi (included in the package) and the ROMs/GROMs of
-the P-code card.  The latter ones consist of 8 files with the GROMs (6 KB
-each), a 4 KB file with the lower part of the DSR ROM and an 8 KB file with
-the two upper banks.
+ROM, the DSR ROM of the TiPi (included in the package), the DSR ROM of the
+RS232 card and the ROMs/GROMs of the P-code card.  The latter ones consist
+of 8 files with the GROMs (6 KB each), a 4 KB file with the lower part of
+the DSR ROM and an 8 KB file with the two upper banks.
 
 The directory "roms" contains a file "roms.txt" showing the file names and
 their sizes as they are expected by the various configuration files.
@@ -77,10 +85,19 @@ Keyboard
 Keys are mapped to a standard PC keyboard.  The function key of the TI 99
 keyboard is reached by the right menu key (left of the right control key). 
 Alpha Lock is switched off and cannot be activated, but a similar effect can
-be obtained by using Caps-Lock on the PC keyboard. The first joystick is
+be obtained by using Caps-Lock on the PC keyboard.  The first joystick is
 mapped to the keys 4, 6, 8 and 2 in the numeric pad (with NumLock enabled)
-and the left "Alt" key is the fire button. These mappings are defined in
+and the left "Alt" key is the fire button.  These mappings are defined in
 the file "ti99.pas" and can only be changed by editing the source file.
+
+Four function keys are used to change the execution speed of the simulated
+system:
+
+F5 - restore CPU frequency to value in configuration file (default 3 MHz)
+F6 - set frequency to 1 GHz (resulting in maximum speed as current systems
+     will not be able to actually achieve this)
+F7 - decrease CPU frequency by 1 MHz
+F8 - increate CPU frequency by 1 MHz
 
 
 TiPi
@@ -170,24 +187,76 @@ tape.pas) as a toggle of the cassette input.
 
 Serial/Parallel I/O
 
-An experimental implementation of an RS232/PIO interface is provided. 
-Output should work reasonably well while input - especially into the P-Code
-system - may fail or not be interruptable yet.  Different files can be
-configured for the input and output of each device (see serial.cfg).
+Serial emulation requires the original DSR ROM of the RS232C card. Input and
+output is redirected to the file system with configurable file names or
+named pipes. A named pipe should be used for input data. 
 
-When the end of an input file is reached, the DSR simulates a press of the
-"Clear" key resulting in the return of error code 6 (device error).
+Please note that the current implementation does not yet support the PIOs of
+the card neither the generation of an interrupt upon receiving data (which
+is used by the Terminal Emulator module).
 
-Under Linux a named pipe can be used e.g. for input. This is useful to
-feed data into the P-code system by reading from device REMIN: - the end of
-the input can be signalled by sending the byte 0x03 (Ctrl-C) to the pipe
-which will set EOF for the REMIN: device. Note that this does not yet work
-with the "Transfer" option of the "Filer."
+A typical configuration for the P-Code system is shown in bin/serial.cfg:
+
+S232/1_out = ../REMOUT,nozero
+RS232/2_out = ../PRINTER,nozero,append
+
+; A FIFO (named pipe) should be used for input
+
+RS232/1_in = ../REMIN
+
+File names are relative to the configuration directory (bin). 
+Two options can be added to output filenames:
+
+nozero - will not output any zero bytes. This is useful when transferring
+text files with the Transfer option of the Filer, which simply copies
+complete disk blocks including zeroes.
+
+append - appends to an existing file instead of overwriting it.
+
+After creating the REMIN file as a named pipe (mkfifo REMIN) it can be read
+with the following program:
+
+program serread;
+var
+    f: text;
+    ch: char;
+begin
+    reset (f, 'REMIN:');
+    while not eof (f) do
+        begin
+            read (f, ch);
+            if ch = chr (10) then
+                writeln
+            else
+                write (ch)
+        end;
+    close (f)
+end.
+
+Upon execution, the program will read from the FIFO until an EOF is
+signalled with a binary value of 3. E.g. the following Linux commands feed
+two lines into the program, followed by EOF:
+
+echo "This is the first line" > REMIN
+echo "This is the second line" > REMIN
+echo -n $'\x03' > REMIN
+
+In Extended BASIC, the following program is equivalent to the above Pascal
+program:
+
+100 OPEN #1:"RS232/1",INPUT ,DISPLAY ,FIXED 1
+110 LINPUT #1:A$
+120 IF A$=CHR$(10)THEN PRINT ELSE PRINT A$;
+130 IF A$<>CHR$(3)THEN 110
+
+It can be sent to the file PRINTER with
+
+LIST "RS232/2"
 
 
 Implementation Notes
 
-The implementation is rather concise (about 5200 lines of Pascal source
+The implementation is rather concise (about 5300 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -196,7 +265,7 @@ CPU, VDP and the 9901 timer are interleaved and executed in a seperate
 thread; this thread will perform a sleep every millisecond to synchronize
 with real time.
 
-The DSRs for the simulated devices (serial, host directory and P-Code disk
+The DSRs for the simulated devices (host directory and P-Code disk
 system) transform control to the simulator with an "XOP 0" instruction,
 specifying the requested operation as a dummy source address. The simulated
 TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
@@ -244,7 +313,7 @@ the memory mapped devices are based upon Classic99.
 
 License
 
-Copyright 2022, 2024 Michael Thomas
+Copyright 2022 - 2025 Michael Thomas
 
 Emul99 is licensed under the GNU General Public License version 2 - see
 the file "COPYING" in this directory for details.

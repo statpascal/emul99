@@ -201,36 +201,21 @@ function getByteStatus (b: uint8): uint16;
 	getByteStatus := getWordStatus (b shl 8) or Status_OP * ord (oddParity (b))
     end;
     
-function compare (u1, u2: uint16; s1, s2: int16): uint16;
+function compare (u1, u2: uint16): uint16;
     begin
-        compare := Status_EQ * ord (u1 = u2) or Status_LGT * ord (u1 > u2) or Status_AGT * ord (s1 > s2)
+        compare := Status_EQ * ord (u1 = u2) or Status_LGT * ord (u1 > u2) or Status_AGT * ord (int16 (u1) > int16 (u2))
     end;
 
-function compare16 (a, b: uint16): uint16;
+procedure addSub (var status: uint16; a, b: uint16; var res1: uint16; isSub: boolean);
+    var 
+        res: uint16;
     begin
-        compare16 := compare (a, b, int16 (a), int16 (b))
-    end;
-
-function compare8 (a, b: uint8): uint16;
-    begin
-        compare8 := compare (a, b, int8 (a), int8 (b)) or Status_OP * ord (oddParity (a))
-    end;
-    
-function addStatus (a, b, res, signMask: uint16; isSub: boolean): uint16;
-    begin
-        addStatus := Status_C * ord ((res < b) or (isSub and (a = 0))) or Status_OV * ord ((res xor a) and (res xor b) and signMask <> 0);
-    end;
-
-procedure add16 (var status: uint16; a, b: uint16; var result: uint16; isSub: boolean);
-    begin
-        result := uint16 (a + b);
-        status := getWordStatus (result) and (Status_LGT or Status_AGT or Status_EQ) or addStatus (a, b, result, $8000, isSub)
-    end;
-    
-procedure add8 (var status: uint16; a, b: uint8; var result: uint8; isSub: boolean);
-    begin
-        result := uint8 (a + b);
-        status := getByteStatus (result) and (Status_LGT or Status_AGT or Status_EQ or Status_OP) or addStatus (a, b, result, $80, isSub)
+        res := b + a * (1 - 2 * ord (isSub));
+        // TODO: Evaluation of carry fails when using ref parameter res1 in boolean expression - compiler bug?
+        status := getWordStatus (res) and (Status_LGT or Status_AGT or Status_EQ) 
+                    or Status_C * ord ((res < b) or ((a = 0) and isSub))
+                    or Status_OV * ord (((a xor b) and $8000 <> 0 = isSub) and ((res xor b) and $8000 <> 0));
+        res1 := res                
     end;
     
 function readRegister (reg: uint8): uint16;
@@ -285,7 +270,7 @@ procedure executeInstruction (var instruction: TInstruction); forward;
 
 procedure executeFormat1 (var instruction: TInstruction);
     var
-	srcaddr, dstaddr, srcval, dstval, status: uint16;
+	srcaddr, dstaddr, srcval, dstval, status, temp: uint16;
 	srcval8, dstval8: uint8;
     begin
 	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
@@ -296,18 +281,18 @@ procedure executeFormat1 (var instruction: TInstruction);
         dstval8 := getHighLow (dstval, not odd (dstaddr));
         
         case instruction.opcode of
-	    Op_A:
-	        add16 (status, srcval, dstval, dstval, false);
-	    Op_S:
-	        add16 (status, uint16 (-srcval), dstval, dstval, true);
-	    Op_AB:
-	    	add8 (status, srcval8, dstval8, dstval8, false);
-	    Op_SB:
-	    	add8 (status, uint8 (-srcval8), dstval8, dstval8, true);
+	    Op_A, Op_S:
+	        addSub (status, srcval, dstval, dstval, instruction.opcode = Op_S);
+            Op_AB, Op_SB:
+                begin
+                    addSub (status, srcval8 shl 8, dstval8 shl 8, temp, instruction.opcode = Op_SB);
+                    dstval8 := temp shr 8;
+                    status := status or Status_OP * ord (oddParity (dstval8))
+                end;
 	    Op_C:
-	        status := compare16 (srcval, dstval);
+	        status := compare (srcval, dstval);
 	    Op_CB:
-	        status := compare8 (srcval8, dstval8);
+	        status := compare (srcval8 shl 8, dstval8 shl 8) or Status_OP * ord (oddParity (srcval8));
 	    Op_MOV:
    	        dstval := srcval;
 	    Op_MOVB:
@@ -485,7 +470,7 @@ procedure executeFormat6 (var instruction: TInstruction);
             Op_CLR:
                 val := 0;
             Op_INC..Op_DECT:
-                add16 (status, addVal [instruction.opcode], val, val, false);
+                addSub (status, addVal [instruction.opcode], val, val, false);
             Op_INV:
                 val := uint16 (not val);
             Op_NEG:
@@ -500,8 +485,8 @@ procedure executeFormat6 (var instruction: TInstruction);
         
 	if instruction.opcode in [Op_CLR, Op_DEC, Op_DECT, Op_INC, Op_INCT, Op_INV, Op_NEG, Op_SETO, Op_SWPB] then
 	    writeMemory (addr, val);
-	if instruction.opcode in [Op_ABS, Op_INV, Op_NEG] then
-	    status := getWordStatus (val);
+	if instruction.opcode in [Op_INV, Op_NEG, Op_ABS] then
+	    status := getWordStatus (val) and not (Status_C * ord (instruction.opcode = Op_ABS));
 	updateStatusBits (instruction, status)
     end;
 
@@ -526,11 +511,11 @@ procedure executeFormat8 (var instruction: TInstruction);
         instruction.imm := fetchInstruction;
         case instruction.opcode of
   	    Op_AI:
-	        add16 (status, readRegister (instruction.w), instruction.imm, result, false);
+	        addSub (status, readRegister (instruction.w), instruction.imm, result, false);
 	    Op_ANDI:
 	        result := readRegister (instruction.w) and instruction.imm;
 	    Op_CI:
-	        status := compare16 (readRegister (instruction.w), instruction.imm);
+	        status := compare (readRegister (instruction.w), instruction.imm);
 	    Op_LI:
 	        result := instruction.imm;
 	    Op_ORI:
@@ -687,7 +672,7 @@ begin
     enterData (Op_BL,   $0680, 'BL',   Format6,   12, Status_None);
     enterData (Op_SWPB, $06c0, 'SWPB', Format6,   10, Status_None);
     enterData (Op_SETO, $0700, 'SETO', Format6,   10, Status_None);
-    enterData (Op_ABS,  $0740, 'ABS',  Format6,   14, Status_LGT + Status_AGT + Status_EQ + Status_OV);
+    enterData (Op_ABS,  $0740, 'ABS',  Format6,   14, Status_LGT + Status_AGT + Status_EQ + Status_OV + Status_C);
     enterData (Op_SRA,  $0800, 'SRA',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C);
     enterData (Op_SRL,  $0900, 'SRL',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C);
     enterData (Op_SLA,  $0a00, 'SLA',  Format5,   12, Status_LGT + Status_AGT + Status_EQ + Status_C + Status_OV);

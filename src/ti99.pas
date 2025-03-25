@@ -7,7 +7,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 1';
+    VersionString = '0.1 beta 2';
 
 type
     TKeyMapEntry = record

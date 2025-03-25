@@ -159,6 +159,8 @@ procedure writeDsr (addr, val: uint16);
         case activeDsrBase of
             FdcCardCruAddress:
                 writeFdcCard (addr, val);
+            RS232CruAddress:
+                writeRs232Card (addr, val);
             TipiCruAddress:
                 writeTipi (addr, val);
             SAMSCruAddress:
@@ -184,9 +186,7 @@ function readDsr (addr: uint16): uint16;
             PcodeDiskCruAddress:
                 readDsr := readPcodeDisk (addr);
 	    PcodeCardCruAddress:
-	        readDsr := readPcodeCard (addr);
-            SerialSimCruAddress:
-                readDsr := readSerial (addr)
+	        readDsr := readPcodeCard (addr)
 	    else
 	        readDsr := 0
 	end

@@ -24,10 +24,8 @@ procedure handleXop (op: uint16);
             $1206: diskSimSubRenameFile;
             $1207: diskSimSubFileInput;
             $1208: diskSimSubFileOutput;
-            $1209: diskSimSubNumberOfFiles;
+            $1209: diskSimSubNumberOfFiles
             
-            $1500: serialSimPowerup;
-            $1501: serialSimDSR
             else
                 writeln ('Unhandled XOP ',  op, ' in DSR - check if DSR ROMs match simulator version')
         end
