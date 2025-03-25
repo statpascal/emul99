@@ -10,6 +10,10 @@ DSR ROM of DS/SD diskette controller (optional):
 
   8192 Apr 15  1996 Disk.Bin
 
+DSR ROM of RS232C card (optional):
+
+  8192 Apr 15  1996 RS232.Bin
+
 DSR ROM of TiPi:
 
   8192 Feb  3  tipi.bin
