@@ -196,7 +196,7 @@ A typical configuration for the P-Code system is shown in bin/serial.cfg:
 
     rs232_dsr = ../roms/RS232.Bin
 
-    S232/1_out = ../REMOUT,nozero
+    RS232/1_out = ../REMOUT,nozero
     RS232/2_out = ../PRINTER,nozero,append
 
     ; A FIFO (named pipe) should be used for input
