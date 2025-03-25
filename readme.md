@@ -1,11 +1,11 @@
-Emul99
+# Emul99
 
 Emul99 is a simulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
 compiled with the Free Pascal Compiler under Linux.
 
-Emul99 provides the following features:
+## Emul99 provides the following features:
 
 - Emulation of console with 32K extension/SAMS with 16 MByte
 - Hotkeys to change speed of simulated system (for compiling large programs)
@@ -20,20 +20,20 @@ Emul99 provides the following features:
 - Cassette input/output using WAV files
 
 
-Compiling Emul99
+## Compiling Emul99
 
 To compile the simulator, the GTK3, SDL2 and C library need to be
 installed. E.g., under Debian 11, this can be achieved with
 
-apt-get install fpc gtk+3 libsdl2-dev
+    apt-get install fpc gtk+3 libsdl2-dev
 
 under Debian Bookworm (the current base of Raspberry Pi OS) with
 
-apt-get install fpc libgtk-3-dev libsdl2-dev
+    apt-get install fpc libgtk-3-dev libsdl2-dev
 
 and under Ubuntu 21/Linux Mint with
 
-sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
+    sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
 A recent of version of the Free Pascal Compiler (3.2.x) is required.
 
@@ -59,7 +59,7 @@ by running multiple instances with different configurations simultaneously
 on the same disk images (see below).
 
 
-ROM files
+## ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
 simulator. For a working setup, at least the console ROM and GROMs (combined
@@ -80,7 +80,7 @@ can be bank switched and inverted. For a bank switched ROM, either multiple
 file may be specified.
 
 
-Keyboard
+## Keyboard
 
 Keys are mapped to a standard PC keyboard.  The function key of the TI 99
 keyboard is reached by the right menu key (left of the right control key). 
@@ -93,14 +93,15 @@ the file "ti99.pas" and can only be changed by editing the source file.
 Four function keys are used to change the execution speed of the simulated
 system:
 
-F5 - restore CPU frequency to value in configuration file (default 3 MHz)
-F6 - set frequency to 1 GHz (resulting in maximum speed as current systems
-     will not be able to actually achieve this)
-F7 - decrease CPU frequency by 1 MHz
-F8 - increate CPU frequency by 1 MHz
+| Key | Function |
+|-----|----------|
+| F5  | restore CPU frequency to value in configuration file (default 3 MHz) |
+| F6  |set frequency to 1 GHz (resulting in maximum speed as current systems will not be able to actually achieve this) |
+| F7  | decrease CPU frequency by 1 MHz |
+| F8  | increate CPU frequency by 1 MHz |
 
 
-TiPi
+## TiPi
 
 The TiPi hardware is simulated and can be used with the original DSR ROM (an
 assembled version is included in the "roms" directory). On the Raspberry Pi
@@ -115,7 +116,7 @@ system will either freeze or perform a reset. Mouse simulation is not yet
 tested and will probably not work.
 
 
-P-code simulation
+## P-code simulation
 
 The P-code card uses only sector based disk operations (subroutine >10 of
 the DSR) which can address a maximum of 65536 disk sectors with 256 bytes
@@ -125,13 +126,13 @@ of up to 16 MByte.
 
 The images files can be created with dd; e.g. use 
 
-dd if=/dev/zero of=blank.disk bs=512 count=32768 
+    dd if=/dev/zero of=blank.disk bs=512 count=32768 
 
 to create a disk image of maximal size. A UCSD file system can then be
 added from within the P-code system with the Filer.
 
 Moreover, an internal 80x24 screen image is maintained at memory address
->2000. The simulator provides a flag to use this image instead of the
+2000h. The simulator provides a flag to use this image instead of the
 output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
@@ -155,7 +156,7 @@ running on the same disk images at maximum speed to execute the compiler
 on the host system).
 
 
-Multiple Instances
+## Multiple Instances
 
 Disk images (using the original DSR or the P-code DSR) are memory mapped and
 can be shared between multiple instances of the simulator. Changes are
@@ -168,7 +169,7 @@ TI disk images and the host system. Programs like xdm99 from Ralph Benzinger's
 xdt99 tools can be utilized for this task.
 
 
-Cassette I/O
+## Cassette I/O
 
 The simulator can read and write WAV files (22050 Hz, unsigned 8 bit, mono)
 that can be played to or read from a real machine. Because there is no
@@ -185,24 +186,24 @@ the simulator will consider any input exceeding the ReadThreshold (see
 tape.pas) as a toggle of the cassette input.
 
 
-Serial/Parallel I/O
+## Serial/Parallel I/O
 
 Serial emulation requires the original DSR ROM of the RS232C card. Input and
 output is redirected to the file system with configurable file names or
 named pipes. A named pipe should be used for input data. 
 
-Please note that the current implementation does not yet support the PIOs of
+Please note that the current implementation does not yet support the PIO of
 the card neither the generation of an interrupt upon receiving data (which
 is used by the Terminal Emulator module).
 
 A typical configuration for the P-Code system is shown in bin/serial.cfg:
 
-S232/1_out = ../REMOUT,nozero
-RS232/2_out = ../PRINTER,nozero,append
+    S232/1_out = ../REMOUT,nozero
+    RS232/2_out = ../PRINTER,nozero,append
 
-; A FIFO (named pipe) should be used for input
+    ; A FIFO (named pipe) should be used for input
 
-RS232/1_in = ../REMIN
+    RS232/1_in = ../REMIN
 
 File names are relative to the configuration directory (bin). 
 Two options can be added to output filenames:
@@ -216,45 +217,45 @@ append - appends to an existing file instead of overwriting it.
 After creating the REMIN file as a named pipe (mkfifo REMIN) it can be read
 with the following program:
 
-program serread;
-var
-    f: text;
-    ch: char;
-begin
-    reset (f, 'REMIN:');
-    while not eof (f) do
-        begin
-            read (f, ch);
-            if ch = chr (10) then
-                writeln
-            else
-                write (ch)
-        end;
-    close (f)
-end.
+    program serread;
+    var
+        f: text;
+        ch: char;
+    begin
+        reset (f, 'REMIN:');
+        while not eof (f) do
+            begin
+                read (f, ch);
+                if ch = chr (10) then
+                    writeln
+                else
+                    write (ch)
+            end;
+        close (f)
+    end.
 
 Upon execution, the program will read from the FIFO until an EOF is
 signalled with a binary value of 3. E.g. the following Linux commands feed
 two lines into the program, followed by EOF:
 
-echo "This is the first line" > REMIN
-echo "This is the second line" > REMIN
-echo -n $'\x03' > REMIN
+    echo "This is the first line" > REMIN
+    echo "This is the second line" > REMIN
+    echo -n $'\x03' > REMIN
 
 In Extended BASIC, the following program is equivalent to the above Pascal
 program:
 
-100 OPEN #1:"RS232/1",INPUT ,DISPLAY ,FIXED 1
-110 LINPUT #1:A$
-120 IF A$=CHR$(10)THEN PRINT ELSE PRINT A$;
-130 IF A$<>CHR$(3)THEN 110
+    100 OPEN #1:"RS232/1",INPUT ,DISPLAY ,FIXED 1
+    110 LINPUT #1:A$
+    120 IF A$=CHR$(10)THEN PRINT ELSE PRINT A$;
+    130 IF A$<>CHR$(3)THEN 110
 
 It can be sent to the file PRINTER with
 
-LIST "RS232/2"
+    LIST "RS232/2"
 
 
-Implementation Notes
+## Implementation Notes
 
 The implementation is rather concise (about 5300 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
@@ -278,7 +279,7 @@ as the simulator serves mainly as a test program for a Pascal compiler, the
 additional library is utilized to test its bindings.
 
 
-Known Bugs and Limitations
+## Known Bugs and Limitations
 
 - The unofficial video modes of the VDP might work but remain untested 
   as no software seems to use them.
@@ -298,7 +299,7 @@ Known Bugs and Limitations
   overflow.
 
 
-Acknowledgements
+## Acknowledgements
 
 The simulator would not have been possible without Thierry Nouspikel's
 TI-99/4A Tech Pages (http://www.nouspikel.com/ti99/titechpages.htm). 
@@ -311,7 +312,7 @@ read/write functions, were taken from JS99er while the wait states for
 the memory mapped devices are based upon Classic99.
 
 
-License
+## License
 
 Copyright 2022 - 2025 Michael Thomas
 
