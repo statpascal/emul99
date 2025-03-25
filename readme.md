@@ -206,11 +206,8 @@ A typical configuration for the P-Code system is shown in bin/serial.cfg:
 File names are relative to the configuration directory (bin). 
 Two options can be added to output filenames:
 
-nozero - will not output any zero bytes. This is useful when transferring
-text files with the Transfer option of the Filer, which simply copies
-complete disk blocks including zeroes.
-
-append - appends to an existing file instead of overwriting it.
+- nozero: will not output any zero bytes. This is useful when transferring text files with the Transfer option of the Filer, which simply copies complete disk blocks including zeroes.
+- append: appends to an existing file instead of overwriting it.
 
 After creating the REMIN file as a named pipe (mkfifo REMIN) it can be read
 with the following program:
