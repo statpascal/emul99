@@ -5,7 +5,7 @@ Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
 compiled with the Free Pascal Compiler under Linux.
 
-## Emul99 provides the following features:
+Emul99 provides the following features:
 
 - Emulation of console with 32K extension/SAMS with 16 MByte
 - Hotkeys to change speed of simulated system (for compiling large programs)
@@ -139,21 +139,17 @@ A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
 following options:
 
-ucsddskman image-name list
-ucsddskman image-name extract ucsd-file local-file
-ucsddskman image-name add ucsd-file local-file
-ucsddskman image-name remove ucsd-file
+    ucsddskman image-name list
+    ucsddskman image-name extract ucsd-file local-file
+    ucsddskman image-name add ucsd-file local-file
+    ucsddskman image-name remove ucsd-file
 
 Files are only added after the last used block. To update an existing text
 file in a disk image, it first needs to be removed.
 
 Overclocking the system (cpu_freq setting in the configuration file) might
 also be desirable. The example configuration in ucsd-80.cfg uses a fivefold
-speed (15 MHz) which is close to making the keyboard unusable. However,
-with some caution it is possible to start a second instance of the simulator
-running on the same disk images at maximum speed to execute the compiler
-(see ucsd-80-fast.cfg and the next section - this will also put a high load
-on the host system).
+speed (15 MHz) which is close to making the keyboard unusable. 
 
 
 ## Multiple Instances
