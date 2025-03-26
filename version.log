@@ -1,0 +1,12 @@
+Version 0.1 Beta 1
+
+- Added SAMS support (16 MB)
+
+Version 0.1 Beta 2
+
+- Corrected status flags in ABS, S and SB operations
+- RS232 support with original DSR
+
+Version 0.1 Beta 3
+
+- PIO support with original DSR
