@@ -35,7 +35,7 @@ and under Ubuntu 21/Linux Mint with
 
     sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
-A recent of version of the Free Pascal Compiler (3.2.x) is required.
+A recent version of the Free Pascal Compiler (3.2.2) is recommended..
 
 Development is mainly done under openSUSE Tumbleweed on x64. 
 
@@ -65,11 +65,11 @@ The original ROMs are copyrighted and cannot be distributed with the
 simulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. 
 
-Additional ROMs that can be utilized are the original disk controller DSR
-ROM, the DSR ROM of the TiPi (included in the package), the DSR ROM of the
-RS232 card and the ROMs/GROMs of the P-code card.  The latter ones consist
-of 8 files with the GROMs (6 KB each), a 4 KB file with the lower part of
-the DSR ROM and an 8 KB file with the two upper banks.
+Additional ROMs that can be utilized are 
+- the original disk controller DSR,
+- the DSR of the TiPi (included in the package), 
+- the DSR of the RS232 card,
+- the ROMs/GROMs of the P-code card.  
 
 The directory "roms" contains a file "roms.txt" showing the file names and
 their sizes as they are expected by the various configuration files.
@@ -188,20 +188,23 @@ Serial emulation requires the original DSR ROM of the RS232C card. Input and
 output is redirected to the file system with configurable file names or
 named pipes. A named pipe should be used for input data. 
 
-Please note that the current implementation does not yet support the PIO of
-the card neither the generation of an interrupt upon receiving data (which
-is used by the Terminal Emulator module).
+Please note that the current implementation does not yet support the
+generation of an interrupt upon receiving data (which is required by the
+Terminal Emulator module).
 
-A typical configuration for the P-Code system is shown in bin/serial.cfg:
+A typical configuration (suited for the P-Code system) is shown in bin/serial.cfg:
 
     rs232_dsr = ../roms/RS232.Bin
 
     RS232/1_out = ../REMOUT,nozero
     RS232/2_out = ../PRINTER,nozero,append
+    PIO/1_out = ../PIOOUT
 
     ; A FIFO (named pipe) should be used for input
 
     RS232/1_in = ../REMIN
+    PIO/1_in = ../PIOIN
+
 
 File names are relative to the configuration directory (bin). 
 Two options can be added to output filenames:
@@ -240,10 +243,11 @@ two lines into the program, followed by EOF:
 In Extended BASIC, the following program is equivalent to the above Pascal
 program:
 
-    100 OPEN #1:"RS232/1",INPUT ,DISPLAY ,FIXED 1
+    100 OPEN #1:"RS232/1.EC",INPUT ,DISPLAY ,FIXED 1
     110 LINPUT #1:A$
     120 IF A$=CHR$(10)THEN PRINT ELSE PRINT A$;
     130 IF A$<>CHR$(3)THEN 110
+    140 CLOSE #1
 
 It can be sent to the file PRINTER with
 

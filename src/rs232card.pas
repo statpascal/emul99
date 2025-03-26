@@ -40,7 +40,7 @@ type
     TPio = record
         cruData: array [3..7] of TCruBit;
         transmitBuf, receiveBuf: uint8;
-        isInput, handshakeIn: boolean;
+        isInput, handshakeIn, handShakeOut: boolean;
     end;
     TIoFile = record
         handle: TFileHandle;
@@ -59,6 +59,14 @@ var
     
     serialReadThreadId: TThreadId;
     fds: array [TIoPort] of pollfd;
+    rs232Stopped: boolean;
+    
+procedure outputByte (port: TIoPort; val: uint8);
+    begin
+        with ioFiles [port, PortOut] do
+            if (handle <> InvalidFileHandle) and ((val <> 0) or not nozero)
+                then fileWrite (handle, addr (val), 1);
+    end;
     
 procedure reset (var rs232Device: TTMS9902);
     begin
@@ -124,9 +132,7 @@ procedure writeRtson (devNr: TTMS9902Devices; var dev: TTMS9902; val: TCruBit);
     begin
         if val = 0 then
             begin
-                with ioFiles [devNr, PortOut] do
-                    if (handle <> InvalidFileHandle) and ((dev.transmitBuf <> 0) or not nozero)
-                        then fileWrite (handle, addr (dev.transmitBuf), 1);
+                outputByte (devNr, dev.transmitBuf);
                 dev.xbre := true
             end
     end;
@@ -186,10 +192,12 @@ function handlePioRead (bit: TPioBitNumber): TCruBit;
             1:
                 res := ord (pio.isInput);
             2:
-                res := ord (pio.handshakeIn)
-            else
-                handlePioRead := pio.cruData [bit]
-        end
+                res := ord (pio.handshakeIn);
+            3..7:
+                res := pio.cruData [bit]
+        end;
+//        writeln (' return: ', res);
+        handlePioRead := res
     end;
 
 procedure handlePioWrite (bit: TPioBitNumber; val: TCruBit);
@@ -197,19 +205,18 @@ procedure handlePioWrite (bit: TPioBitNumber; val: TCruBit);
 //        writeln ('PIO: bit ', bit, ' <- ', val);
         case bit of
             1:
-                begin
-                    pio.isInput := val <> 0;
-                    if not pio.isInput then
-                        pio.handshakeIn := false
+                pio.isInput := val <> 0;
+            2:  
+               begin
+                   pio.handshakeOut := val <> 0;
+                   if not pio.isInput then  
+                       begin
+                            if val = 0 then
+                                outputByte (PIO_1, pio.transmitBuf);
+                             pio.handshakeIn := not pio.handshakeOut 	// simulate reply of receiver
+                        end;
                 end;
-            2:  begin
-                if not pio.isInput then
-                    begin
-                        pio.handshakeIn := true;
-//                        writeln ('PIO OUT: ', chr (pio.transmitBuf))
-                    end
-                end
-            else
+             3..7:
                 pio.cruData [bit] := val
         end;
     end;
@@ -220,7 +227,7 @@ function readRs232CardCru (addr: TCruR12Address): TCruBit;
     begin
         sel :=  (addr - RS232CruAddress) div 2;
         case sel of
-            0..7:
+            1..7:
                 readRs232CardCru := handlePioRead (sel);
             32..95:
                 readRs232CardCru := handleTMS9902Read (tms9902 [TTMS9902Devices ((sel - 32) div 32)], sel mod 32)
@@ -260,7 +267,9 @@ function serialReadThread (data: pointer): ptrint;
     var
         ch: char;
         dev: TIoPort;
+        count: integer;
     begin
+        writeln ('Started monitoring of RS232 inputs');
         repeat
             if poll (addr (fds), succ (ord (PIO_1)), 0) <> 0 then
                 for dev := RS232_1 to PIO_1 do
@@ -275,10 +284,25 @@ function serialReadThread (data: pointer): ptrint;
                                         tms9902 [dev].rbrl := true
                                    end;
                             PIO_1:
-                                writeln ('TODO')
+                                begin
+                                    pio.handShakeIn := true;
+                                    if not pio.handshakeOut then
+                                        begin
+                                            fileRead (fds [dev].fd, addr (ch), 1);
+                                            pio.receiveBuf := ord (ch);
+                                            pio.handShakeIn := false;
+                                            count := 0;
+                                            while not pio.handShakeOut and (count < 10000) do
+                                                begin
+                                                    inc (count);
+                                                    usleep (100)
+                                                end
+                                        end
+                                end
                         end;
             usleep (1000)
-        until false;
+        until rs232Stopped;
+        writeln ('Stopped monitoring of RS232 inputs');
         serialReadThread := 0
     end;
     
@@ -311,10 +335,10 @@ procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection; f
                 if handle = -1 then
                     writeln ('ERROR: Cannot open ', filename, ' for serial/parallel output');
                 writeln ('Filename: ', filename, ', port: ', ord (serialPort), ', dir: ', ord (direction));
-                if (serialPort <= RS232_2) and (direction = PortIn) then
+                if direction = PortIn then
                     begin
                         fds [serialPort].fd := handle;
-                        writeln ('Minotoring ', filename, ' as handle ', handle)
+                        writeln ('Monitoring ', filename, ' as handle ', handle)
                     end
             end
     end;
@@ -329,9 +353,18 @@ procedure initUnit;
                 ioFiles [i, PortOut].handle := InvalidFileHandle;
                 fds [i].fd := InvalidFileHandle;
                 fds [i].events := POLLIN;
-            end
+            end;
+        rs232Stopped := false
     end;
 
-begin
-    initUnit    
+initialization
+    initUnit
+    
+finalization
+    if serialReadThreadId <> 0 then
+        begin
+            rs232Stopped := true;
+            waitForThreadTerminate (serialReadThreadId, 0)
+        end
+
 end.
