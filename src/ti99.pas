@@ -1,13 +1,18 @@
 program ti99;
 
-(*$linklib c*)
+(*$linklib c *)
+(*$linklib gtk-3 *)
+(*$linklib cairo *)
+(*$linklib glib-2.0 *)
+(*$linklib gobject-2.0 *)
+(*$linklib SDL2 *)
 
 uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
      tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80;
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 3';
+    VersionString = '0.1 beta 4';
 
 type
     TKeyMapEntry = record
