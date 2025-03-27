@@ -269,7 +269,7 @@ function serialReadThread (data: pointer): ptrint;
         dev: TIoPort;
         count: integer;
     begin
-        writeln ('Started monitoring of RS232 inputs');
+        writeln ('Started monitoring RS232 inputs');
         repeat
             if poll (addr (fds), succ (ord (PIO_1)), 0) <> 0 then
                 for dev := RS232_1 to PIO_1 do
@@ -302,7 +302,7 @@ function serialReadThread (data: pointer): ptrint;
                         end;
             usleep (1000)
         until rs232Stopped;
-        writeln ('Stopped monitoring of RS232 inputs');
+        writeln ('Stopped monitoring RS232 inputs');
         serialReadThread := 0
     end;
     

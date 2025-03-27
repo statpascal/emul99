@@ -236,22 +236,25 @@ function fetchInstruction: uint16;
 
 function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: boolean): uint16;
     var
-	regval: uint16;
+	res: uint16;
     begin
-        if T = 0 then
-            getGeneralAddress := uint16 (wp + 2 * reg)
-        else
-            begin
-                regval := 0;
-                addr := 0;
-                if odd (T) or (reg <> 0) then
-                    regval := readRegister (reg);
-                if T = 2 then
-                    addr := fetchInstruction
-                else if T = 3 then
-                    writeRegister (reg, uint16 (regval + 2 - ord (byteOp)));
-                getGeneralAddress := uint16 (addr + regval)
-            end
+        case T of
+            0:
+                res := uint16 (wp + 2 * reg);
+            1: 
+                res := readRegister (reg);
+            2:
+                if reg = 0 then
+                    res := fetchInstruction
+                else 
+                    res := fetchInstruction + readRegister (reg);
+            3:
+                begin
+                    res := readRegister (reg);
+                    writeRegister (reg, uint16 (res + 2 - ord (byteOp)))
+                end
+        end;
+        getGeneralAddress := res
     end;
 
 procedure switchContext (vect: uint16);
