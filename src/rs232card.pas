@@ -59,7 +59,7 @@ var
     
     serialReadThreadId: TThreadId;
     fds: array [TIoPort] of pollfd;
-    rs232Stopped: boolean;
+    rs232Stopped, rs232Started: boolean;
     
 procedure outputByte (port: TIoPort; val: uint8);
     begin
@@ -309,7 +309,8 @@ function serialReadThread (data: pointer): ptrint;
 procedure initRs232Card (dsrFilename: string);
     begin
         loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
-        beginThread (serialReadThread, nil, serialReadThreadId)
+        beginThread (serialReadThread, nil, serialReadThreadId);
+        rs232Started := true
     end;
     
 procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection; fileName: string);
@@ -354,6 +355,7 @@ procedure initUnit;
                 fds [i].fd := InvalidFileHandle;
                 fds [i].events := POLLIN;
             end;
+        rs232Started := false;
         rs232Stopped := false
     end;
 
@@ -361,7 +363,7 @@ initialization
     initUnit
     
 finalization
-    if serialReadThreadId <> 0 then
+    if rs232Started then
         begin
             rs232Stopped := true;
             waitForThreadTerminate (serialReadThreadId, 0)
