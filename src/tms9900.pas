@@ -243,11 +243,13 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
                 res := uint16 (wp + 2 * reg);
             1: 
                 res := readRegister (reg);
-            2:
-                if reg = 0 then
-                    res := fetchInstruction
-                else 
-                    res := fetchInstruction + readRegister (reg);
+            2:  begin
+                    addr := fetchInstruction;
+                    if reg = 0 then
+                        res := addr
+                    else 
+                        res := addr + readRegister (reg)
+                end;
             3:
                 begin
                     res := readRegister (reg);

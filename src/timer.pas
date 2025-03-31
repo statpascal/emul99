@@ -20,11 +20,11 @@ function getCurrentTime: TNanoTimestamp;
     var
         t: timespec;
     begin
-        clock_gettime (Clock_Monotonic, t);
+        clock_gettime (Clock_MonotonicCoarse, t);
         getCurrentTime := t.tv_sec * second + t.tv_nsec
     end;
     
-procedure nanoSleep (duration: TNanoTimestamp);
+procedure nanoSecondSleep (duration: TNanoTimestamp);
     var
         request, remain: timespec;
         result: integer;
@@ -34,15 +34,15 @@ procedure nanoSleep (duration: TNanoTimestamp);
                 request.tv_sec := duration div second;
                 request.tv_nsec := duration mod second;
                 repeat
-                    result := clock_nanosleep (Clock_Monotonic, 0, request, remain);
+                    result := nanosleep (request, remain);
                     request := remain
-                until result <> EINTR
+                until result = 0
             end
     end;
     
 procedure sleepUntil (time: TNanoTimestamp);
     begin
-        nanoSleep (time - getCurrentTime)
+        nanoSecondSleep (time - getCurrentTime)
     end;
     
 end.

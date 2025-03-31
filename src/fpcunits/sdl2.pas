@@ -29,10 +29,10 @@ type
         callback, userdata: pointer
     end;
     
-function SDL_Init (flags: uint32): int32; external; //  libSDL;
-function SDL_OpenAudio (var desired, obtained: SDL_AudioSpec): int32; external; // libSDL;
-procedure SDL_PauseAudio (pause_on: int32); external; // libSDL;
-procedure SDL_CloseAudio; external; //  libSDL;
+function SDL_Init (flags: uint32): int32; cdecl; external; //  libSDL;
+function SDL_OpenAudio (var desired, obtained: SDL_AudioSpec): int32; cdecl; external; // libSDL;
+procedure SDL_PauseAudio (pause_on: int32); cdecl; external; // libSDL;
+procedure SDL_CloseAudio; cdecl; external; //  libSDL;
 
 
 implementation

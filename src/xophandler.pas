@@ -7,7 +7,7 @@ procedure handleXop (op: uint16);
 
 implementation
 
-uses disksim, pcodedisk, serial;
+uses disksim, pcodedisk;
 
 procedure handleXop (op: uint16);
     begin

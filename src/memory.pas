@@ -27,7 +27,7 @@ procedure loadCartGROM (filename: string);
 
 implementation
 
-uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, serial, tipi;
+uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, tipi;
 
 const
     MaxCardBanks = 64;

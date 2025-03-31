@@ -1,12 +1,5 @@
 program ti99;
 
-(*$linklib c *)
-(*$linklib gtk-3 *)
-(*$linklib cairo *)
-(*$linklib glib-2.0 *)
-(*$linklib gobject-2.0 *)
-(*$linklib SDL2 *)
-
 uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
      tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80;
 
@@ -152,6 +145,7 @@ procedure fillKeyMap;
         addKeyMapUint (GDK_KEY_Control_L, false, false, KeyCtrl);
         addKeyMapUint (GDK_KEY_Control_R, false, false, KeyCtrl);
         addKeyMapUint (GDK_KEY_Menu, false, false, KeyFctn);
+        addKeyMapUint (GDK_KEY_Meta_R, false, false, KeyFctn);
 
         (* Joystick 1 *)
         addKeyMapUint (GDK_KEY_KP_4, false, false, KeyLeft1);

@@ -82,12 +82,14 @@ file may be specified.
 
 ## Keyboard
 
-Keys are mapped to a standard PC keyboard.  The function key of the TI 99
-keyboard is reached by the right menu key (left of the right control key). 
-Alpha Lock is switched off and cannot be activated, but a similar effect can
-be obtained by using Caps-Lock on the PC keyboard.  The first joystick is
-mapped to the keys 4, 6, 8 and 2 in the numeric pad (with NumLock enabled)
-and the left "Alt" key is the fire button.  These mappings are defined in
+Keys are mapped to a standard keyboard.  
+
+- FCTN: right menu key (Linux) or right Cmd key (MacOS)
+- Quit (FCTN =): Menu+Shift+0 / Right-Cmd+Shift+0 (MacOS)
+- Alpha Lock: permanently switched off
+- First Joystick: 4, 6, 8, 2 in numeric pad, fire button is left ALT
+
+These mappings are defined in
 the file "ti99.pas" and can only be changed by editing the source file.
 
 Four function keys are used to change the execution speed of the simulated

@@ -40,50 +40,50 @@ type
     end;
     PTGdkEventKey = ^TGdkEventKey;
 
-procedure gdk_threads_add_idle (p: TCallback; user_data: gpointer); external; // libgtk;
-procedure g_idle_add (p: TCallback; user_data: gpointer); external; // libgtk;
+procedure gdk_threads_add_idle (p: TCallback; user_data: gpointer); cdecl; external; // libgtk;
+procedure g_idle_add (p: TCallback; user_data: gpointer); cdecl; external; // libgtk;
 
-procedure gtk_init (var argc: integer; var argv: argvector); external; // libgtk;
-function gtk_window_new (t: GtkWindowType): PGtkWidget; external; // libgtk;
-function gtk_button_new_with_label (title: PChar): PGtkWidget; external; // libgtk;
-function gtk_grid_new: PGtkWidget; external; // libgtk;
-procedure gtk_widget_show_all (w: PGtkWidget); external; // libgtk;
-procedure gtk_window_set_title (w: PGtkWidget; title: PChar); external; // libgtk;
-procedure gtk_widget_queue_draw (w: PGtkWidget); external; // libgtk;
+procedure gtk_init (var argc: integer; var argv: argvector); cdecl; external; // libgtk;
+function gtk_window_new (t: GtkWindowType): PGtkWidget; cdecl; external; // libgtk;
+function gtk_button_new_with_label (title: PChar): PGtkWidget; cdecl; external; // libgtk;
+function gtk_grid_new: PGtkWidget; cdecl; external; // libgtk;
+procedure gtk_widget_show_all (w: PGtkWidget); cdecl; external; // libgtk;
+procedure gtk_window_set_title (w: PGtkWidget; title: PChar); cdecl; external; // libgtk;
+procedure gtk_widget_queue_draw (w: PGtkWidget); cdecl; external; // libgtk;
 
 const
     GDK_KEY_PRESS_MASK = 1024;
     GDK_KEY_PRESS = 8;
     GDK_KEY_RELEASE = 9;
 
-procedure gtk_widget_add_events (w: PGtkWidget; events: gint); external; // libgtk;
-procedure gtk_main; external; // libgtk;
-procedure gtk_main_quit; external; // libgtk;
-function g_timeout_add (interval: guint; p: TCallback; user_data: gpointer): guint; external; // libgtk;
+procedure gtk_widget_add_events (w: PGtkWidget; events: gint); cdecl; external; // libgtk;
+procedure gtk_main; cdecl; external; // libgtk;
+procedure gtk_main_quit; cdecl; external; // libgtk;
+function g_timeout_add (interval: guint; p: TCallback; user_data: gpointer): guint; cdecl; external; // libgtk;
 
-function gtk_drawing_area_new: PGtkWidget; external; // libgtk;
-procedure gtk_widget_set_size_request (widget: PGtkWidget; width, height: gint); external; // libgtk;
+function gtk_drawing_area_new: PGtkWidget; cdecl; external; // libgtk;
+procedure gtk_widget_set_size_request (widget: PGtkWidget; width, height: gint); cdecl; external; // libgtk;
 
-procedure gtk_container_add (container, widget: PGtkWidget); external; // libgtk;
-procedure gtk_grid_attach (container, widget: PGtkWidget; left, top, width, height: gint); external; // libgtk;
+procedure gtk_container_add (container, widget: PGtkWidget); cdecl; external; // libgtk;
+procedure gtk_grid_attach (container, widget: PGtkWidget; left, top, width, height: gint); cdecl; external; // libgtk;
 
-procedure cairo_set_source_rgb (cr: PCairoT; r, g, b: gfloat); external; // libgtk;
-procedure cairo_set_line_width (cr: PCairoT; width: gfloat); external; // libgtk;
-procedure cairo_move_to (cr: PCairoT; x, y: gfloat); external; // libgtk;
-procedure cairo_rectangle (cr: PCairoT; x, y, width, height: gfloat); external; // libgtk;
-procedure cairo_select_font_face (cr: PCairoT; family: PChar; font_slant, font_weight: gint); external; // libgtk;
-procedure cairo_set_font_size (cr: PCairoT; size: gfloat); external; // libgtk;
-procedure cairo_show_text (cr: PCairoT; s: PChar); external; // libgtk;
-procedure cairo_stroke (cr: PCairoT); external; // libgtk;
-procedure cairo_fill (cr: PCairoT); external; // libgtk;
-procedure cairo_paint (cr: PCairoT); external; // libgtk;
-procedure cairo_scale (cr: PCairoT; sx, sy: double); external; // libgtk;
-function cairo_image_surface_create (format, width, height: int32): PCairoSurface; external; // libgtk;
-function cairo_image_surface_get_data (surface: PCairoSurface): PChar; external; // libgtk;
-function cairo_image_surface_get_stride (surface: PCairoSurface): int32; external; // libgtk;
-procedure cairo_set_source_surface (cr: PCairoT; surface: PCairoSurface; x, y: double); external; // libgtk;
+procedure cairo_set_source_rgb (cr: PCairoT; r, g, b: gfloat); cdecl; external; // libgtk;
+procedure cairo_set_line_width (cr: PCairoT; width: gfloat); cdecl; external; // libgtk;
+procedure cairo_move_to (cr: PCairoT; x, y: gfloat); cdecl; external; // libgtk;
+procedure cairo_rectangle (cr: PCairoT; x, y, width, height: gfloat); cdecl; external; // libgtk;
+procedure cairo_select_font_face (cr: PCairoT; family: PChar; font_slant, font_weight: gint); cdecl; external; // libgtk;
+procedure cairo_set_font_size (cr: PCairoT; size: gfloat); cdecl; external; // libgtk;
+procedure cairo_show_text (cr: PCairoT; s: PChar); cdecl; external; // libgtk;
+procedure cairo_stroke (cr: PCairoT); cdecl; external; // libgtk;
+procedure cairo_fill (cr: PCairoT); cdecl; external; // libgtk;
+procedure cairo_paint (cr: PCairoT); cdecl; external; // libgtk;
+procedure cairo_scale (cr: PCairoT; sx, sy: double); cdecl; external; // libgtk;
+function cairo_image_surface_create (format, width, height: int32): PCairoSurface; cdecl; external; // libgtk;
+function cairo_image_surface_get_data (surface: PCairoSurface): PChar; cdecl; external; // libgtk;
+function cairo_image_surface_get_stride (surface: PCairoSurface): int32; cdecl; external; // libgtk;
+procedure cairo_set_source_surface (cr: PCairoT; surface: PCairoSurface; x, y: double); cdecl; external; // libgtk;
 
-procedure g_signal_connect_data (instance: PGtkWidget; detailed: PChar; handler: TCallback; user_data: gpointer; closurenotify: PChar; flags: byte); external; // libgobject;
+procedure g_signal_connect_data (instance: PGtkWidget; detailed: PChar; handler: TCallback; user_data: gpointer; closurenotify: PChar; flags: byte); cdecl; external; // libgobject;
 procedure g_signal_connect (instance: PGtkWidget; detailed: PChar; handler: TCallback; user_data: gpointer);
 
 

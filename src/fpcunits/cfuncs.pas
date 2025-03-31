@@ -5,9 +5,9 @@ interface
 (* Calls to C runtime *)
 
 const
-    Clock_Realtime  = 0;
-    Clock_Monotonic = 1;
-    Timer_Abstime   = 1;
+    Clock_Realtime        = 0;
+    Clock_Monotonic       = 1;
+    Clock_MonotonicCoarse = 6;
     
     EPERM           = 1;
     ENOENT          = 2;
@@ -108,7 +108,7 @@ type
         
 
 function clock_gettime (clockid: clockid_t; var res: timespec): int32; cdecl; external;
-function clock_nanosleep (clockid: clockid_t; flags: int32; var request, remain: timespec): int32; cdecl; external;
+function nanosleep (var request, remain: timespec): int32; cdecl; external;
 function usleep (usec: uint32): int32; cdecl; external;
 function time (tloc: ptr_time_t): time_t; cdecl; external;
 function localtime (timep: ptr_time_t): ptr_tm; cdecl; external;
