@@ -315,17 +315,12 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
 		if (addr12 >= SAMSCruAddress) and (addr12 <= SAMSCruAddress + $ff) then
 		    begin
 		        samsBit := addr12 and $0f shr 1;
-		        case samsBit of
-		            0:
-		                writeln ('SAMS: ', offon [value]);
-                            1:
-                                begin
-                                    samsMappingMode := value = 1;
-                                    writeln ('SAMS: ', passmap [value]);
-                                end
-                        end    
+		        if samsBit = 1 then
+                            begin
+                                samsMappingMode := value = 1;
+                                writeln ('SAMS: ', passmap [value]);
+                            end
                     end;
-		    
 	    end
     end;
     

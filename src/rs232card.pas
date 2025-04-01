@@ -20,22 +20,15 @@ procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection;  
 
 implementation
 
-uses cfuncs, tools, cthreads, fileop;
+uses cfuncs, tools, cthreads, fileop, tms9901;
 
 const
     PioMemAddr = $5000;
 
 type 
     TTMS9902 = record
-        cruInput: array [0..31] of TCruBit;
-        ldctrl, ldir, lrdr, lxdr: boolean;
-        dscenb, timenb, xbienb, rienb: boolean;
-        brkon, rts, xbre, rbrl: boolean;
-
-        ctrlReg: uint16;        
-        intervalReg: uint16;
-        rdrReg, xdrReg: uint16;
-        transmitBuf, receiveBuf: uint16;
+        ldctrl, ldir, lrdr, lxdr, rint, rienb, xbre, rbrl: boolean;
+        ctrlReg, intervalReg, rdrReg, xdrReg, transmitBuf, receiveBuf: uint16;
     end;
     TPio = record
         cruData: array [3..7] of TCruBit;
@@ -72,18 +65,14 @@ procedure reset (var rs232Device: TTMS9902);
     begin
         with rs232Device do 
             begin
-                brkon := false;
-                rts := false;
-                dscenb := false;
-                timenb := false;
-                xbienb := false;
                 rienb := false;
                 ldctrl := true;
                 ldir := true;
                 lrdr := true;
                 lxdr := true;
                 xbre := true;
-                rbrl := false
+                rbrl := false;
+                rint := false;
             end
     end;
     
@@ -132,8 +121,19 @@ procedure writeRtson (devNr: TTMS9902Devices; var dev: TTMS9902; val: TCruBit);
     begin
         if val = 0 then
             begin
-                outputByte (devNr, dev.transmitBuf);
+                outputByte (devNr, dev.transmitBuf and ($ff shr (3 - dev.ctrlReg and $03)));
                 dev.xbre := true
+            end
+    end;
+    
+procedure setReceiveBuffer (var dev: TTMS9902; val: uint8);
+    begin    
+        dev.receiveBuf := val;
+        dev.rbrl := true;
+        if dev.rienb then
+            begin
+                dev.rint := true;
+                tms9901setPeripheralInterrupt (true)
             end
     end;
     
@@ -146,7 +146,9 @@ procedure handleTMS9902Write (devNr: TTMS9902Devices; var dev: TTMS9902; bit: TT
             18:
                 begin
                     dev.rienb := val <> 0;
-                    dev.rbrl := false
+                    dev.rbrl := false;
+                    dev.rint := false;
+                    tms9901setPeripheralInterrupt (false)
                 end;
             16:
                 writeRtson (devNr, dev, val);
@@ -170,6 +172,8 @@ function handleTMS9902Read (var dev: TTMS9902; bit: TTMS9902BitNumber): TCruBit;
         res := 0;
 //        write ('RS232 ', (addr (dev) - addr (tms9902)) div sizeof (TTMS9902), ' read bit ', bit, ' returns ');
         case bit of
+            31, 16:
+                res := ord (dev.rint);
             27:
                 res := 1;	// DSR alway ready
             22:
@@ -265,7 +269,7 @@ function readRs232Card (addr: uint16): uint16;
     
 function serialReadThread (data: pointer): ptrint;
     var
-        ch: char;
+        val: uint8;
         dev: TIoPort;
         count: integer;
     begin
@@ -278,18 +282,16 @@ function serialReadThread (data: pointer): ptrint;
                             RS232_1..RS232_2:
                                 if not tms9902 [dev].rbrl then
                                     begin
-                                        fileRead (fds [dev].fd, addr (ch), 1);
-                                        tms9902 [dev].receiveBuf := ord (ch);
-    //                                    writeln ('Receive buf: ', ch);
-                                        tms9902 [dev].rbrl := true
+                                        fileRead (fds [dev].fd, addr (val), 1);
+                                        setReceiveBuffer (tms9902 [dev], val);
                                    end;
                             PIO_1:
                                 begin
                                     pio.handShakeIn := true;
                                     if not pio.handshakeOut then
                                         begin
-                                            fileRead (fds [dev].fd, addr (ch), 1);
-                                            pio.receiveBuf := ord (ch);
+                                            fileRead (fds [dev].fd, addr (val), 1);
+                                            pio.receiveBuf := val;
                                             pio.handShakeIn := false;
                                             count := 0;
                                             while not pio.handShakeOut and (count < 10000) do

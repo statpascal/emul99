@@ -3,7 +3,7 @@
 Emul99 is a simulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
-compiled with the Free Pascal Compiler under Linux.
+compiled with the Free Pascal Compiler under Linux and MacOS.
 
 Emul99 provides the following features:
 
@@ -34,6 +34,14 @@ under Debian Bookworm (the current base of Raspberry Pi OS) with
 and under Ubuntu 21/Linux Mint with
 
     sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
+
+On MacOS, is is recommended to install the FPC, SDL2 and GTK+3 packages with
+HomeBrew:
+
+    brew install fpc sdl2 gtk+3
+
+The path to the installation directory (BREW_BASE) needs to be set to the
+base directory of Homebrew.
 
 A recent version of the Free Pascal Compiler (3.2.2) is recommended..
 
@@ -85,12 +93,13 @@ file may be specified.
 Keys are mapped to a standard keyboard.  
 
 - FCTN: right menu key (Linux) or right Cmd key (MacOS)
-- Quit (FCTN =): Menu+Shift+0 / Right-Cmd+Shift+0 (MacOS)
+- Quit (FCTN =): Menu+= / Right-Cmd+= (MacOS)
 - Alpha Lock: permanently switched off
 - First Joystick: 4, 6, 8, 2 in numeric pad, fire button is left ALT
 
+A line feed in the Terminal Emulator II module is generated with Ctrl+J.
 These mappings are defined in
-the file "ti99.pas" and can only be changed by editing the source file.
+the file "ti99.pas" and can only be modified by editing the source file.
 
 Four function keys are used to change the execution speed of the simulated
 system:
@@ -190,9 +199,9 @@ Serial emulation requires the original DSR ROM of the RS232C card. Input and
 output is redirected to the file system with configurable file names or
 named pipes. A named pipe should be used for input data. 
 
-Please note that the current implementation does not yet support the
-generation of an interrupt upon receiving data (which is required by the
-Terminal Emulator module).
+Please note that the current implementation only provides the functionality
+used by TI's DSR. Interrupt handling is supported for incoming data as
+required by the Terminal Emulator module.
 
 A typical configuration (suited for the P-Code system) is shown in bin/serial.cfg:
 
@@ -258,7 +267,7 @@ It can be sent to the file PRINTER with
 
 ## Implementation Notes
 
-The implementation is rather concise (about 5300 lines of Pascal source
+The implementation is rather concise (less than 5500 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
@@ -324,4 +333,3 @@ The TiPi DSR ROM (file roms/tipi.bin) is public domain software released
 under the Unlicense.
 
 The dummy ROM uses a 5x8 font from X11 which is governed by the MIT license.
-
