@@ -615,24 +615,27 @@ function getCycles: int64;
 procedure runCpu;
     var
 	time: TNanoTimestamp;
-	lastSleepCycles, msCycles, cycleTime: int64;
+	lastSleepCycles, msCycles: int64;
+	
+    procedure updateTiming;
+        begin
+            lastSleepCycles := cpuCycles;
+            time := getCurrentTime;
+            msCycles := (1000 * 1000) div getCycleTime
+        end;
+	
     begin
         cpuStopped := false;
     	cpuCycles := 0;
-    	lastSleepCycles := 0;
         st := 0;
     	switchContext (0);
-    	
-    	time := getCurrentTime;
+        updateTiming;    	
     	repeat
-            cycleTime := getCycleTime;
-            msCycles := (1000 * 1000) div getCycleTime;
             executeInstruction (decodedInstruction [fetchInstruction]);
             if cpuCycles - lastSleepCycles > msCycles then 
                 begin
     	            sleepUntil (time + 1000 * 1000);
-    	            time := getCurrentTime;
-    	            lastSleepCycles := cpuCycles
+    	            updateTiming
                 end;
   	    handleTimer (cpuCycles);
   	    handleVDP (cpuCycles);

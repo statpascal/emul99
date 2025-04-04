@@ -61,9 +61,15 @@ procedure outputByte (port: TIoPort; val: uint8);
                 then fileWrite (handle, addr (val), 1);
     end;
     
-procedure reset (var rs232Device: TTMS9902);
+procedure setInterrupt (var dev: TTMS9902; val: boolean);
     begin
-        with rs232Device do 
+        dev.rint := val;
+        tms9901setPeripheralInterrupt (val)
+    end;
+    
+procedure reset (var dev: TTMS9902);
+    begin
+        with dev do 
             begin
                 rienb := false;
                 ldctrl := true;
@@ -72,7 +78,7 @@ procedure reset (var rs232Device: TTMS9902);
                 lxdr := true;
                 xbre := true;
                 rbrl := false;
-                rint := false;
+                setInterrupt (dev, false);
             end
     end;
     
@@ -131,10 +137,7 @@ procedure setReceiveBuffer (var dev: TTMS9902; val: uint8);
         dev.receiveBuf := val;
         dev.rbrl := true;
         if dev.rienb then
-            begin
-                dev.rint := true;
-                tms9901setPeripheralInterrupt (true)
-            end
+            setInterrupt (dev, true);
     end;
     
 procedure handleTMS9902Write (devNr: TTMS9902Devices; var dev: TTMS9902; bit: TTMS9902BitNumber; val: TCruBit);
@@ -147,8 +150,7 @@ procedure handleTMS9902Write (devNr: TTMS9902Devices; var dev: TTMS9902; bit: TT
                 begin
                     dev.rienb := val <> 0;
                     dev.rbrl := false;
-                    dev.rint := false;
-                    tms9901setPeripheralInterrupt (false)
+                    setInterrupt (dev, false)
                 end;
             16:
                 writeRtson (devNr, dev, val);

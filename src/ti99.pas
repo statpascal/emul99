@@ -5,7 +5,8 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 5';
+    VersionString = '0.1 beta 6';
+    WindowTitle = 'Emul99';
 
 type
     TKeyMapEntry = record
@@ -72,6 +73,15 @@ procedure stopThreads;
         stopSound;
         stopCPU;
         waitForThreadTerminate (cpuThreadId, 0);
+    end;
+    
+procedure setTitleBar (mainWindow: PGtkWidget);
+    var
+        msg: string;
+    begin
+        str (getCpuFrequency / 1000000:5:1, msg);
+        msg := 'Emul99 ' + msg + ' MHz';
+        gtk_window_set_title (mainWindow, addr (msg [1]));
     end;
 
 procedure addKeyMapUint (val: uint16; shift, func: boolean; k: TKeys); 
@@ -208,16 +218,19 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
     begin
 //        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
         if event^.eventtype = GDK_KEY_PRESS then
-            case event^.keyval of
-                GDK_KEY_F5:
-                    setCpuFrequency (getDefaultCpuFrequency);
-                GDK_KEY_F6:
-                    setCpuFrequency (1000 * 1000 * 1000);	
-                GDK_KEY_F7:
-                    if getCpuFrequency > 1000 * 1000 then
-                        setCpuFrequency (getCpuFrequency - 1000 * 1000);
-                GDK_KEY_F8:
-                    setCpuFrequency (getCpuFrequency + 1000 * 1000)
+            begin
+                case event^.keyval of
+                    GDK_KEY_F5:
+                        setCpuFrequency (getDefaultCpuFrequency);
+                    GDK_KEY_F6:
+                        setCpuFrequency (1000 * 1000 * 1000);	
+                    GDK_KEY_F7:
+                        if getCpuFrequency > 1000 * 1000 then
+                            setCpuFrequency (getCpuFrequency - 1000 * 1000);
+                    GDK_KEY_F8:
+                        setCpuFrequency (getCpuFrequency + 1000 * 1000)
+                end;
+                setTitleBar (window)
             end;
         with event^ do
             if (eventtype = GDK_KEY_RELEASE) and (hardwareKeyIndex [hardware_keycode] <> 0) then
@@ -305,7 +318,7 @@ procedure initGui;
         argv := nil;
         gtk_init (argc, argv);
         mainWindow := gtk_window_new (GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_title (mainWindow, 'Emul99');
+        setTitleBar (mainWindow);
         gtk_widget_add_events (mainWindow, GDK_KEY_PRESS_MASK);
         drawingArea := gtk_drawing_area_new;
         gtk_container_add (mainWindow, drawingArea);

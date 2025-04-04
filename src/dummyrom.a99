@@ -186,7 +186,7 @@ setvdpwa:
 msg_1 	text >06, >03, 'This is Emul99 - dummy ROM', >00
 msg_2	text >00, >06, 'The original ROMs are copyrighted and', >00
 msg_3   text >00, >07, 'cannot be included in the simulator.', >00
-msg_4   text >00, >0a, 'See readme.txt for details where the', >00
+msg_4   text >00, >0a, 'See readme.md for details where the', >00
 msg_5   text >00, >0b, 'ROM files need to be installed.', >00
 colon   byte ':'
 
