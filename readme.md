@@ -92,10 +92,10 @@ file may be specified.
 
 Keys are mapped to a standard keyboard.  
 
-- FCTN: right menu key (Linux) or right Cmd key (MacOS)
-- Quit (FCTN =): Menu+= / Right-Cmd+= (MacOS)
+- FCTN: ALT-Left 
+- Quit: ALT-Left + =
 - Alpha Lock: permanently switched off
-- First Joystick: 4, 6, 8, 2 in numeric pad, fire button is left ALT
+- First Joystick: 4, 6, 8, 2 in numeric pad, fire button is 0
 
 A line feed in the Terminal Emulator II module is generated with Ctrl+J.
 These mappings are defined in

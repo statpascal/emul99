@@ -156,13 +156,14 @@ procedure fillKeyMap;
         addKeyMapUint (GDK_KEY_Control_R, false, false, KeyCtrl);
         addKeyMapUint (GDK_KEY_Menu, false, false, KeyFctn);
         addKeyMapUint (GDK_KEY_Meta_R, false, false, KeyFctn);
+        addKeyMapUint (GDK_KEY_ALT_L, false, false, KeyFctn);
 
         (* Joystick 1 *)
         addKeyMapUint (GDK_KEY_KP_4, false, false, KeyLeft1);
         addKeyMapUint (GDK_KEY_KP_6, false, false, KeyRight1);
         addKeyMapUint (GDK_KEY_KP_8, false, false, KeyUp1);
         addKeyMapUint (GDK_KEY_KP_2, false, false, KeyDown1);
-        addKeyMapUint (GDK_KEY_Alt_L, false, false, KeyFire1);
+        addKeyMapUint (GDK_KEY_KP_0, false, false, KeyFire1);
         
         fillChar (pressCount, sizeof (pressCount), 0)
     end;    
