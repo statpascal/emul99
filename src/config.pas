@@ -27,11 +27,11 @@ var
 
 procedure loadConfigFile (fn: string; level: uint8);
     type
-        TKeyType = (CpuFreq, Mem32KExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
+        TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
                     SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
-             ('cpu_freq', 'mem_32k_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
+             ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
               'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', '');
         MaxConfigLevel = 10;
         
@@ -60,9 +60,9 @@ procedure loadConfigFile (fn: string; level: uint8);
                         defaultCpuFrequency := n;
                         setCpuFrequency (defaultCpuFrequency)
                     end;
-                Mem32KExt:
-                    if n = 1 then 
-                        configure32KExtension;
+                Mem32KExt, MemExt:
+                    if n in [1, 2] then
+                        configureMemoryKExtension (n = 1);
                 ConsoleRom: 
                     loadConsoleRom (path);
                 ConsoleGroms:
@@ -115,7 +115,6 @@ procedure loadConfigFile (fn: string; level: uint8);
                 WindowScaleHeight:
                     scaleHeight := n;
                 SerialDsr:
-//                    initSerial (path);
                     writeln ('Error: Simulated RS232 card is no longer supported - please switch to rs232_dsr');
                 RS232Dsr:
                     initRs232Card (path);
@@ -159,6 +158,7 @@ procedure loadConfigFile (fn: string; level: uint8);
     var
         f: text;
         s, dir: string;
+        i: integer;
         
     begin
         if not fileExists (fn) then
@@ -176,6 +176,10 @@ procedure loadConfigFile (fn: string; level: uint8);
                     evaluateLine (dir, s)
             end;
         close (f);
+        
+        if level = 1 then
+            for i := 2 to ParamCount do
+                evaluateLine (dir, ParamStr (i));
         
         if (pcodeGromCount = 8) and (pcodeRomFilenames.dsrLow <> '') and (pcodeRomFilenames.dsrHigh <> '') then
             initPCodeCard (pcodeRomFilenames)

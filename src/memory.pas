@@ -15,7 +15,7 @@ function getPcodeScreenBuffer: TUint8Ptr;
 
 function getWaitStates: uint8;
 
-procedure configure32KExtension;
+procedure configureMemoryKExtension (useSAMS: boolean);
 procedure configureMiniMemory;
 
 procedure loadConsoleRom (filename: string);
@@ -54,7 +54,7 @@ var
     cartBanks: 1..MaxCardBanks;
     activeCartBank: 0..MaxCardBanks - 1;
     cartROMInverted: boolean;
-    samsMappingMode: boolean;
+    samsMappingMode, samsEnabled: boolean;
     
     memoryMap: array [0..MaxAddress div 2] of TMemoryHandler;
 
@@ -164,7 +164,8 @@ procedure writeDsr (addr, val: uint16);
             TipiCruAddress:
                 writeTipi (addr, val);
             SAMSCruAddress:
-                writeSAMSRegister (addr, val);
+                if samsEnabled then
+                    writeSAMSRegister (addr, val);
             PcodeCardCruAddress:
                 writePcodeCard (addr, val)
 	end
@@ -172,6 +173,7 @@ procedure writeDsr (addr, val: uint16);
     
 function readDsr (addr: uint16): uint16;
     begin
+        readDsr := 0;
         case activeDsrBase of
             FdcCardCruAddress:
                 readDsr := readFdcCard (addr);
@@ -182,13 +184,12 @@ function readDsr (addr: uint16): uint16;
             TipiCruAddress:
                 readDsr := readTipi (addr);
             SAMSCruAddress:
-                readDsr := readSAMSRegister (addr);
+                if samsEnabled then
+                    readDsr := readSAMSRegister (addr);
             PcodeDiskCruAddress:
                 readDsr := readPcodeDisk (addr);
 	    PcodeCardCruAddress:
 	        readDsr := readPcodeCard (addr)
-	    else
-	        readDsr := 0
 	end
     end;
 
@@ -291,7 +292,6 @@ function readCru (addr: TCruAddress): TCruBit;
 
 procedure writeCru (addr: TCruAddress; value: TCruBit);
     const
-        offon: array [0..1] of string = ('off', 'on');
         passmap: array [0..1] of string = ('pass', 'map');
     var
         addr12: TCruR12Address;
@@ -356,8 +356,10 @@ procedure setMemoryMap (startAddr, endAddr: uint16; handler: TMemoryHandler); ov
         setMemoryMap (startAddr, endAddr, handler, handler)
     end;
 
-procedure configure32KExtension;
+procedure configureMemoryKExtension (useSAMS: boolean);
     begin
+        writeln ('Configuring memmory extension, SAMS = ', useSaMS);
+        samsEnabled := useSAMS;
         setMemoryMap ($2000, $3ffe, RamHandler);
         setMemoryMap ($a000, $fffe, RamHandler)
     end;
@@ -387,4 +389,5 @@ begin
     activeCartBank := 0;
     waitStates := 0;
     samsMappingMode := false;
+    samsEnabled := false
 end.

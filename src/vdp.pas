@@ -146,7 +146,7 @@ procedure vdpTransferBlock (address, size: uint16; var buf; direction: TVdpDirec
                 else
                     p [i] := vdpRAM [(address + i) mod VdpRAMSize]
     end;
-
+    
 procedure setVdpCallback (p: TVdpCallback);
     begin
         vdpCallback := p
@@ -170,7 +170,7 @@ procedure readVdpRegisters;
         screenImage := getVdpRamPtr ((vdpRegister [2] and $0f) shl 10);
         spriteAttributeTable := getVdpRamPtr ((vdpRegister [5] and $7f) shl 7);
         spritePatternTable := getVdpRamPtr ((vdpRegister [6] and $07) shl 11);
-        
+
         if bitmapMode then
             begin
                 patternTable := getVdpRamPtr ((vdpRegister [4] and $04) shl 11);

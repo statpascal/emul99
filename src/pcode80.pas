@@ -13,7 +13,7 @@ function getPcodeScreenHeight: uint32;
 
 implementation
 
-uses memory, types;
+uses memory, types, vdp;
 
 const 
     FontSize = 20;
@@ -29,7 +29,7 @@ var
     
 function screenBufferChanged: boolean;
     begin
-        screenBufferChanged := compareByte (renderedScreen, getPcodeScreenBuffer^, Width * Height) <> 0
+        screenBufferChanged := compareByte (getPcodeScreenBuffer^, renderedScreen, Width * Height) <> 0
     end;
       
 function getPcodeScreenWidth: uint32;
@@ -44,8 +44,7 @@ function getPcodeScreenHeight: uint32;
 
 procedure renderPcodeScreen (cr: PCairoT);
     var
-        y: 0..Height - 1;
-        x: 0..Width - 1;
+        x, y: integer;
         buf: array [0..1] of char;
     begin
         move (getPcodeScreenBuffer^, renderedScreen, Width * Height);

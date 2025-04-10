@@ -145,6 +145,9 @@ added from within the P-code system with the Filer.
 Moreover, an internal 80x24 screen image is maintained at memory address
 2000h. The simulator provides a flag to use this image instead of the
 output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
+With SAMS support enabled, it is assumed that the mapping of the 3rd memory page
+(containing the screen buffer) uses the default value of the transparent
+mode (is is safe to temporarily use the page for other purposes).
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
