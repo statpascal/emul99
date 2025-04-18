@@ -190,7 +190,7 @@ function getWordStatus (w: uint16): uint16;
    	    $0001..$7fff:
 	        getWordStatus := Status_AGT or Status_LGT;
 	    $8000:
-	        getWordStatus := Status_LGT or Status_OV;
+	        getWordStatus := Status_LGT or Status_OV;	//OV: for NEG, ABS
 	    $8001..$ffff:
 	        getWordStatus := Status_LGT
         end

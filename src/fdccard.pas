@@ -373,7 +373,7 @@ function readFdcCardCru (addr: TCruR12Address): TCruBit;
 
 procedure fdcInitCard (dsrFilename: string);
     begin
-        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename, true);
         activeCommand := CmdNone;
         activeDisk := 0;
         stepDirection := 1;
@@ -390,11 +390,10 @@ procedure fdcSetDiskImage (diskDrive: TDiskDrive; filename: string);
                 DoubleSidedDisk:
                     diskDoubleSided [diskDrive] := true
                 else
-                    begin
-                        writeln ('Illegal disk size (', getMappingSize (disks [diskDrive]), ' bytes) in file ', filename);
-                        disks [diskDrive] := nil
-                    end
+                    errorExit ('Disk size in ' + filename + ' is not supported (only 90/180 KBytes images)')
             end
+        else
+            errorExit ('Cannot open disk image ' + filename)
     end; 
 
 begin

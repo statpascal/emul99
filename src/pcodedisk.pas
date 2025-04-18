@@ -72,12 +72,14 @@ function readPcodeDisk (addr: uint16): uint16;
 procedure pcodeDiskSetDiskImage (diskDrive: TDiskDrive; filename: string);
     begin
         diskBuffers [diskDrive] := createMapping (filename);
-        diskSectors [diskDrive] := getMappingSize (diskBuffers [diskDrive]) div SectorSize
+        diskSectors [diskDrive] := getMappingSize (diskBuffers [diskDrive]) div SectorSize;
+        if diskBuffers [diskDrive] = nil then
+            errorExit ('Cannot open disk image ' + filename)
     end;
 
 procedure initPcodeDisk (dsrFilename: string);
     begin
-        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename, true);
         fillChar (diskSectors, sizeof (diskSectors), 0)
     end;
     

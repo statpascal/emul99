@@ -145,7 +145,7 @@ function readCart (addr: uint16): uint16;
 procedure writeSAMSRegister (addr, w: uint16);
     begin
         w := swapBytes (w) and $0fff;
-        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
+//        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
         mapSAMS [true, addr and $1e shr 1] := w
     end;
     
@@ -233,12 +233,12 @@ function getWaitStates: uint8;
     
 procedure loadConsoleRom (filename: string);
     begin
-        loadBlock (mem, MaxAddress, 0, filename)
+        loadBlock (mem, MaxAddress, 0, filename, true)
     end;
     
 procedure loadConsoleGroms (filename: string);
     begin
-        loadBlock (groms.data, MaxAddress, 0, filename)
+        loadBlock (groms.data, MaxAddress, 0, filename, true)
     end;
 
 procedure loadCartROM (bank: uint8; filename: string);
@@ -250,11 +250,11 @@ procedure loadCartROM (bank: uint8; filename: string);
             begin
                 if size > sizeof (cart) then
                     errorExit ('Cannot load cartridge: please enlarge MaxCardBanks in file memory.pas');
-                loadBlock (cart, size, 0, filename);
+                loadBlock (cart, size, 0, filename, true);
                 bank := (size - 1) div sizeof (cart [9])
             end
         else
-            loadBlock (cart [bank], sizeof (cart [bank]), 0, filename);
+            loadBlock (cart [bank], sizeof (cart [bank]), 0, filename, true);
         if bank >= cartBanks then
     	    begin
 	        cartBanks := 1;
@@ -270,7 +270,7 @@ procedure setCartROMInverted (f: boolean);
 
 procedure loadCartGROM (filename: string);
     begin
-        loadBlock (groms.data [$6000], succ (MaxAddress - $6000), 0, filename)
+        loadBlock (groms.data [$6000], succ (MaxAddress - $6000), 0, filename, true)
     end;
 
 function readCru (addr: TCruAddress): TCruBit;
@@ -318,7 +318,7 @@ procedure writeCru (addr: TCruAddress; value: TCruBit);
 		        if samsBit = 1 then
                             begin
                                 samsMappingMode := value = 1;
-                                writeln ('SAMS: ', passmap [value]);
+//                                writeln  ('SAMS: ', passmap [value]);
                             end
                     end;
 	    end
@@ -358,7 +358,7 @@ procedure setMemoryMap (startAddr, endAddr: uint16; handler: TMemoryHandler); ov
 
 procedure configureMemoryKExtension (useSAMS: boolean);
     begin
-        writeln ('Configuring memmory extension, SAMS = ', useSaMS);
+//        writeln ('Configuring memmory extension, SAMS = ', useSaMS);
         samsEnabled := useSAMS;
         setMemoryMap ($2000, $3ffe, RamHandler);
         setMemoryMap ($a000, $fffe, RamHandler)

@@ -172,12 +172,12 @@ function saveTiFiles (var fileBuffer: TFileBuffer): boolean;
     
 function loadTiFilesHeader (var header: TTiFilesHeader; simulatorFileName: string): boolean;
     begin
-        loadTiFilesHeader := (loadBlock (header, sizeof (header), 0, simulatorFileName) = sizeof (header)) and checkTiFilesHeader (header)
+        loadTiFilesHeader := (loadBlock (header, sizeof (header), 0, simulatorFileName, false) = sizeof (header)) and checkTiFilesHeader (header)
     end;
 
 procedure loadTiFilesContent (var fileBuffer: TFileBuffer);
     begin
-        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFileName)
+        loadBlock (fileBuffer.sectors, sizeof (fileBuffer.sectors), sizeof (TTiFilesHeader), fileBuffer.simulatorFileName, false)
     end;
     
 procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorCode);
@@ -460,7 +460,7 @@ procedure diskSimDsrLoad (var pab: TPab);
         fn := makeHostFileName (pab);
         setErrorCode (pab, E_NoError);
         fillChar (header, sizeof (header), 0);
-        loadBlock (header, sizeof (header), 0, fn);
+        loadBlock (header, sizeof (header), 0, fn, false);
         hasHeader := checkTiFilesHeader (header);
         if hasHeader then
             begin
@@ -486,7 +486,7 @@ procedure diskSimDsrLoad (var pab: TPab);
             end;
         if getErrorCode (pab) = E_NoError then
             begin
-                loaded := loadBlock (buf, size, sizeof (header) * ord (hasHeader), fn);
+                loaded := loadBlock (buf, size, sizeof (header) * ord (hasHeader), fn, false);
                 if hasHeader and (loaded < size) then
                     writeln ('Got only ', loaded, ' bytes of ', size, ' set as file size in header');
                 if loaded = 0  then
@@ -645,7 +645,7 @@ function readDiskSim (addr: uint16): uint16;
 
 procedure initDiskSim (dsrFileName, directory: string);
     begin
-        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFileName);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFileName, true);
         initFileBuffers;
         fileDirectory := directory;
     end;

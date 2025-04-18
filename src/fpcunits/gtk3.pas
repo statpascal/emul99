@@ -16,6 +16,7 @@ type
     CairoSurface = record end;
     
     gpointer = pointer;
+    gboolean = boolean;
     gint = integer;
     guint = uint32;
     gfloat = double;
@@ -49,6 +50,7 @@ function gtk_button_new_with_label (title: PChar): PGtkWidget; cdecl; external; 
 function gtk_grid_new: PGtkWidget; cdecl; external; // libgtk;
 procedure gtk_widget_show_all (w: PGtkWidget); cdecl; external; // libgtk;
 procedure gtk_window_set_title (w: PGtkWidget; title: PChar); cdecl; external; // libgtk;
+procedure gtk_window_set_resizable (widget: PGtkWidget; resiseable: gboolean); cdecl; external; // libgtk;
 procedure gtk_widget_queue_draw (w: PGtkWidget); cdecl; external; // libgtk;
 
 const
@@ -78,6 +80,7 @@ procedure cairo_stroke (cr: PCairoT); cdecl; external; // libgtk;
 procedure cairo_fill (cr: PCairoT); cdecl; external; // libgtk;
 procedure cairo_paint (cr: PCairoT); cdecl; external; // libgtk;
 procedure cairo_scale (cr: PCairoT; sx, sy: double); cdecl; external; // libgtk;
+procedure cairo_translate (cr: PCairoT; x, y: double); cdecl; external; // libgtk;
 function cairo_image_surface_create (format, width, height: int32): PCairoSurface; cdecl; external; // libgtk;
 function cairo_image_surface_get_data (surface: PCairoSurface): PChar; cdecl; external; // libgtk;
 function cairo_image_surface_get_stride (surface: PCairoSurface): int32; cdecl; external; // libgtk;

@@ -269,33 +269,23 @@ procedure drawImageScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);
         var
             i: 0..7;
         begin
-            if textMode then
-                colors := vdpRegister [7];
             colors := colors or bgColor * (ord (colors and $0f = 0) + ord (colors and $f0 = 0) shl 4);
             for i := 7 downto 2 * ord (textMode) do
-                begin
-                    bitmapPtr^ := colors shr (pattern shr i and 1 shl 2) and $0f;
-                    inc (bitmapPtr)
-                end
+                bitmapPtr [7 - i] := colors shr (pattern shr i and 1 shl 2) and $0f;
+            inc (bitmapPtr, 8 - 2 * ord (textMode))
         end;
         
-    procedure drawBlock (indexPatternColor: uint16);
-        begin
-            if multiColorMode then
-                draw ($f0, patternTable [indexPatternColor and patternTableMask])
-            else
-                draw (patternTable [indexPatternColor and patternTableMask], 
-                      colorTable [indexPatternColor shr (6 * ord (not bitmapMode)) and colorTableMask])
-        end;
-        
-    const
-        lineLength: array [boolean] of uint8 = (32, 40);
     var
         i, lineOffset: uint16;
+        pattern, color: uint8;
     begin
         lineOffset := displayLine shr (2 * ord (multiColorMode)) and $07 + ord (bitmapMode) * $800 * (displayLine shr 6);
-        for i := lineLength [textMode] * (displayLine shr 3) to pred (lineLength [textMode] * succ (displayLine shr 3)) do
-            drawBlock (8 * screenImage [i] + lineOffset)
+        for i := (4 + ord (textMode)) * 8 * (displayLine shr 3) to pred ((4 + ord (textMode)) * 8 * succ (displayLine shr 3)) do
+            begin
+                pattern := patternTable [(8 * screenImage [i] + lineOffset) and patternTableMask];
+                color := colorTable [(8 * screenImage [i] + lineOffset) shr (6 * ord (not bitmapMode)) and colorTableMask];
+                draw (ifthen (multiColorMode, $f0, pattern), ifthen (textMode, vdpRegister [7], ifthen (multiColorMode, pattern, color)))
+            end;
     end;
                        
 procedure drawScanline (displayLine: uint8; bitmapPtr: TRenderedBitmapPtr);

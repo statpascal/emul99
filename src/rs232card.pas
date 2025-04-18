@@ -275,7 +275,6 @@ function serialReadThread (data: pointer): ptrint;
         dev: TIoPort;
         count: integer;
     begin
-        writeln ('Started monitoring RS232 inputs');
         repeat
             if poll (addr (fds), succ (ord (PIO_1)), 0) <> 0 then
                 for dev := RS232_1 to PIO_1 do
@@ -306,13 +305,12 @@ function serialReadThread (data: pointer): ptrint;
                         end;
             usleep (1000)
         until rs232Stopped;
-        writeln ('Stopped monitoring RS232 inputs');
         serialReadThread := 0
     end;
     
 procedure initRs232Card (dsrFilename: string);
     begin
-        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename);
+        loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFilename, true);
         beginThread (serialReadThread, nil, serialReadThreadId);
         rs232Started := true
     end;
@@ -338,13 +336,9 @@ procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection; f
                 handle := fileOpen (fileName, true, direction = PortOut, (direction = PortOut) and optAppend, (direction = PortOut) and not optAppend);
                 nozero := optNozero;
                 if handle = -1 then
-                    writeln ('ERROR: Cannot open ', filename, ' for serial/parallel output');
-                writeln ('Filename: ', filename, ', port: ', ord (serialPort), ', dir: ', ord (direction));
+                    errorExit ('Cannot open ' + filename + ' for RS232/PIO I/O');
                 if direction = PortIn then
-                    begin
-                        fds [serialPort].fd := handle;
-                        writeln ('Monitoring ', filename, ' as handle ', handle)
-                    end
+                    fds [serialPort].fd := handle
             end
     end;
     

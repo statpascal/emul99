@@ -10,7 +10,7 @@ Emul99 provides the following features:
 - Emulation of console with 32K extension/SAMS with 16 MByte
 - Hotkeys to change speed of simulated system (for compiling large programs)
 - Emulation of RS232 card
-- P-code card with optional 80 column display
+- P-code card with optional 80 column/internal VDP dual screen
 - Transfer tool for text files between host system and UCSD disk images
 - Several disk systems:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
@@ -22,28 +22,24 @@ Emul99 provides the following features:
 
 ## Compiling Emul99
 
-To compile the simulator, the GTK3, SDL2 and C library need to be
-installed. E.g., under Debian 11, this can be achieved with
+To compile the simulator, a recent version of the Free Pascal Compiler
+(3.2.2 is recommended) and the GTK3, SDL2 and C library need to be
+installed. Examples for some systems are:
 
-    apt-get install fpc gtk+3 libsdl2-dev
-
-under Debian Bookworm (the current base of Raspberry Pi OS) with
+- Debian/Raspberry Pi OS
 
     apt-get install fpc libgtk-3-dev libsdl2-dev
 
-and under Ubuntu 21/Linux Mint with
+- Ubuntu/Linux Mint
 
     sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
-On MacOS, is is recommended to install the FPC, SDL2 and GTK+3 packages with
-HomeBrew:
+- MacOS
 
     brew install fpc sdl2 gtk+3
 
-The path to the installation directory (BREW_BASE) needs to be set to the
-base directory of Homebrew.
-
-A recent version of the Free Pascal Compiler (3.2.2) is recommended..
+  The path to the installation directory (BREW_BASE) needs to be set to the
+  base directory of Homebrew.
 
 Development is mainly done under openSUSE Tumbleweed on x64. 
 
@@ -56,10 +52,27 @@ distribution.
 Changing to the "bin" directory and executing "emul99" starts the simulator
 with a simple dummy ROM image displaying a message.
 
+
+## Configuration
+
 The simulator is configured using text files which can be loaded by giving
-them as command line argument; e.g.  "emul99 exbasic.cfg".  If no argument is
+them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
+
+Single options may also be specified on the command line, overriding
+previous values (except P-code GROM files). E.g., to apply the "Disk Manager" to a
+a disk different from the one given in the config file the command
+
+    bin/emul99 bin/diskman.cfg fdc_dsk1=diskimages/disk1.dsk
+
+may be used while
+
+    bin/emul99 bin/ucsd-80.cfg pcodedisk_dsk1=diskimages/turtle_sys.dsk pcodedisk_dsk2=diskimages/turtle.dsk pcode_screen80=2
+
+starts the UCSD system with two selected disks in dual screen mode. Pathes
+given in config file are relative to the location of the config file while pathes
+provided on the command line are relative to the current working directory.
 
 It is not possible to change any part of the configuration (e.g., disk
 images or cartridges) while the simulator is running. This can be mitigated
@@ -74,6 +87,7 @@ simulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. 
 
 Additional ROMs that can be utilized are 
+
 - the original disk controller DSR,
 - the DSR of the TiPi (included in the package), 
 - the DSR of the RS232 card,
@@ -109,7 +123,7 @@ system:
 | F5  | restore CPU frequency to value in configuration file (default 3 MHz) |
 | F6  |set frequency to 1 GHz (resulting in maximum speed as current systems will not be able to actually achieve this) |
 | F7  | decrease CPU frequency by 1 MHz |
-| F8  | increate CPU frequency by 1 MHz |
+| F8  | increase CPU frequency by 1 MHz |
 
 
 ## TiPi

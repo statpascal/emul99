@@ -190,7 +190,7 @@ function readTipi (addr: uint16): uint16;
 
 procedure loadTipiDsr (filename: string);
     begin
-        loadBlock (dsrRom, $2000, 0, filename)
+        loadBlock (dsrRom, $2000, 0, filename, true)
     end;
 
 procedure initTipi (service: string);

@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 7';
+    VersionString = '0.1 beta 9';
     WindowTitle = 'Emul99';
 
 type
@@ -23,7 +23,7 @@ var
     cpuThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
     currentScreenBitmap: TRenderedBitmap;
-    mainWindow: PGtkWidget;
+    vdpWindow, vdpWindowDrawingArea, pcodeWindow, pcodeWindowDrawingArea: PGtkWidget;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
     begin
@@ -75,14 +75,16 @@ procedure stopThreads;
         waitForThreadTerminate (cpuThreadId, 0);
     end;
     
-procedure setTitleBar (mainWindow: PGtkWidget);
+procedure setTitleBar;
     var
         msg: string;
     begin
-        str (getCpuFrequency / 1000000:5:1, msg);
-        msg := 'Emul99 ' + msg + ' MHz';
-        gtk_window_set_title (mainWindow, addr (msg [1]));
-    end;
+        str (getCpuFrequency / 1000000:1:1, msg);
+        msg := 'Emul99 (' + msg + ' MHz)';
+        if vdpWindow <> nil then
+            gtk_window_set_title (vdpWindow, addr (msg [1]));
+        if pcodeWindow <> nil then
+            gtk_window_set_title (pcodeWindow, addr (msg [1]));    end;
 
 procedure addKeyMapUint (val: uint16; shift, func: boolean; k: TKeys); 
     begin
@@ -231,7 +233,7 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
                     GDK_KEY_F8:
                         setCpuFrequency (getCpuFrequency + 1000 * 1000)
                 end;
-                setTitleBar (window)
+                setTitleBar
             end;
         with event^ do
             if (eventtype = GDK_KEY_RELEASE) and (hardwareKeyIndex [hardware_keycode] <> 0) then
@@ -274,9 +276,9 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
         cr: PCairoT absolute p;
         bitmap: PCairoSurface absolute data;
     begin
-        if usePcode80 then
-            renderPcodeScreen (cr)
-        else
+        if window = pcodeWindowDrawingArea  then
+            renderPcodeScreen (cr);
+        if window = vdpWindowDrawingArea then
             begin
                 renderScreen (currentScreenBitmap, bitmap);
                 cairo_scale (cr, getWindowScaleWidth, getWindowScaleHeight);
@@ -288,7 +290,12 @@ function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean;
     
 procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
     begin
-        gtk_main_quit
+        if sender = vdpWindow then
+            vdpWindow := nil
+        else if sender = pcodeWindow then
+            pcodeWindow := nil;
+        if (vdpWindow = nil) and (pcodeWindow = nil) then
+            gtk_main_quit
     end;
 
 // TODO: Bug in Pcode generator of StatPascal: cannot export imported routines.
@@ -300,48 +307,50 @@ procedure queueRedraw (w: PGtkWidget); export;
 
 procedure screenCallback (var renderedBitmap: TRenderedBitmap);
     begin
-        if not usePCode80 and (compareByte (currentScreenBitmap, renderedBitmap, sizeof (currentScreenBitmap)) <> 0) or usePcode80 and screenBufferChanged then
+        if (vdpWindow <> nil) and (compareByte (currentScreenBitmap, renderedBitmap, sizeof (currentScreenBitmap)) <> 0) then
             begin
                 currentScreenBitmap := renderedBitmap;
-                g_idle_add (addr (queueRedraw), mainWindow)
+                g_idle_add (addr (queueRedraw), vdpWindow)
             end;
+        if (pcodeWindow <> nil) and screenBufferChanged then 
+            g_idle_add (addr (queueRedraw), pcodeWindow)
     end;
     
 procedure initGui;
     var    
         argv: argvector;
         argc: integer;
-        drawingArea: PGtkWidget;
-        bitmap: PCairoSurface;
+        
+    procedure setupWindow (var window, drawingArea: PGtkWidget; width, height: integer);
+        begin
+            window := gtk_window_new (GTK_WINDOW_TOPLEVEL);
+            gtk_widget_add_events (window, GDK_KEY_PRESS_MASK);
+            drawingArea := gtk_drawing_area_new;
+            gtk_container_add (window, drawingArea);
+            g_signal_connect (window, 'destroy', addr (windowClosed), nil);
+            g_signal_connect (window, 'key_press_event', addr (windowKeyEvent), nil);
+            g_signal_connect (window, 'key_release_event', addr (windowKeyEvent), nil);
+            g_signal_connect (drawingArea, 'draw', addr (drawCallback), cairo_image_surface_create (1, RenderWidth, RenderHeight));
+            gtk_widget_set_size_request (drawingArea, width, height);
+            gtk_window_set_resizable (window, false);
+            gtk_widget_show_all (window);
+        end;
+        
     begin
         preparePalette;
         argc := 0;
         argv := nil;
         gtk_init (argc, argv);
-        mainWindow := gtk_window_new (GTK_WINDOW_TOPLEVEL);
-        setTitleBar (mainWindow);
-        gtk_widget_add_events (mainWindow, GDK_KEY_PRESS_MASK);
-        drawingArea := gtk_drawing_area_new;
-        gtk_container_add (mainWindow, drawingArea);
-        if usePcode80 then
-            gtk_widget_set_size_request (drawingArea, getPcodeScreenWidth, getPcodeScreenHeight)
-        else
-            gtk_widget_set_size_request (drawingArea, getWindowScaleWidth * RenderWidth, getWindowScaleHeight * RenderHeight);
-        bitmap := cairo_image_surface_create (1, RenderWidth, RenderHeight);
-
-        g_signal_connect (mainWindow, 'destroy', addr (windowClosed), nil);
-        g_signal_connect (mainWindow, 'key_press_event', addr (windowKeyEvent), nil);
-        g_signal_connect (mainWindow, 'key_release_event', addr (windowKeyEvent), nil);
-        g_signal_connect (drawingArea, 'draw', addr (drawCallback), bitmap);
-        gtk_widget_show_all (mainWindow)
+        if usePcode80 <> PCode80_Only then
+            setupWindow (vdpWindow, vdpWindowDrawingArea, RenderWidth * getWindowScaleWidth, RenderHeight * getWindowScaleHeight);
+        if usePCode80 <> PCode80_None then
+            setupWindow (pcodeWindow, pcodeWindowDrawingArea, getPcodeScreenWidth, getPcodeScreenHeight);
+        setTitleBar
     end;
 
 begin
     writeln ('emul99 version ', VersionString, ' starting');
-    if ParamCount >= 1 then
-        loadConfig (ParamStr (1))
-    else
-        loadConfig ('ti99.cfg');
+    loadConfig;
     initGui;
     fillKeyMap;
     setVDPCallback (screenCallback);    

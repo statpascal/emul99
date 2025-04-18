@@ -8,7 +8,7 @@ function decimalstr (v: int64): string;
 
 function trim (s: string): string;
 
-function loadBlock (var dest; size, offset: int64; fileName: string): int64;
+function loadBlock (var dest; size, offset: int64; fileName: string; failOnError: boolean): int64;
 function saveBlock (var src; size: int64; fileName: string): int64;
 function getFileSize (fileName: string): int64;
 
@@ -60,22 +60,20 @@ function trim (s: string): string;
         trim := copy (s, b, succ (e - b))
     end; 
     
-function loadBlock (var dest; size, offset: int64; fileName: string): int64;
+function loadBlock (var dest; size, offset: int64; fileName: string; failOnError: boolean): int64;
     var
         handle: TFileHandle;
-        bytesRead: int64;
     begin
-        bytesRead := 0;
+        loadBlock := 0;
         handle := fileOpen (fileName, false, false, false, false);
-        if handle = InvalidFileHandle then
-            writeln ('File ', fileName, ': cannot open')
-        else
+        if handle <> InvalidFileHandle then
             begin
                 fileSeek (handle, offset);
-                bytesRead := fileRead (handle, addr (dest), size);
+                loadBlock := fileRead (handle, addr (dest), size);
                 fileClose (handle)
-            end;
-        loadBlock := bytesRead
+            end
+        else if failOnError then
+            errorExit ('Cannot read file: ' + fileName)
     end;
     
 function saveBlock (var src; size: int64; fileName: string): int64;
