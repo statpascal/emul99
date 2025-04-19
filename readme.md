@@ -106,8 +106,8 @@ file may be specified.
 
 Keys are mapped to a standard keyboard.  
 
-- FCTN: ALT-Left 
-- Quit: ALT-Left + =
+- FCTN: ALT-Left (Linux), CMD-Right (Mac)
+- Quit: ALT-Left + = (Linux), CMD-Right + = (Mac)
 - Alpha Lock: permanently switched off
 - First Joystick: 4, 6, 8, 2 in numeric pad, fire button is 0
 
@@ -233,15 +233,14 @@ A typical configuration (suited for the P-Code system) is shown in bin/serial.cf
     RS232/1_in = ../REMIN
     PIO/1_in = ../PIOIN
 
-
 File names are relative to the configuration directory (bin). 
 Two options can be added to output filenames:
 
 - nozero: will not output any zero bytes. This is useful when transferring text files with the Transfer option of the Filer, which simply copies complete disk blocks including zeroes.
 - append: appends to an existing file instead of overwriting it.
 
-After creating the REMIN file as a named pipe (mkfifo REMIN) it can be read
-with the following program:
+Files (or FIFOs for input files) will be created if they do not exist.
+In UCSD-Pascal, the REMIN FIFO can be read  with the following program:
 
     program serread;
     var

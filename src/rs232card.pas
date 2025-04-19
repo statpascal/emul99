@@ -20,7 +20,7 @@ procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection;  
 
 implementation
 
-uses cfuncs, tools, cthreads, fileop, tms9901;
+uses cfuncs, tools, cthreads, sysutils, fileop, tms9901;
 
 const
     PioMemAddr = $5000;
@@ -276,7 +276,7 @@ function serialReadThread (data: pointer): ptrint;
         count: integer;
     begin
         repeat
-            if poll (addr (fds), succ (ord (PIO_1)), 0) <> 0 then
+            if poll (addr (fds), succ (ord (PIO_1)), 0) > 0 then
                 for dev := RS232_1 to PIO_1 do
                     if fds [dev].revents and POLLIN <> 0 then
                         case dev of
@@ -333,6 +333,8 @@ procedure setSerialFileName (serialPort: TIoPort; direction: TIoPortDirection; f
             end;
         with ioFiles [serialPort, direction] do 
             begin
+                if not fileExists (fileName) and (direction = PortIn) then
+                    mkfifo (addr (filename [1]), &600);
                 handle := fileOpen (fileName, true, direction = PortOut, (direction = PortOut) and optAppend, (direction = PortOut) and not optAppend);
                 nozero := optNozero;
                 if handle = -1 then

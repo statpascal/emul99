@@ -47,9 +47,19 @@ const
     O_RDONLY = 0;
     O_WRONLY = 1;
     O_RDWR = 2;
+    
+(*$ifdef LINUX *)
     O_CREAT = 64;
     O_TRUNC = 512;
     O_APPEND = 1024;
+(*$endif *)
+
+(*$ifdef DARWIN *)
+    O_CREAT = 512;
+    O_TRUNC = 1024;
+    O_APPEND = 8;
+(*$endif *)
+    
     SEEK_SET = 0;
     SEEK_CUR = 1;
     SEEK_END = 2;
@@ -136,6 +146,7 @@ function fdread (fd: int32; buf: pointer; count: int64): int64; cdecl; external 
 function fdwrite (fd: int32; buf: pointer; count: int64): int64; cdecl; external name 'write';
 function lseek (fd: int32; offset: int64; whence: int32): int64; cdecl; external;
 function fdclose (fd: int32): int32; cdecl; external name 'close';
+function mkfifo (pathname: pchar; mode: int32): int32; cdecl; external;
 function poll (fds: ptr_pollfd; nfds: int64; timeout: int32): int32; cdecl; external;
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;
