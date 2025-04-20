@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 10';
+    VersionString = '0.1 beta 11';
     WindowTitle = 'Emul99';
 
 type
@@ -298,11 +298,10 @@ procedure windowClosed (sender: PGtkWidget; user_data: gpointer); export;
             gtk_main_quit
     end;
 
-// TODO: Bug in Pcode generator of StatPascal: cannot export imported routines.
-    
 procedure queueRedraw (w: PGtkWidget); export;
     begin
-        gtk_widget_queue_draw (w)
+        if (w = vdpWindow) or (w = pcodeWindow)	then	// Window not closed already?
+            gtk_widget_queue_draw (w)
     end;    
 
 procedure screenCallback (var renderedBitmap: TRenderedBitmap);
