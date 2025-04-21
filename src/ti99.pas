@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1 beta 11';
+    VersionString = '0.1 beta 12';
     WindowTitle = 'Emul99';
 
 type
@@ -50,12 +50,6 @@ procedure startSound;
         SDL_PauseAudio (0)
     end;
     
-procedure stopSound;
-    begin
-        SDL_PauseAudio (1);
-        SDL_CloseAudio
-    end;    
-
 function cpuThreadProc (data: pointer): ptrint;
     begin
         runCPU;
@@ -70,7 +64,7 @@ procedure startThreads;
 
 procedure stopThreads;
     begin
-        stopSound;
+        SDL_CloseAudio;
         stopCPU;
         waitForThreadTerminate (cpuThreadId, 0);
     end;
@@ -84,26 +78,7 @@ procedure setTitleBar;
         if vdpWindow <> nil then
             gtk_window_set_title (vdpWindow, addr (msg [1]));
         if pcodeWindow <> nil then
-            gtk_window_set_title (pcodeWindow, addr (msg [1]));    end;
-
-procedure addKeyMapUint (val: uint16; shift, func: boolean; k: TKeys); 
-    begin
-        if keyMapCount < KeyMapSize then
-            begin
-                inc (keyMapCount);
-                with keyMap [keyMapCount] do 
-                    begin
-                        keyval := val;
-                        isShift := shift;
-                        isFunction := func;
-                        key := k
-                    end
-            end
-    end;
-
-procedure addKeyMap (ch: char; isShift, isFunction: boolean; key: TKeys);
-    begin
-        addKeyMapUint (ord (ch), isShift, isFunction, key)
+            gtk_window_set_title (pcodeWindow, addr (msg [1]))
     end;
 
 procedure fillKeyMap;
@@ -117,55 +92,71 @@ procedure fillKeyMap;
     var
         ch: char;
         i: 1..NrFuncChar;
+        
+    procedure addKeyMap (val: uint16; shift, func: boolean; k: TKeys); 
+        begin
+            if keyMapCount < KeyMapSize then
+                begin
+                    inc (keyMapCount);
+                    with keyMap [keyMapCount] do 
+                        begin
+                            keyval := val;
+                            isShift := shift;
+                            isFunction := func;
+                            key := k
+                        end
+                end
+        end;
+
     begin
         keyMapCount := 0;
 
         for ch := '0' to '9' do
-            addKeyMap (ch, false, false, NumKeys [ch]);
+            addKeyMap (ord (ch), false, false, NumKeys [ch]);
         for ch := '0' to '9' do
-            addKeyMap (ShiftNum [succ (ord (ch) - ord ('0'))], true, false, NumKeys [ch]);                        
+            addKeyMap (ord (ShiftNum [succ (ord (ch) - ord ('0'))]), true, false, NumKeys [ch]);                        
         for ch := 'A' to 'Z' do
-            addKeyMap (ch, true, false, AlphaKeys [ch]);
+            addKeyMap (ord (ch), true, false, AlphaKeys [ch]);
         for ch := 'a' to 'z' do
-            addKeyMap (ch, false, false, AlphaKeys [upcase (ch)]);
+            addKeyMap (ord (ch), false, false, AlphaKeys [upcase (ch)]);
         for i := 1 to NrFuncChar do
-            addKeyMap (FuncChars [i], false, true, FuncKeys [i]);
+            addKeyMap (ord (FuncChars [i]), false, true, FuncKeys [i]);
             
-        addKeyMap ('=', false, false, KeyEqual);
-        addKeyMap ('+', true, false, KeyEqual);
-        addKeyMap (' ', false, false, KeySpace);
+        addKeyMap (ord ('='), false, false, KeyEqual);
+        addKeyMap (ord ('+'), true, false, KeyEqual);
+        addKeyMap (ord (' '), false, false, KeySpace);
 
-        addKeyMap ('.', false, false, KeyPoint);
-        addKeyMap (',', false, false, KeyComma);
-        addKeyMap (';', false, false, KeySemicolon);
-        addKeyMap ('/', false, false, KeySlash);
+        addKeyMap (ord ('.'), false, false, KeyPoint);
+        addKeyMap (ord (','), false, false, KeyComma);
+        addKeyMap (ord (';'), false, false, KeySemicolon);
+        addKeyMap (ord ('/'), false, false, KeySlash);
 
-        addKeyMap ('>', true, false, KeyPoint);
-        addKeyMap ('<', true, false, KeyComma);
-        addKeyMap (':', true, false, KeySemicolon);
-        addKeyMap ('-', true, false, KeySlash);
+        addKeyMap (ord ('>'), true, false, KeyPoint);
+        addKeyMap (ord ('<'), true, false, KeyComma);
+        addKeyMap (ord (':'), true, false, KeySemicolon);
+        addKeyMap (ord ('-'), true, false, KeySlash);
 
-        addKeyMapUint (GDK_KEY_Left, false, true, KeyS);
-        addKeyMapUint (GDK_KEY_Right, false, true, KeyD);
-        addKeyMapUint (GDK_KEY_Up, false, true, KeyE);
-        addKeyMapUint (GDK_KEY_Down, false, true, KeyX);
-        addKeyMapUint (GDK_KEY_BackSpace, false, true, KeyS);
-        addKeyMapUint (GDK_KEY_Return, false, false, KeyEnter);
-        addKeyMapUint (GDK_KEY_Dead_Macron, true, false, Key6);
-        addKeyMapUint (GDK_KEY_Dead_CircumFlex, false, true, KeyC);
+        addKeyMap (GDK_KEY_Left, false, true, KeyS);
+        addKeyMap (GDK_KEY_Right, false, true, KeyD);
+        addKeyMap (GDK_KEY_Up, false, true, KeyE);
+        addKeyMap (GDK_KEY_Down, false, true, KeyX);
+        addKeyMap (GDK_KEY_BackSpace, false, true, KeyS);
+        addKeyMap (GDK_KEY_Return, false, false, KeyEnter);
+        addKeyMap (GDK_KEY_Dead_Macron, true, false, Key6);
+        addKeyMap (GDK_KEY_Dead_CircumFlex, false, true, KeyC);
         
-        addKeyMapUint (GDK_KEY_Control_L, false, false, KeyCtrl);
-        addKeyMapUint (GDK_KEY_Control_R, false, false, KeyCtrl);
-        addKeyMapUint (GDK_KEY_Menu, false, false, KeyFctn);
-        addKeyMapUint (GDK_KEY_Meta_R, false, false, KeyFctn);
-        addKeyMapUint (GDK_KEY_ALT_L, false, false, KeyFctn);
+        addKeyMap (GDK_KEY_Control_L, false, false, KeyCtrl);
+        addKeyMap (GDK_KEY_Control_R, false, false, KeyCtrl);
+        addKeyMap (GDK_KEY_Menu, false, false, KeyFctn);
+        addKeyMap (GDK_KEY_Meta_R, false, false, KeyFctn);
+        addKeyMap (GDK_KEY_ALT_L, false, false, KeyFctn);
 
         (* Joystick 1 *)
-        addKeyMapUint (GDK_KEY_KP_4, false, false, KeyLeft1);
-        addKeyMapUint (GDK_KEY_KP_6, false, false, KeyRight1);
-        addKeyMapUint (GDK_KEY_KP_8, false, false, KeyUp1);
-        addKeyMapUint (GDK_KEY_KP_2, false, false, KeyDown1);
-        addKeyMapUint (GDK_KEY_KP_0, false, false, KeyFire1);
+        addKeyMap (GDK_KEY_KP_4, false, false, KeyLeft1);
+        addKeyMap (GDK_KEY_KP_6, false, false, KeyRight1);
+        addKeyMap (GDK_KEY_KP_8, false, false, KeyUp1);
+        addKeyMap (GDK_KEY_KP_2, false, false, KeyDown1);
+        addKeyMap (GDK_KEY_KP_0, false, false, KeyFire1);
         
         fillChar (pressCount, sizeof (pressCount), 0)
     end;    
@@ -215,11 +206,9 @@ procedure keyUp (hardwareKey: uint8);
             end
     end;
         
-function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolean; export;
-    var
-        event: PTGdkEventKey absolute p;
+function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointer): boolean; export;
     begin
-//        writeln ('Key event: type = ', event^.eventtype, ' key = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
+//        writeln ('Key event: type = ', event^.eventtype, ' key code = ', event^.keyval, ' hardware val = ', hexstr (event^.hardware_keycode));
         if event^.eventtype = GDK_KEY_PRESS then
             begin
                 case event^.keyval of
@@ -231,8 +220,10 @@ function windowKeyEvent (window: PGtkWidget; p: pointer; data: gpointer): boolea
                         if getCpuFrequency > 1000 * 1000 then
                             setCpuFrequency (getCpuFrequency - 1000 * 1000);
                     GDK_KEY_F8:
-                        setCpuFrequency (getCpuFrequency + 1000 * 1000)
+                        setCpuFrequency (getCpuFrequency + 1000 * 1000);
                 end;
+                if (getResetKey <> -1) and (getResetKey = event^.keyval)
+                    then resetCpu;
                 setTitleBar
             end;
         with event^ do
@@ -271,15 +262,16 @@ procedure renderScreen (var renderedBitmap: TRenderedBitmap; bitmap: PCairoSurfa
             end
     end;
     
-function drawCallback (window: PGtkWidget; p: pointer; data: gpointer): boolean; export;
-    var
-        cr: PCairoT absolute p;
-        bitmap: PCairoSurface absolute data;
+function drawCallback (window: PGtkWidget; cr: PCairoT; data: gpointer): boolean; export;
+    const
+        bitmap: PCairoSurface = nil;
     begin
         if window = pcodeWindowDrawingArea  then
             renderPcodeScreen (cr);
         if window = vdpWindowDrawingArea then
             begin
+                if bitmap = nil then
+                    bitmap := cairo_image_surface_create (1, RenderWidth, RenderHeight);
                 renderScreen (currentScreenBitmap, bitmap);
                 cairo_scale (cr, getWindowScaleWidth, getWindowScaleHeight);
                 cairo_set_source_surface (cr, bitmap, 0, 0);
@@ -329,7 +321,7 @@ procedure initGui;
             g_signal_connect (window, 'destroy', addr (windowClosed), nil);
             g_signal_connect (window, 'key_press_event', addr (windowKeyEvent), nil);
             g_signal_connect (window, 'key_release_event', addr (windowKeyEvent), nil);
-            g_signal_connect (drawingArea, 'draw', addr (drawCallback), cairo_image_surface_create (1, RenderWidth, RenderHeight));
+            g_signal_connect (drawingArea, 'draw', addr (drawCallback), nil); 
             gtk_widget_set_size_request (drawingArea, width, height);
             gtk_window_set_resizable (window, false);
             gtk_widget_show_all (window);

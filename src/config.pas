@@ -9,6 +9,7 @@ procedure loadConfig;
 function usePcode80: TPcode80Screen;
 function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
+function getResetKey: integer;
 
 function getCpuFrequency: int64;
 function getCycleTime: int64;
@@ -34,6 +35,7 @@ var
     tipiDsrPath, tipiWsUrl: string;
     cassInPath, cassOutPath: string;
     useMiniMem: boolean;
+    resetKey: integer;
     
     pcodeRomFilenames: TPcodeRomFilenames;
     cpuFrequency, defaultCpuFrequency, cycleTime: int64;
@@ -41,11 +43,11 @@ var
 procedure evaluateKey (key, value, path: string; var success: boolean);
     type
         TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
-                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, Invalid);
+                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
              ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
-              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', '');
+              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', '');
     var
         n: int64;
         code: uint16;
@@ -135,6 +137,8 @@ procedure evaluateKey (key, value, path: string; var success: boolean);
                 tipiDsrPath := path;
             TipiAddr:
                 tipiWsUrl := value;
+            ResetCode:
+                resetKey := n;
             Invalid:
                 success := false
         end;
@@ -271,6 +275,7 @@ procedure loadConfig;
         cartBanks := 0;
         pcodeGromCount := 0;
         defaultCpuFrequency := 3000000;
+        resetKey := -1;
         
         if ParamCount = 0 then
             loadConfigFile ('ti99.cfg', 0)
@@ -300,6 +305,11 @@ function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
     begin
         getWindowScaleWidth := scaleWidth
+    end;
+    
+function getResetKey: integer;
+    begin
+        getResetKey := resetKey
     end;
     
 function getCpuFrequency: int64;

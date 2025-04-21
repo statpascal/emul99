@@ -5,6 +5,7 @@ interface
 function getCycles: int64;
 
 procedure runCpu;
+procedure resetCpu;
 procedure stopCpu;
 
 
@@ -43,7 +44,7 @@ type
     
 var
     pc, wp, st: uint16;
-    cpuStopped: boolean;
+    cpuReset, cpuStopped: boolean;
     cpuCycles: int64;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
@@ -612,6 +613,16 @@ function getCycles: int64;
         getCycles := cpuCycles
     end;
     
+procedure checkReset;
+    begin
+        if cpuReset then
+            begin
+                st := 0;
+                switchContext (0);
+                cpuReset := false
+            end
+    end;
+    
 procedure runCpu;
     var
 	time: TNanoTimestamp;
@@ -626,11 +637,11 @@ procedure runCpu;
 	
     begin
         cpuStopped := false;
+        cpuReset := true;
     	cpuCycles := 0;
-        st := 0;
-    	switchContext (0);
         updateTiming;    	
     	repeat
+    	    checkReset;
             executeInstruction (decodedInstruction [fetchInstruction]);
             if cpuCycles - lastSleepCycles > msCycles then 
                 begin
@@ -647,6 +658,11 @@ procedure runCpu;
 procedure stopCpu;
     begin
 	cpuStopped := true
+    end;
+    
+procedure resetCpu;
+    begin
+        cpuReset := true
     end;
     
 begin
