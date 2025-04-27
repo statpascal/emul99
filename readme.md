@@ -39,9 +39,7 @@ installed. Examples for some systems are:
     brew install fpc sdl2 gtk+3
 
   The path to the installation directory (BREW_BASE) needs to be set to the
-  base directory of Homebrew.
-
-Development is mainly done under openSUSE Tumbleweed on x64. 
+  base directory of Homebrew in the build script "compile-fpc.sh".
 
 Executing the build script "compile-fpc.sh" generates the binaries "emul99"
 (the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
@@ -51,6 +49,13 @@ distribution.
 
 Changing to the "bin" directory and executing "emul99" starts the simulator
 with a simple dummy ROM image displaying a message.
+
+The simulator is developed and tested using the following environments:
+
+- openSuse Tumbleweed (x64): main devlopment system
+- Raspberry Pi OS (Debian bookworm) on Pi 4
+- Linux environment of ARM Chromebook (Debian bookworm)
+- MacOS 14.5.4 (x64)
 
 
 ## Configuration
@@ -66,12 +71,8 @@ a disk different from the one given in the config file the command
 
     bin/emul99 bin/diskman.cfg fdc_dsk1=diskimages/disk1.dsk
 
-may be used while
-
-    bin/emul99 bin/ucsd-80.cfg pcodedisk_dsk1=diskimages/turtle_sys.dsk pcodedisk_dsk2=diskimages/turtle.dsk pcode_screen80=2
-
-starts the UCSD system with two selected disks in dual screen mode. Pathes
-given in config file are relative to the location of the config file while pathes
+may be used.
+Pathes given in config file are relative to the location of the config file while pathes
 provided on the command line are relative to the current working directory.
 
 It is not possible to change any part of the configuration (e.g., disk
@@ -143,22 +144,30 @@ tested and will probably not work.
 
 ## P-code simulation
 
-The P-code card uses only sector based disk operations (subroutine >10 of
+The P-code system uses only sector based disk operations (subroutine >10 of
 the DSR) which can address a maximum of 65536 disk sectors with 256 bytes
 each. Correspondingly, the P-code system can utilize 32768 blocks with 512
-bytes. The pcodedisk DSR makes use of these limits to provide disk images
-of up to 16 MByte.
+bytes. The pcodedisk DSR (file roms/pcodedisk.bin) makes use of these limits 
+to provide disk images of up to 16 MByte and can be used as an alternative
+to the original floppy DSR which limits disks to 90/180 KB. Howeever, as it only
+supports subroutine >10, it is not very useful in general.
 
 The images files can be created with dd; e.g. use 
 
     dd if=/dev/zero of=blank.disk bs=512 count=32768 
 
 to create a disk image of maximal size. A UCSD file system can then be
-added from within the P-code system with the Filer.
+added from within the P-code system with the "Zero" option of the Filer,
+which will ask for the number of blocks on the disk (with 32767 being the
+maximum).
+
+Note that a 360 KByte image can hold the complete UCSD system comprising four 90 KB
+disks: one can copy all files with the Filer to a single 360 KB image and use it
+as first disk.
 
 Moreover, an internal 80x24 screen image is maintained at memory address
-2000h. The simulator provides a flag to use this image instead of the
-output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
+2000h. The simulator provides a flag "pcode_screen80" to use this image instead
+of or in addition to the output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
 With SAMS support enabled, it is assumed that the mapping of the 3rd memory page
 (containing the screen buffer) uses the default value of the transparent
 mode (is is safe to temporarily use the page for other purposes).
