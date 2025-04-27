@@ -144,11 +144,12 @@ images (92160 bytes for SS/SD, 184320 bytes for DS/SD) can be loaded.  It
 provides DSK1 through DSK3 devices. 
 
 To store files in a host system directory, the config entries "disksim_dsr"
-and "disksim_dir" need to be specified.  The DSR provides DSK0 through DSK3.
-It can be used together with the disk controller DSR: the host system DSR
-uses a higher CRU base resulting in only DSK0 targeting it (see e.g. the example
-config file bin/exbasic.cfg). File names containing slashes are modified to
-avoid directory traversal on the host.
+and "disksim_dir" need to be specified.  The DSR in "roms/disksim.bin"
+provides DSK0 through DSK3.  It can be used together with the disk
+controller DSR: the host system DSR uses a higher CRU base resulting in only
+DSK0 targeting it (see e.g.  the example config file bin/exbasic.cfg).  File
+names containing slashes are modified to avoid directory traversal on the
+host.
 
 The host system DSR does not provide sector based access to the disk or
 individual files (only PAB based operations are supported); in particular it
