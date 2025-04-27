@@ -321,7 +321,7 @@ It can be sent to the file PRINTER with
 
 ## Implementation Notes
 
-The implementation is rather concise (less than 5500 lines of Pascal source
+The implementation is rather concise (about 5500 lines of Pascal source
 code without the UCSD disk manager) and uses libraries when possible. For
 example, one can set a sampling rate of 223722 with the SDL and implement
 sound output as the attenuator weighted sum of the toggling tone generators.
