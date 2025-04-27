@@ -1,37 +1,37 @@
 The ROM files use the names as they are configured in the "cfg" files in the
-"bin" directory.
+"bin" directory. To verify ROM files in case of problems, their MD5 is
+given.
 
 Console ROM/GROMs (required):
 
- 24576 Apr 15  1996 994AGROM.Bin
-  8192 Apr 15  1996 994aROM.Bin
+ 24576  994AGROM.Bin		ed8ff714542ba850bdec686840a79217
+  8192  994aROM.Bin		6cc4bc2b6b3b0c33698e6a03759a4cab
 
 DSR ROM of DS/SD diskette controller (optional):
 
-  8192 Apr 15  1996 Disk.Bin
+  8192  Disk.Bin		3169cfe66687d5b9ed45a69da5a12817
 
 DSR ROM of RS232C card (optional):
 
-  8192 Apr 15  1996 RS232.Bin
+  8192  RS232.Bin		2bd23b4ac5a54290317096bf4b4f87cd
 
-DSR ROM of TiPi:
+DSR ROM of TiPi (optional, provided):
 
-  8192 Feb  3  tipi.bin
+  8192  tipi.bin
 
 GROMs and DSR ROMs of the P-code card (optional):
 
-  6144 May  7  2016 pcode_grom0.u11
-  6144 May  7  2016 pcode_grom1.u13
-  6144 May  7  2016 pcode_grom2.u14
-  6144 May  7  2016 pcode_grom3.u16
-  6144 May  7  2016 pcode_grom4.u19
-  6144 May  7  2016 pcode_grom5.u20
-  6144 May  7  2016 pcode_grom6.u21
-  6144 May  7  2016 pcode_grom7.u22
-  4096 Jul 19  2009 pcode_rom0.u1
-  8192 Jul 19  2009 pcode_rom1.u18
+  6144  pcode_grom0.u11		876bc9849a1ef4b4fa4cb71f12e8c0dd
+  6144 	pcode_grom1.u13 	ba33be181dd219d0347eb6ce2c7607e0
+  6144 	pcode_grom2.u14 	6075d88f42838488e0fe4ae3a0783571
+  6144 	pcode_grom3.u16 	78cfbcbc7e788d48da3070b994e15322
+  6144 	pcode_grom4.u19 	493908a1101c3dd824e8b39d5ad1ba51
+  6144 	pcode_grom5.u20 	61ed6e66df587dc3565eebbd64b013b1
+  6144 	pcode_grom6.u21		52b08f0ee86313507be4289b458aba9c
+  6144 	pcode_grom7.u22		fc2a16af026c71a2628d4efcd5e871ef
+  4096 	pcode_rom0.u1		4cc461030701a1f2d2e209644f8deb9c
+  8192 	pcode_rom1.u18		2e4d62d3984fa705252000851c594cee
 
-The binary files contained in this directory provide the dummy ROM and the
-DSRs for the simulated devices. The corresponding source files (.a99) are
-in the "src" directory.
- 
+The other binary files contained in this directory provide the dummy ROM and
+the DSRs for the simulated devices.  The corresponding source files (.a99)
+are in the "src" directory. 

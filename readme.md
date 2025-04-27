@@ -126,6 +126,28 @@ system:
 | F7  | decrease CPU frequency by 1 MHz |
 | F8  | increase CPU frequency by 1 MHz |
 
+A reset key can be configured using the "reset_key" option; it defaults to
+the Pause/Break key.
+
+
+## Disk access
+
+The are three ways to simulate disk access:
+
+- The original DSR of the 90/180 KB TI disk controller
+- Files in TIFILES format in a configurable directory of the host
+- Special DSR for P-Code system (see below)
+
+The first option requires the original ROM; using the config entries "fdc_dsr" and
+"fdc_dsk1" to "fdc_dsk3" up to three disk sector images can be loaded. It
+provides DSK1 through DSK3 devices.
+
+To store files in a host system directory, the config entries "disksim_dsr"
+and "disksim_dir" need to be specified.  The DSR provides DSK0 through DSK3.
+It can be used together with the disk controller DSR: the host system DSR
+uses a higher CRU base resulting in only DSK0 targeting it (see e.g. the example
+config file bin/exbasic.cfg).
+
 
 ## TiPi
 
