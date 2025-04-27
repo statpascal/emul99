@@ -138,15 +138,21 @@ The are three ways to simulate disk access:
 - Files in TIFILES format in a configurable directory of the host
 - Special DSR for P-Code system (see below)
 
-The first option requires the original ROM; using the config entries "fdc_dsr" and
-"fdc_dsk1" to "fdc_dsk3" up to three disk sector images can be loaded. It
-provides DSK1 through DSK3 devices.
+The first option requires the original ROM of the disk controller; using the
+config entries "fdc_dsr" and "fdc_dsk1" to "fdc_dsk3" up to three disk
+images (92160 bytes for SS/SD, 184320 bytes for DS/SD) can be loaded.  It
+provides DSK1 through DSK3 devices. 
 
 To store files in a host system directory, the config entries "disksim_dsr"
 and "disksim_dir" need to be specified.  The DSR provides DSK0 through DSK3.
 It can be used together with the disk controller DSR: the host system DSR
 uses a higher CRU base resulting in only DSK0 targeting it (see e.g. the example
-config file bin/exbasic.cfg).
+config file bin/exbasic.cfg). File names containing slashes are modified to
+avoid directory traversal on the host.
+
+The host system DSR does not provide sector based access to the disk or
+individual files (only PAB based operations are supported); in particular it
+is not possible to get a directory listing.
 
 
 ## TiPi
