@@ -55,7 +55,7 @@ The simulator is developed and tested using the following environments:
 - openSuse Tumbleweed (x64): main devlopment system
 - Raspberry Pi OS (Debian bookworm) on Pi 4
 - Linux environment of ARM Chromebook (Debian bookworm)
-- MacOS 14.5.4 (x64)
+- MacOS 14 Sonoma (x64)
 
 
 ## Configuration
