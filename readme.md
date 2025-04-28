@@ -85,7 +85,12 @@ on the same disk images (see below).
 
 The original ROMs are copyrighted and cannot be distributed with the
 simulator. For a working setup, at least the console ROM and GROMs (combined
-into a single file and padded to 8 KB) are required. 
+into a single file and padded to 8 KB) are required. All config files in the
+bin directory include "common.cfg" which loads these ROMS.
+
+    cpu_freq = 3000000
+    console_rom = ../roms/994aROM.Bin
+    console_groms = ../roms/994AGROM.Bin
 
 Additional ROMs that can be utilized are 
 
@@ -98,9 +103,53 @@ The directory "roms" contains a file "roms.txt" showing the file names and
 their sizes as they are expected by the various configuration files.
 
 Multiple GROM bases within the console are not supported. Cartridge ROMs
-can be bank switched and inverted. For a bank switched ROM, either multiple
+can be bank switched and inverted (option "cart_inverted"). 
+For a bank switched ROM, either multiple
 8 KB files (e.g., the card_rom entries in exbasic.cfg) or a single large
 file may be specified.
+
+For example, to load a typical cartridge consisting of a ROM and GROM image,
+one would specify
+
+    cart_rom = ../modules/ParsecC.Bin
+    cart_groms = ../modules/ParsecG.Bin
+
+For a bank switched cartridge with multiple 8 KB ROM files, this becomes
+
+    cart_rom = ../modules/TI-ExtBC.Bin
+    cart_rom = ../modules/TI-ExtBD.Bin
+    cart_groms = ../modules/TI-ExtBG.Bin
+
+A large bank switched ROM (like the 512 KB file of the MegaDemo) requires
+just
+
+    cart_rom = ../modules/megademo.bin
+
+
+## System Memory
+
+Without further options, only the console with 16 KByte VDP RAM and the 256
+byte scratch pad is simulated. The option "mem_ext" activates either a
+standard 32 KByte extension with 
+
+    mem_ext = 2
+
+or a 16 MByte SAMS extension with 
+
+    mem_ext = 1
+
+The older key "mem_32_ext" can also be used for compatibility with previous
+versions of the simulator.
+
+When loading the MiniMemory module, its 4 KByte RAM needs to be activated
+seperately with "cart_minimem":
+
+    cart_rom = ../modules/MiniMemC.Bin
+    cart_groms = ../modules/MiniMemG.Bin
+    cart_minimem = 1
+
+The contents of the MiniMemory RAM are not preserved between different runs
+of the simulator.
 
 
 ## Keyboard
@@ -212,16 +261,32 @@ added from within the P-code system with the "Zero" option of the Filer,
 which will ask for the number of blocks on the disk (with 32767 being the
 maximum).
 
-Note that a 360 KByte image can hold the complete UCSD system comprising four 90 KB
+A 360 KByte image can hold the complete UCSD system comprising four 90 KB
 disks: one can copy all files with the Filer to a single 360 KB image and use it
 as first disk.
 
-Moreover, an internal 80x24 screen image is maintained at memory address
-2000h. The simulator provides a flag "pcode_screen80" to use this image instead
-of or in addition to the output created by the VDP (see ucsd-80.cfg) to display 80 columns of text.
-With SAMS support enabled, it is assumed that the mapping of the 3rd memory page
-(containing the screen buffer) uses the default value of the transparent
-mode (is is safe to temporarily use the page for other purposes).
+With 90 KB or 180 KB disk images the original disk DSR may be used as
+well:
+
+    fdc_dsr = ../roms/Disk.Bin
+    fdc_dsk1 = ../diskimages/ucsd_pascal_compiler.dsk
+    fdc_dsk2 = ../diskimages/ucsd_pascal_editor_filer_1.dsk
+    fdc_dsk3 = ../diskimages/ucsd_pascal_editor_filer_2.dsk
+
+An internal 80x24 screen image is maintained at memory address 2000h.  The
+simulator provides a flag "pcode_screen80" to use this image instead of or
+in addition to the output created by the VDP (see ucsd-80.cfg) to display 80
+columns of text:
+
+    pcode_screen80 = 1
+
+    ; for dual screen display, use 
+    ; pcode_screen80 = 2
+
+With SAMS support enabled, it is assumed that the mapping
+of the 3rd memory page (containing the screen buffer) uses the default value
+of the transparent mode (is is safe to temporarily use the page for other
+purposes).
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
@@ -387,6 +452,7 @@ additional library is utilized to test its bindings.
   timestamp and handled when generating output.
 - An infinite recursion of "X" operations crashes the simulator with a stack
   overflow.
+- The emulation of the RS232 card provides only the functionality used by TI's DSR.
 
 
 ## Acknowledgements
