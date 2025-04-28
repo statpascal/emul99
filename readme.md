@@ -52,7 +52,7 @@ with a simple dummy ROM image displaying a message.
 
 The simulator is developed and tested using the following environments:
 
-- openSuse Tumbleweed (x64): main devlopment system
+- openSuse Tumbleweed (x64): main development system
 - Raspberry Pi OS (Debian bookworm) on Pi 4
 - Linux environment of ARM Chromebook (Debian bookworm)
 - MacOS 14 Sonoma (x64)
@@ -65,7 +65,7 @@ them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
 
-Single options may also be specified on the command line, overriding
+Options may also be specified on the command line, overriding
 previous values (except P-code GROM files). E.g., to apply the "Disk Manager" to a
 a disk different from the one given in the config file the command
 
@@ -127,12 +127,15 @@ system:
 | F8  | increase CPU frequency by 1 MHz |
 
 A reset key can be configured using the "reset_key" option; it defaults to
-the Pause/Break key.
+the Pause/Break key. The "magic numbers" are the key codes of GTK3; a rather
+incomplete list is e.g. in the source file src/fpcunits/gtk3.pas.
+
+    reset_key = 65299
 
 
 ## Disk access
 
-The are three ways to simulate disk access:
+There are three ways to simulate disk access:
 
 - The original DSR of the 90/180 KB TI disk controller
 - Files in TIFILES format in a configurable directory of the host
@@ -141,17 +144,27 @@ The are three ways to simulate disk access:
 The first option requires the original ROM of the disk controller; using the
 config entries "fdc_dsr" and "fdc_dsk1" to "fdc_dsk3" up to three disk
 images (92160 bytes for SS/SD, 184320 bytes for DS/SD) can be loaded.  It
-provides DSK1 through DSK3 devices. 
+provides DSK1 through DSK3 devices. The following example shows a typical
+configuration.
+
+    fdc_dsr = ../roms/Disk.Bin
+    fdc_dsk1 = ../diskimages/test1.dsk
+    fdc_dsk2 = ../diskimages/test2.dsk
+    fdc_dsk3 = ../diskimages/test3.dsk
 
 To store files in a host system directory, the config entries "disksim_dsr"
 and "disksim_dir" need to be specified.  The DSR in "roms/disksim.bin"
-provides DSK0 through DSK3.  It can be used together with the disk
-controller DSR: the host system DSR uses a higher CRU base resulting in only
-DSK0 targeting it (see e.g.  the example config file bin/exbasic.cfg).  File
-names containing slashes are modified to avoid directory traversal on the
-host.
+provides DSK0 through DSK3.  
 
-The host system DSR does not provide sector based access to the disk or
+    disksim_dsr = ../roms/disksim.bin
+    disksim_dir = ../diskfiles
+
+The host system DSR can be used together with the disk controller DSR: the
+latter one uses a lower CRU base resulting in only DSK0 pointing to the host
+directory (see e.g. the example config file bin/exbasic.cfg). File names
+containing slashes are modified to avoid directory traversal on the host.
+
+Note that the host system DSR does not provide sector based access to the disk or
 individual files (only PAB based operations are supported); in particular it
 is not possible to get a directory listing.
 
@@ -159,11 +172,14 @@ is not possible to get a directory listing.
 ## TiPi
 
 The TiPi hardware is simulated and can be used with the original DSR ROM (an
-assembled version is included in the "roms" directory). On the Raspberry Pi
+assembled version is included in the "roms" directory).  On the Raspberry Pi
 side, WebSocket emulation mode needs to be enabled; the file README.md in
-the emulation directory of the tipi installation provides further details.
-IP and port of the WebSocket server are set in the configuration file of
-Emul99; see example.cfg or tipi.cfg for an example.
+the emulation directory of the tipi installation provides further details. 
+IP and port of the WebSocket server are set in a config file as shown; see
+example.cfg or tipi.cfg for a complete example.
+
+    tipi_dsr = ../roms/tipi.bin
+    tipi_addr = 127.0.0.1:9901
 
 Please note that the code does almost no error checking; if the connection
 to the WebSocket server cannot be established or gets broken the emulated
@@ -179,7 +195,13 @@ each. Correspondingly, the P-code system can utilize 32768 blocks with 512
 bytes. The pcodedisk DSR (file roms/pcodedisk.bin) makes use of these limits 
 to provide disk images of up to 16 MByte and can be used as an alternative
 to the original floppy DSR which limits disks to 90/180 KB. Howeever, as it only
-supports subroutine >10, it is not very useful in general.
+supports subroutine >10, it is not very useful in general. It is configured
+with the following settings:
+
+    pcodedisk_dsr = ../roms/pcodedisk.bin
+    pcodedisk_dsk1 = ../diskimages/ucsd_system_1.dsk
+    pcodedisk_dsk2 = ../diskimages/ucsd_dev_1.dsk
+    pcodedisk_dsk3 = ../diskimages/ucsd_test.dsk
 
 The images files can be created with dd; e.g. use 
 
@@ -238,7 +260,11 @@ that can be played to or read from a real machine. Because there is no
 mechanism to set the position of the tape in the user interface, two
 different WAV files are used for input and output (see e.g. exbasic.cfg). 
 The input wave file is loaded and analyzed when the simulator starts, so
-later changes do not have any effect on a running session.
+later changes do not have any effect on a running session. The required
+config settings are:
+
+    cass_out = ../diskimages/cass-out.wav
+    cass_in = ../diskimages/cass-in.wav
 
 One can store multiple programs and/or data files in an output WAV
 file; they have to be loaded again in the same order.
