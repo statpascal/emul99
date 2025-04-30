@@ -3,7 +3,7 @@
 Emul99 is a simulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
-compiled with the Free Pascal Compiler under Linux and MacOS.
+compiled with the Free Pascal Compiler (Delphi mode) under Linux and MacOS.
 
 Emul99 provides the following features:
 
@@ -138,7 +138,7 @@ or a 16 MByte SAMS extension with
 
     mem_ext = 1
 
-The older key "mem_32_ext" can also be used for compatibility with previous
+The older key "mem_32k_ext" can also be used for compatibility with previous
 versions of the simulator.
 
 When loading the MiniMemory module, its 4 KByte RAM needs to be activated
