@@ -1,11 +1,11 @@
 program ti99;
 
-uses cthreads, gtk3, cfuncs, sdl2, timer, memmap,
+uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
      tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80;
 
 const
     KeyMapSize = 256;
-    VersionString = '0.1';
+    VersionString = '0.2 Beta 1';
     WindowTitle = 'Emul99';
 
 type
@@ -20,10 +20,11 @@ var
     hardwareKeyIndex: array [uint8] of 0..KeyMapSize;
     keyMapCount: uint16;
     pressCount: array [TKeys] of int64;
-    cpuThreadId: TThreadId;
+    cpuThreadId, keyFifoThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
     currentScreenBitmap: TRenderedBitmap;
     vdpWindow, vdpWindowDrawingArea, pcodeWindow, pcodeWindowDrawingArea: PGtkWidget;
+    keyFifoThreadStopped: boolean;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
     begin
@@ -56,19 +57,6 @@ function cpuThreadProc (data: pointer): ptrint;
         cpuThreadProc := 0
     end;
 
-procedure startThreads;
-    begin
-        beginThread (cpuThreadProc, nil, cpuThreadId);
-        startSound
-    end;
-
-procedure stopThreads;
-    begin
-        SDL_CloseAudio;
-        stopCPU;
-        waitForThreadTerminate (cpuThreadId, 0);
-    end;
-    
 procedure setTitleBar;
     var
         msg: string;
@@ -233,6 +221,66 @@ function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointe
                 keyDown (keyval, uint8 (hardware_keycode));
         windowKeyEvent := false
     end;
+    
+function keyFifoReadThread (data: pointer): ptrint;
+    var
+        fd: pollfd;
+        ch, n: uint8;
+        fn: string;
+    begin
+        fn := getKeyInFifo;
+        if not fileExists (fn) then
+            mkfifo (addr (fn [1]), &600);
+        fd.fd := fileOpen (fn, false, false, false, false);
+        if fd.fd = InvalidFileHandle then
+            errorExit ('Cannot open ' + fn + ' for key input');
+        fd.events := POLLIN;
+        repeat
+            if (poll (addr (fd), 1, 0) > 0) and (fd.revents and POLLIN <> 0) then
+                begin
+                    fileRead (fd.fd, addr (ch), 1);
+                    case ch of
+                        10:
+                            keyDown (GDK_KEY_Return, 0);
+                        32..127:
+                            keyDown (ch, 0);
+                        128:
+                            pressKey (KeyShift);
+                        129: 
+                            releaseKey (KeyShift);
+                        130:
+                            pressKey (KeyCtrl);
+                        131:
+                            releaseKey (KeyCtrl);
+                        132:
+                            pressKey (KeyFctn);
+                        133:
+                            releaseKey (KeyFctn);
+                        251:
+                            begin
+                                fileRead (fd.fd, addr (n), 1);
+                                usleep (uint32 (n) * 100 * 1000)
+                            end;
+                        252:
+                            setCpuFrequency (getDefaultCpuFrequency);
+                        253:
+                            setCpuFrequency (1000 * 1000 * 1000);
+                        254:
+                            resetCpu;
+                        255:
+                            gtk_main_quit;
+                    end;
+                    if ch in [10, 32..127] then 
+                        begin
+                            usleep (50 * 1000);
+                            keyUp (0);
+                            usleep (50 * 1000)
+                        end
+                end;
+            usleep (10000)
+        until keyFifoThreadStopped;
+        keyFifoReadThread := 0;
+    end;
 
 procedure preparePalette;
     var
@@ -339,6 +387,25 @@ procedure initGui;
         setTitleBar
     end;
 
+procedure startThreads;
+    begin
+        beginThread (cpuThreadProc, nil, cpuThreadId);
+        if getKeyInFifo <> '' then
+            beginThread (keyFifoReadThread, nil, keyFifoThreadId);
+        startSound
+    end;
+
+procedure stopThreads;
+    begin
+        SDL_CloseAudio;
+        stopCPU;
+        keyFifoThreadStopped := true;
+        
+        waitForThreadTerminate (cpuThreadId, 0);
+        if getKeyInFifo <> '' then
+            waitForThreadTerminate (keyFifoThreadId, 0)
+    end;
+    
 begin
     writeln ('emul99 version ', VersionString, ' starting');
     loadConfig;

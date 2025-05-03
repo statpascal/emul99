@@ -44,7 +44,7 @@ type
     
 var
     pc, wp, st: uint16;
-    cpuReset, cpuStopped: boolean;
+    cpuReset, cpuStopped, cpuInterrupt: boolean;
     cpuCycles: int64;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
@@ -506,7 +506,10 @@ procedure executeFormat7 (var instruction: TInstruction);
 		    wp := readRegister (13) and not 1
    	        end;
  	    Op_RSET:
-	        updateStatusBits (instruction, 0)
+	        updateStatusBits (instruction, 0);
+            Op_IDLE:
+                if not cpuInterrupt then
+                    dec (pc, 2)
 	end
     end;
 
@@ -527,7 +530,7 @@ procedure executeFormat8 (var instruction: TInstruction);
 	    Op_ORI:
 	        result := readRegister (instruction.w) or instruction.imm;
 	    Op_LIMI:
-	        status := instruction.imm and Status_IntMask;
+	        status := instruction.imm;
 	    Op_LWPI:
 	        wp := instruction.imm and not 1
 	end;
@@ -598,7 +601,7 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cpuCycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cpuCycles, instruction.cycles + getWaitStates);
-//        writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
+//      writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
     end;	
 
 procedure handleInterrupt (level: uint8);
@@ -642,6 +645,7 @@ procedure runCpu;
         updateTiming;    	
     	repeat
     	    checkReset;
+    	    cpuInterrupt := tms9901IsInterrupt;
             executeInstruction (decodedInstruction [fetchInstruction]);
             if cpuCycles - lastSleepCycles > msCycles then 
                 begin
@@ -650,8 +654,8 @@ procedure runCpu;
                 end;
   	    handleTimer (cpuCycles);
   	    handleVDP (cpuCycles);
-	    if (st and Status_IntMask <> 0) and tms9901IsInterrupt then 
-  	        handleInterrupt (1)
+	    if (st and Status_IntMask <> 0) and cpuInterrupt then 
+  	        handleInterrupt (1);
         until cpuStopped
     end;
 

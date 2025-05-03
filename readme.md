@@ -1,6 +1,6 @@
 # Emul99
 
-Emul99 is a simulator of the TI 99/4A home computer, implemented in the
+Emul99 is an emulator of the TI 99/4A home computer, implemented in the
 Pascal programming language and giving special focus on TI's UCSD P-code
 system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
 compiled with the Free Pascal Compiler (Delphi mode) under Linux and MacOS.
@@ -22,7 +22,7 @@ Emul99 provides the following features:
 
 ## Compiling Emul99
 
-To compile the simulator, a recent version of the Free Pascal Compiler
+To compile the emulator, a recent version of the Free Pascal Compiler
 (3.2.2 is recommended) and the GTK3, SDL2 and C library need to be
 installed. Examples for some systems are:
 
@@ -42,15 +42,15 @@ installed. Examples for some systems are:
   base directory of Homebrew in the build script "compile-fpc.sh".
 
 Executing the build script "compile-fpc.sh" generates the binaries "emul99"
-(the simulator) and "ucsddskman" (a disk image manager for UCSD text files)
+(the emulator) and "ucsddskman" (a disk image manager for UCSD text files)
 in the "bin" directory. The assembly of the DSR ROMs for the simulated
 devices and the dummy ROM is optional; these binaries are included in the
 distribution.
 
-Changing to the "bin" directory and executing "emul99" starts the simulator
+Changing to the "bin" directory and executing "emul99" starts the emulator
 with a simple dummy ROM image displaying a message.
 
-The simulator is developed and tested using the following environments:
+The emulator is developed and tested using the following environments:
 
 - openSuse Tumbleweed (x64): main development system
 - Raspberry Pi OS (Debian bookworm) on Pi 4
@@ -60,7 +60,7 @@ The simulator is developed and tested using the following environments:
 
 ## Configuration
 
-The simulator is configured using text files which can be loaded by giving
+The emulator is configured using text files which can be loaded by giving
 them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument is
 given, the default file "ti99.cfg" is used.  All options available are shown
 and described in "example.cfg".
@@ -76,7 +76,7 @@ Pathes given in config file are relative to the location of the config file whil
 provided on the command line are relative to the current working directory.
 
 It is not possible to change any part of the configuration (e.g., disk
-images or cartridges) while the simulator is running. This can be mitigated
+images or cartridges) while the emulator is running. This can be mitigated
 by running multiple instances with different configurations simultaneously
 on the same disk images (see below).
 
@@ -84,7 +84,7 @@ on the same disk images (see below).
 ## ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
-simulator. For a working setup, at least the console ROM and GROMs (combined
+emulator. For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required. All config files in the
 bin directory include "common.cfg" which loads these ROMS.
 
@@ -139,7 +139,7 @@ or a 16 MByte SAMS extension with
     mem_ext = 1
 
 The older key "mem_32k_ext" can also be used for compatibility with previous
-versions of the simulator.
+versions of the emulator.
 
 When loading the MiniMemory module, its 4 KByte RAM needs to be activated
 seperately with "cart_minimem":
@@ -149,7 +149,7 @@ seperately with "cart_minimem":
     cart_minimem = 1
 
 The contents of the MiniMemory RAM are not preserved between different runs
-of the simulator.
+of the emulator.
 
 
 ## Keyboard
@@ -171,7 +171,7 @@ system:
 | Key | Function |
 |-----|----------|
 | F5  | restore CPU frequency to value in configuration file (default 3 MHz) |
-| F6  |set frequency to 1 GHz (resulting in maximum speed as current systems will not be able to actually achieve this) |
+| F6  | set frequency to 1 GHz (resulting in maximum speed as current systems will not be able to actually achieve this) |
 | F7  | decrease CPU frequency by 1 MHz |
 | F8  | increase CPU frequency by 1 MHz |
 
@@ -180,6 +180,39 @@ the Pause/Break key. The "magic numbers" are the key codes of GTK3; a rather
 incomplete list is e.g. in the source file src/fpcunits/gtk3.pas.
 
     reset_key = 65299
+
+Key presses can be simulated by sending them to an optional named pipe that
+is configured with
+
+    key_input = name
+
+Printable characters can be sent as is; in addition the emulator handles the
+following codes:
+
+| Dez | Hex | Function |
+|---- |-----|----------|
+|  10 | 0a  | return key |
+| 128 | 80  | press/hold Shift key |
+| 129 | 81  | release Shift key |
+| 130 | 82  | press/hold Ctrl key |
+| 131 | 83  | release Ctrl key |
+| 132 | 84  | press/hold Fctn key |
+| 133 | 85  | release Fctn key |
+| 251 | fb  | read next byte into n and pause input for n/10 seconds
+| 252 | fc  | restore default CPU frequency |
+| 253 | fd  | set max CPU frequency |
+| 254 | fe  | reset key |
+| 255 | ff  | quit emulator |
+
+The following example shows the feeding of a minimal program into XB,
+waiting for 1 second in the card selection and for 3 seconds after starting
+XB.
+
+    echo 1$'\xfb\x0a'2>KEY_IN	  # Wait 1s in menu screen
+    echo -n $'\xfb\x1e'>KEY_IN	  # Wait 3s for XB, no new line
+    echo 10 PRINT \"HELLO WORLD\">KEY_IN
+    echo 20 END>KEY_IN
+    echo RUN>KEY_IN
 
 
 ## Disk access
@@ -230,10 +263,10 @@ example.cfg or tipi.cfg for a complete example.
     tipi_dsr = ../roms/tipi.bin
     tipi_addr = 127.0.0.1:9901
 
-Please note that the code does almost no error checking; if the connection
-to the WebSocket server cannot be established or gets broken the emulated
-system will either freeze or perform a reset. Mouse simulation is not yet
-tested and will probably not work.
+The code does almost no error checking; if the connection to the WebSocket
+server cannot be established or gets broken the emulated system will either
+freeze or perform a reset.  Mouse simulation is not yet tested and will
+probably not work.
 
 
 ## P-code simulation
@@ -243,8 +276,8 @@ the DSR) which can address a maximum of 65536 disk sectors with 256 bytes
 each. Correspondingly, the P-code system can utilize 32768 blocks with 512
 bytes. The pcodedisk DSR (file roms/pcodedisk.bin) makes use of these limits 
 to provide disk images of up to 16 MByte and can be used as an alternative
-to the original floppy DSR which limits disks to 90/180 KB. Howeever, as it only
-supports subroutine >10, it is not very useful in general. It is configured
+to the original floppy DSR which limits disks to 90/180 KB. However, as it only
+supports subroutine >10, it is not useful outside the P-code environment. It is configured
 with the following settings:
 
     pcodedisk_dsr = ../roms/pcodedisk.bin
@@ -274,7 +307,7 @@ well:
     fdc_dsk3 = ../diskimages/ucsd_pascal_editor_filer_2.dsk
 
 An internal 80x24 screen image is maintained at memory address 2000h.  The
-simulator provides a flag "pcode_screen80" to use this image instead of or
+emulator provides a flag "pcode_screen80" to use this image instead of or
 in addition to the output created by the VDP (see ucsd-80.cfg) to display 80
 columns of text:
 
@@ -308,23 +341,23 @@ speed (15 MHz) which is close to making the keyboard unusable.
 ## Multiple Instances
 
 Disk images (using the original DSR or the P-code DSR) are memory mapped and
-can be shared between multiple instances of the simulator. Changes are
+can be shared between multiple instances of the emulator. Changes are
 immediately visible to other instances but there is no mechanism to
 synchronize them; so data corruption is possible if they are written to at
 the same time.
 
-The simulator does not provide a utility to transfer files between standard
+The emulator does not provide a utility to transfer files between standard
 TI disk images and the host system. Programs like xdm99 from Ralph Benzinger's
 xdt99 tools can be utilized for this task.
 
 
 ## Cassette I/O
 
-The simulator can read and write WAV files (22050 Hz, unsigned 8 bit, mono)
+The emulator can read and write WAV files (22050 Hz, unsigned 8 bit, mono)
 that can be played to or read from a real machine. Because there is no
 mechanism to set the position of the tape in the user interface, two
 different WAV files are used for input and output (see e.g. exbasic.cfg). 
-The input wave file is loaded and analyzed when the simulator starts, so
+The input wave file is loaded and analyzed when the emulator starts, so
 later changes do not have any effect on a running session. The required
 config settings are:
 
@@ -335,7 +368,7 @@ One can store multiple programs and/or data files in an output WAV
 file; they have to be loaded again in the same order.
 
 There is no attempt to reconstruct bad recordings from old cassette tapes -
-the simulator will consider any input exceeding the ReadThreshold (see
+the emulator will consider any input exceeding the ReadThreshold (see
 tape.pas) as a toggle of the cassette input.
 
 
@@ -345,7 +378,7 @@ Serial emulation requires the original DSR ROM of the RS232C card. Input and
 output is redirected to the file system with configurable file names or
 named pipes. A named pipe should be used for input data. 
 
-Please note that the current implementation only provides the functionality
+The current implementation only provides the functionality
 used by TI's DSR. Interrupt handling is supported for incoming data as
 required by the Terminal Emulator module.
 
@@ -422,7 +455,7 @@ thread; this thread will perform a sleep every millisecond to synchronize
 with real time.
 
 The DSRs for the simulated devices (host directory and P-Code disk
-system) transform control to the simulator with an "XOP 0" instruction,
+system) transform control to the emulator with an "XOP 0" instruction,
 specifying the requested operation as a dummy source address. The simulated
 TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
 occur in the DSR ROM address range. The high byte of the dummy source address
@@ -430,7 +463,7 @@ equals the CRU base of the simulated device (the CRU bases are defined in
 types.pas)
 
 Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
-as the simulator serves mainly as a test program for a Pascal compiler, the
+as the emulator serves mainly as a test program for a Pascal compiler, the
 additional library is utilized to test its bindings.
 
 
@@ -445,19 +478,19 @@ additional library is utilized to test its bindings.
   6K is reached. This behaviour is implemented in "grom.pas" but may be
   incompatible with larger 3rd party GROMs.
 - Comparing the performance of a BASIC program with that of a real machine, 
-  the simulator is about 5% too fast. 
+  the emulator is about 5% too fast. 
 - The sound generator is sampled about 870 times per second and it is
   assumed that its settings remain unchanged during the sampling interval.
   Changes occuring during that interval should be recorded with a CPU
   timestamp and handled when generating output.
-- An infinite recursion of "X" operations crashes the simulator with a stack
+- An infinite recursion of "X" operations crashes the emulator with a stack
   overflow.
 - The emulation of the RS232 card provides only the functionality used by TI's DSR.
 
 
 ## Acknowledgements
 
-The simulator would not have been possible without Thierry Nouspikel's
+The emulator would not have been possible without Thierry Nouspikel's
 TI-99/4A Tech Pages (http://www.nouspikel.com/ti99/titechpages.htm). 
 Whenever something remained unclear, the implementations of Rasmus
 Moustgaard's JS99er (https://js99er.net), Mike Brent's Classic99

@@ -10,6 +10,7 @@ function usePcode80: TPcode80Screen;
 function getWindowScaleHeight: uint8;
 function getWindowScaleWidth: uint8;
 function getResetKey: integer;
+function getKeyInFifo: string;
 
 function getCpuFrequency: int64;
 function getCycleTime: int64;
@@ -36,6 +37,7 @@ var
     cassInPath, cassOutPath: string;
     useMiniMem: boolean;
     resetKey: integer;
+    keyInFifo: string;
     
     pcodeRomFilenames: TPcodeRomFilenames;
     cpuFrequency, defaultCpuFrequency, cycleTime: int64;
@@ -43,11 +45,11 @@ var
 procedure evaluateKey (key, value, path: string; var success: boolean);
     type
         TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
-                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, Invalid);
+                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, KeyIn, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
              ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
-              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', '');
+              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', 'key_input', '');
     var
         n: int64;
         code: uint16;
@@ -139,6 +141,8 @@ procedure evaluateKey (key, value, path: string; var success: boolean);
                 tipiWsUrl := value;
             ResetCode:
                 resetKey := n;
+            KeyIn:
+                KeyInFifo := value;
             Invalid:
                 success := false
         end;
@@ -310,6 +314,11 @@ function getWindowScaleWidth: uint8;
 function getResetKey: integer;
     begin
         getResetKey := resetKey
+    end;
+    
+function getKeyInFifo: string;
+    begin
+        getKeyInFifo := keyInFifo
     end;
     
 function getCpuFrequency: int64;

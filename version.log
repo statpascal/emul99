@@ -1,3 +1,8 @@
+Version 0.2 Beta 1
+
+- Implemented IDLE instruction (waiting for nterrrupt)
+- "key_input" for reading key presses from named pipe
+
 Version 0.1
 
 merged from develop branch
