@@ -1,3 +1,8 @@
+Version 0.2 Beta 2
+
+- Corrected memory lay of 180 KB disk images for FDC
+- key_input synchronizes with console KSCAN routine
+
 Version 0.2 Beta 1
 
 - Implemented IDLE instruction (waiting for nterrrupt)

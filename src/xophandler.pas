@@ -7,11 +7,13 @@ procedure handleXop (op: uint16);
 
 implementation
 
-uses disksim, pcodedisk;
+uses disksim, pcodedisk, keysim;
 
 procedure handleXop (op: uint16);
     begin
         case op of
+            $0478: consoleSimulateKeypress;
+        
             $1000: pcodeDiskPowerup;
             $1001: pcodeDiskSubSectorIO;
             

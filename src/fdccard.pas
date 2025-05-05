@@ -135,7 +135,7 @@ procedure handleStep (cmd: uint8; direction: TStepDirection);
 function getDiskPointer (disk, side, track, sector: uint8): TUint8Ptr;
     begin
         if (disk in [1..NumberDrives]) and (disks [disk] <> nil) and (side <= ord (diskDoubleSided [disk])) and (track < DiskTracks) and (sector < DiskSectors) then
-            getDiskPointer := addr (disks [disk]^[side, track, sector])
+            getDiskPointer := addr (disks [disk]^[side, ifthen (side = 0, track, DiskTracks - track - 1), sector])
         else
             getDiskPointer := nil
     end;
@@ -144,10 +144,16 @@ function findReadWritePosition (cmd: uint16): TUint8Ptr;
     var
         res: TUint8Ptr;
     begin
+        writeln ('Disk:     ', activeDisk);
+        writeln ('Side:     ', selectedSide);
+        writeln ('Track:    ', activeTrack);
+        writeln ('Sector:   ', regs.sector);
         if activeTrack = regs.track then
             res := getDiskPointer (activeDisk, selectedSide, activeTrack, regs.sector)
         else
             res := nil;
+        writeln ('Offset:   ', system.hexStr (int64 (res) - int64 (disks [activeDisk]), 8));
+        writeln;
         if res <> nil then
             begin
                 bytesLeft := SectorSize * ifthen (cmd and $10 <> 0, DiskSectors - regs.sector, 1);
@@ -210,6 +216,7 @@ procedure handleWriteTrack (cmd: uint8);
 procedure handleCommand (cmd: uint8);
     begin
         terminateActiveCommand;
+        writeln ('FDC cmd:  ', hexstr2 (cmd));
         if activeDisk <> 0 then
             if disks [activeDisk] <> nil then
                 case cmd of

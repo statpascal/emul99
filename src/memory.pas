@@ -233,7 +233,9 @@ function getWaitStates: uint8;
     
 procedure loadConsoleRom (filename: string);
     begin
-        loadBlock (mem, MaxAddress, 0, filename, true)
+        loadBlock (mem, MaxAddress, 0, filename, true);
+        mem [$0478 shr 1] := htons ($2C20);
+        mem [$047A shr 1] := htons ($0478)	// hook keyboard with XOP 0, @0478
     end;
     
 procedure loadConsoleGroms (filename: string);

@@ -1,11 +1,11 @@
 program ti99;
 
 uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
-     tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80;
+     tms9900, tms9901, vdp, memory, sound, fdccard, tape, config, tools, pcode80, keysim;
 
 const
     KeyMapSize = 256;
-    VersionString = '0.2 Beta 1';
+    VersionString = '0.2 Beta 2';
     WindowTitle = 'Emul99';
 
 type
@@ -225,8 +225,10 @@ function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointe
 function keyFifoReadThread (data: pointer): ptrint;
     var
         fd: pollfd;
-        ch, n: uint8;
+        ch, prevCh, n: uint8;
         fn: string;
+        count: integer;
+        accepted: boolean;
     begin
         fn := getKeyInFifo;
         if not fileExists (fn) then
@@ -235,10 +237,16 @@ function keyFifoReadThread (data: pointer): ptrint;
         if fd.fd = InvalidFileHandle then
             errorExit ('Cannot open ' + fn + ' for key input');
         fd.events := POLLIN;
+        prevCh := 0;
         repeat
             if (poll (addr (fd), 1, 0) > 0) and (fd.revents and POLLIN <> 0) then
-                begin
+                repeat
+                    while not keyboardWaiting do
+                        usleep (10000);
+                    ch := 0;
                     fileRead (fd.fd, addr (ch), 1);
+                    if ch = prevCh then
+                        usleep (500 * 1000);
                     case ch of
                         10:
                             keyDown (GDK_KEY_Return, 0);
@@ -272,12 +280,26 @@ function keyFifoReadThread (data: pointer): ptrint;
                     end;
                     if ch in [10, 32..127] then 
                         begin
-                            usleep (50 * 1000);
+                            count := 0;
+                            repeat
+                                accepted := keyboardAccepted;
+                                if not accepted then begin
+                                    inc (count);
+                                    usleep (10000)
+                                end
+                            until accepted or (count = 100);
                             keyUp (0);
-                            usleep (50 * 1000)
-                        end
-                end;
-            usleep (10000)
+                            if not accepted then
+                                accepted := keyboardAccepted;
+                            if ch = 10 then 
+                                usleep (1000 * 1000);
+                            prevCh := ch
+                        end 
+                    else 
+                        accepted := true
+                until accepted
+            else
+                usleep (10000)
         until keyFifoThreadStopped;
         keyFifoReadThread := 0;
     end;

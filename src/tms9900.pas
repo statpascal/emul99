@@ -8,6 +8,9 @@ procedure runCpu;
 procedure resetCpu;
 procedure stopCpu;
 
+function readRegister (reg: uint8): uint16;
+procedure writeRegister (reg: uint8; val: uint16);
+
 
 implementation
 
@@ -555,8 +558,8 @@ procedure executeFormat9 (var instruction: TInstruction);
 	srcaddr := getGeneralAddress (instruction.Ts, instruction.S, instruction.source, instruction.B);
         case instruction.opcode of
             Op_XOP:
-                if (instruction.D = 0) and (pc >= $4000) and (pc < $6000) then
-                    handleXop (srcaddr) 	// simulator hook for XOP 0 in DSR
+                if instruction.D = 0 then
+                    handleXop (srcaddr) 	// simulator hook for XOP 0 
                 else
                     begin
                         switchContext ($0040 + 4 * instruction.D);
@@ -601,7 +604,7 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cpuCycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cpuCycles, instruction.cycles + getWaitStates);
-//      writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC))
+//        writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
     end;	
 
 procedure handleInterrupt (level: uint8);
