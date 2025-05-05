@@ -424,8 +424,8 @@ procedure stopThreads;
         keyFifoThreadStopped := true;
         
         waitForThreadTerminate (cpuThreadId, 0);
-        if getKeyInFifo <> '' then
-            waitForThreadTerminate (keyFifoThreadId, 0)
+//        if getKeyInFifo <> '' then
+//            waitForThreadTerminate (keyFifoThreadId, 0)
     end;
     
 begin
