@@ -243,11 +243,11 @@ function keyFifoReadThread (data: pointer): ptrint;
                 begin
                     ch := 0;
                     fileRead (fd.fd, addr (ch), 1);
-                    if ch = prevCh then
-                        usleep (500 * 1000);
                     repeat
                         while not keyboardWaiting do
                             usleep (10000);
+                        if ch = prevCh then
+                            usleep (500 * 1000);
                         case ch of
                             10:
                                 keyDown (GDK_KEY_Return, 0);
