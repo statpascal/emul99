@@ -240,64 +240,71 @@ function keyFifoReadThread (data: pointer): ptrint;
         prevCh := 0;
         repeat
             if (poll (addr (fd), 1, 0) > 0) and (fd.revents and POLLIN <> 0) then
-                repeat
-                    while not keyboardWaiting do
-                        usleep (10000);
+                begin
                     ch := 0;
                     fileRead (fd.fd, addr (ch), 1);
                     if ch = prevCh then
                         usleep (500 * 1000);
-                    case ch of
-                        10:
-                            keyDown (GDK_KEY_Return, 0);
-                        32..127:
-                            keyDown (ch, 0);
-                        128:
-                            pressKey (KeyShift);
-                        129: 
-                            releaseKey (KeyShift);
-                        130:
-                            pressKey (KeyCtrl);
-                        131:
-                            releaseKey (KeyCtrl);
-                        132:
-                            pressKey (KeyFctn);
-                        133:
-                            releaseKey (KeyFctn);
-                        251:
+                    repeat
+                        while not keyboardWaiting do
+                            usleep (10000);
+                        case ch of
+                            10:
+                                keyDown (GDK_KEY_Return, 0);
+                            32..127:
+                                keyDown (ch, 0);
+                            128:
+                                pressKey (KeyShift);
+                            129: 
+                                releaseKey (KeyShift);
+                            130:
+                                pressKey (KeyCtrl);
+                            131:
+                                releaseKey (KeyCtrl);
+                            132:
+                                pressKey (KeyFctn);
+                            133:
+                                releaseKey (KeyFctn);
+                            251:
+                                begin
+                                    fileRead (fd.fd, addr (n), 1);
+                                    usleep (uint32 (n) * 100 * 1000)
+                                end;
+                            252:
+                                setCpuFrequency (getDefaultCpuFrequency);
+                            253:
+                                setCpuFrequency (1000 * 1000 * 1000);
+                            254:
+                                resetCpu;
+                            255:
+                                gtk_main_quit;
+                        end;
+                        if ch in [10, 32..127] then 
                             begin
-                                fileRead (fd.fd, addr (n), 1);
-                                usleep (uint32 (n) * 100 * 1000)
-                            end;
-                        252:
-                            setCpuFrequency (getDefaultCpuFrequency);
-                        253:
-                            setCpuFrequency (1000 * 1000 * 1000);
-                        254:
-                            resetCpu;
-                        255:
-                            gtk_main_quit;
-                    end;
-                    if ch in [10, 32..127] then 
-                        begin
-                            count := 0;
-                            repeat
-                                accepted := keyboardAccepted;
-                                if not accepted then begin
-                                    inc (count);
-                                    usleep (10000)
-                                end
-                            until accepted or (count = 100);
-                            keyUp (0);
-                            if not accepted then
-                                accepted := keyboardAccepted;
-                            if ch = 10 then 
-                                usleep (1000 * 1000);
-                            prevCh := ch
-                        end 
-                    else 
-                        accepted := true
-                until accepted
+                                write ('Pressed: ', ord (ch));
+                                count := 0;
+                                repeat
+                                    accepted := keyboardAccepted;
+                                    if not accepted then begin
+                                        inc (count);
+                                        usleep (10000)
+                                    end
+                                until accepted or (count = 100);
+                                keyUp (0);
+                                if not accepted then
+                                    accepted := keyboardAccepted;
+                                if ch = 10 then 
+                                    usleep (1000 * 1000);
+                                prevCh := ch;
+                                if not accepted then 
+                                    writeln (' - RETRY')
+                                else
+                                    writeln (' - ACK')
+                            end 
+                        else 
+                            accepted := true
+                    until accepted
+                end
             else
                 usleep (10000)
         until keyFifoThreadStopped;

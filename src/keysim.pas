@@ -42,10 +42,7 @@ procedure consoleSimulateKeypress;
         if val shr 8 in [0,5] then 
             if R6 shr 8 = $20 then 
                 begin
-                    if (r0 shr 8 = 13) then 
-                        writeln
-                    else 
-                        write (chr (r0 shr 8));
+                    write (', ROM got: ', r0 shr 8);
                     EnterCriticalSection (mutex);
                     accepted := true;
                     LeaveCriticalSection (mutex)
