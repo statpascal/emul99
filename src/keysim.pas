@@ -4,32 +4,28 @@ interface
 
 procedure consoleSimulateKeypress;
 
-function keyboardWaiting: boolean;
-function keyboardAccepted: boolean;
+procedure waitKeyPolling;
+procedure waitKeyAccepted;
 
 implementation
 
 uses tms9900, memory;
 
 var 
-    waiting, accepted: boolean;
-    mutex: TRtlCriticalSection;
+    keyPolling, keyAccepted: PRTLEvent;
     
-function keyboardWaiting: boolean;
+procedure waitKeyPolling;
     begin
-        EnterCriticalSection (mutex);
-        keyboardWaiting := waiting;
-        waiting := false;
-        LeaveCriticalSection (mutex)
+        RTLEventWaitFor (keyPolling);
+        RTLEventResetEvent (keyPolling);
     end;
     
-function keyboardAccepted: boolean;
+procedure waitKeyAccepted;
     begin
-        EnterCriticalSection (mutex);
-        keyboardAccepted := accepted;
-        accepted := false;
-        LeaveCriticalSection (mutex);
+        RTLEventWaitFor (keyAccepted);
+        RTLEventResetEvent (keyAccepted);
     end;
+    
 
 procedure consoleSimulateKeypress;
     var 
@@ -40,21 +36,16 @@ procedure consoleSimulateKeypress;
         val := readMemory ($8374); 
         writeMemory ($8374, val and $ff00 or r0 shr 8);
         if val shr 8 in [0,5] then 
-            if R6 shr 8 = $20 then 
+            if R6 and $2000 <> 0 then 
                 begin
                     write (', ROM got: ', r0 shr 8);
-                    EnterCriticalSection (mutex);
-                    accepted := true;
-                    LeaveCriticalSection (mutex)
+                    RTLEVentSetEvent (keyAccepted)
                 end
             else 
-                begin
-                    EnterCriticalSection (mutex);
-                    waiting := true;
-                    LeaveCriticalSection (mutex)
-                end
+                RTLEventSetEvent (keyPolling)
     end;
 
 begin
-    InitCriticalSection (mutex);
+    keyPolling := RTLEventCreate;
+    keyAccepted := RTLEventCreate
 end.

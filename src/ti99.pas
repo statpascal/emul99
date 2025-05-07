@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.2 Beta 2';
+    VersionString = '0.2 Beta 3';
     WindowTitle = 'Emul99';
 
 type
@@ -225,10 +225,8 @@ function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointe
 function keyFifoReadThread (data: pointer): ptrint;
     var
         fd: pollfd;
-        ch, prevCh, n: uint8;
+        ch, n: uint8;
         fn: string;
-        count: integer;
-        accepted: boolean;
     begin
         fn := getKeyInFifo;
         if not fileExists (fn) then
@@ -237,73 +235,54 @@ function keyFifoReadThread (data: pointer): ptrint;
         if fd.fd = InvalidFileHandle then
             errorExit ('Cannot open ' + fn + ' for key input');
         fd.events := POLLIN;
-        prevCh := 0;
         repeat
             if (poll (addr (fd), 1, 0) > 0) and (fd.revents and POLLIN <> 0) then
                 begin
                     ch := 0;
                     fileRead (fd.fd, addr (ch), 1);
-                    repeat
-                        while not keyboardWaiting do
-                            usleep (10000);
-                        if ch = prevCh then
-                            usleep (500 * 1000);
-                        case ch of
-                            10:
-                                keyDown (GDK_KEY_Return, 0);
-                            32..127:
-                                keyDown (ch, 0);
-                            128:
-                                pressKey (KeyShift);
-                            129: 
-                                releaseKey (KeyShift);
-                            130:
-                                pressKey (KeyCtrl);
-                            131:
-                                releaseKey (KeyCtrl);
-                            132:
-                                pressKey (KeyFctn);
-                            133:
-                                releaseKey (KeyFctn);
-                            251:
-                                begin
-                                    fileRead (fd.fd, addr (n), 1);
-                                    usleep (uint32 (n) * 100 * 1000)
-                                end;
-                            252:
-                                setCpuFrequency (getDefaultCpuFrequency);
-                            253:
-                                setCpuFrequency (1000 * 1000 * 1000);
-                            254:
-                                resetCpu;
-                            255:
-                                gtk_main_quit;
-                        end;
-                        if ch in [10, 32..127] then 
+                    waitKeyPolling;
+                    case ch of
+                        10:
+                            keyDown (GDK_KEY_Return, 0);
+                        32..127:
+                            keyDown (ch, 0);
+                        128:
+                            pressKey (KeyShift);
+                        129: 
+                            releaseKey (KeyShift);
+                        130:
+                            pressKey (KeyCtrl);
+                        131:
+                            releaseKey (KeyCtrl);
+                        132:
+                            pressKey (KeyFctn);
+                        133:
+                            releaseKey (KeyFctn);
+                        251:
                             begin
-                                write ('Pressed: ', ord (ch));
-                                count := 0;
-                                repeat
-                                    accepted := keyboardAccepted;
-                                    if not accepted then begin
-                                        inc (count);
-                                        usleep (10000)
-                                    end
-                                until accepted or (count = 100);
-                                keyUp (0);
-                                if not accepted then
-                                    accepted := keyboardAccepted;
-                                if ch = 10 then 
-                                    usleep (1000 * 1000);
-                                prevCh := ch;
-                                if not accepted then 
-                                    writeln (' - RETRY')
-                                else
-                                    writeln (' - ACK')
-                            end 
-                        else 
-                            accepted := true
-                    until accepted
+                                fileRead (fd.fd, addr (n), 1);
+                                usleep (uint32 (n) * 100 * 1000)
+                            end;
+                        252:
+                            setCpuFrequency (getDefaultCpuFrequency);
+                        253:
+                            setCpuFrequency (1000 * 1000 * 1000);
+                        254:
+                            resetCpu;
+                        255:
+                            gtk_main_quit;
+                    end;
+                    if ch in [10, 32..127] then 
+                        begin
+                            write ('Pressed: ', ord (ch));
+                            waitKeyAccepted;
+                            keyUp (0);
+                            write (' - ACK: ');
+                            if ch <> 10 then 
+                                writeln (chr (ch))
+                            else
+                                writeln ('CR')
+                        end 
                 end
             else
                 usleep (10000)
