@@ -1,14 +1,14 @@
-Version 0.2 Beta 3
+Version 0.3 Beta 4
+- key_input working in "turbo mode"
 
+Version 0.2 Beta 3
 - improved key_input routine
 
 Version 0.2 Beta 2
-
 - Corrected memory lay of 180 KB disk images for FDC
 - key_input synchronizes with console KSCAN routine
 
 Version 0.2 Beta 1
-
 - Implemented IDLE instruction (waiting for nterrrupt)
 - "key_input" for reading key presses from named pipe
 

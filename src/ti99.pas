@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.2 Beta 3';
+    VersionString = '0.2 Beta 4';
     WindowTitle = 'Emul99';
 
 type
@@ -20,11 +20,10 @@ var
     hardwareKeyIndex: array [uint8] of 0..KeyMapSize;
     keyMapCount: uint16;
     pressCount: array [TKeys] of int64;
-    cpuThreadId, keyFifoThreadId: TThreadId;
+    cpuThreadId: TThreadId;
     gtkColor: array [0..MaxColor] of uint32;
     currentScreenBitmap: TRenderedBitmap;
     vdpWindow, vdpWindowDrawingArea, pcodeWindow, pcodeWindowDrawingArea: PGtkWidget;
-    keyFifoThreadStopped: boolean;
     
 procedure sdlCallback (userdata, stream: pointer; len: int32); export;
     begin
@@ -222,74 +221,6 @@ function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointe
         windowKeyEvent := false
     end;
     
-function keyFifoReadThread (data: pointer): ptrint;
-    var
-        fd: pollfd;
-        ch, n: uint8;
-        fn: string;
-    begin
-        fn := getKeyInFifo;
-        if not fileExists (fn) then
-            mkfifo (addr (fn [1]), &600);
-        fd.fd := fileOpen (fn, false, false, false, false);
-        if fd.fd = InvalidFileHandle then
-            errorExit ('Cannot open ' + fn + ' for key input');
-        fd.events := POLLIN;
-        repeat
-            if (poll (addr (fd), 1, 0) > 0) and (fd.revents and POLLIN <> 0) then
-                begin
-                    ch := 0;
-                    fileRead (fd.fd, addr (ch), 1);
-                    waitKeyPolling;
-                    case ch of
-                        10:
-                            keyDown (GDK_KEY_Return, 0);
-                        32..127:
-                            keyDown (ch, 0);
-                        128:
-                            pressKey (KeyShift);
-                        129: 
-                            releaseKey (KeyShift);
-                        130:
-                            pressKey (KeyCtrl);
-                        131:
-                            releaseKey (KeyCtrl);
-                        132:
-                            pressKey (KeyFctn);
-                        133:
-                            releaseKey (KeyFctn);
-                        251:
-                            begin
-                                fileRead (fd.fd, addr (n), 1);
-                                usleep (uint32 (n) * 100 * 1000)
-                            end;
-                        252:
-                            setCpuFrequency (getDefaultCpuFrequency);
-                        253:
-                            setCpuFrequency (1000 * 1000 * 1000);
-                        254:
-                            resetCpu;
-                        255:
-                            gtk_main_quit;
-                    end;
-                    if ch in [10, 32..127] then 
-                        begin
-                            write ('Pressed: ', ord (ch));
-                            waitKeyAccepted;
-                            keyUp (0);
-                            write (' - ACK: ');
-                            if ch <> 10 then 
-                                writeln (chr (ch))
-                            else
-                                writeln ('CR')
-                        end 
-                end
-            else
-                usleep (10000)
-        until keyFifoThreadStopped;
-        keyFifoReadThread := 0;
-    end;
-
 procedure preparePalette;
     var
         i: 0..MaxColor;
@@ -398,20 +329,16 @@ procedure initGui;
 procedure startThreads;
     begin
         beginThread (cpuThreadProc, nil, cpuThreadId);
-        if getKeyInFifo <> '' then
-            beginThread (keyFifoReadThread, nil, keyFifoThreadId);
+        startKeyReader;
         startSound
     end;
 
 procedure stopThreads;
     begin
         SDL_CloseAudio;
+        stopKeyReader;
         stopCPU;
-        keyFifoThreadStopped := true;
-        
         waitForThreadTerminate (cpuThreadId, 0);
-//        if getKeyInFifo <> '' then
-//            waitForThreadTerminate (keyFifoThreadId, 0)
     end;
     
 begin

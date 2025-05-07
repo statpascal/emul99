@@ -12,7 +12,7 @@ uses disksim, pcodedisk, keysim;
 procedure handleXop (op: uint16);
     begin
         case op of
-            $0478: consoleSimulateKeypress;
+            $0478: consoleKscanHook;
         
             $1000: pcodeDiskPowerup;
             $1001: pcodeDiskSubSectorIO;
