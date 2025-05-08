@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.2 Beta 4';
+    VersionString = '0.2 Beta 5';
     WindowTitle = 'Emul99';
 
 type

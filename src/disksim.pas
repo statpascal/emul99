@@ -117,13 +117,10 @@ function findFile (var pab: TPab; isOpen, setError: boolean): uint8;
         for i := 1 to MaxFiles do
             if files [i].open and (deviceName = files [i].deviceName) and (fileName = files [i].fileName) then
                 res := i;
-        if isOpen then
-            if res <> 0 then
-                res := 0
-            else
-                for i := MaxFiles downto 1 do
-                    if not files [i].open then
-                        res := i;
+        if isOpen and (res = 0) then
+            for i := MaxFiles downto 1 do
+                if not files [i].open then
+                    res := i;
         if setError and (res = 0) then
             setErrorCode (pab, E_FileError);
         findFile := res
@@ -582,6 +579,7 @@ procedure diskSimDsrRoutine;
         vdpTransferBlock (pabAddr, 10, pab, VdpRead);
         vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
         dsrOperation [getOperation (pab)] (pab);
+        dumpPabOperation (pab);
         vdpTransferBlock (pabAddr, 10, pab, VdpWrite)		// write back changes        
     end;
 
