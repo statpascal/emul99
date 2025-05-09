@@ -579,7 +579,8 @@ procedure diskSimDsrRoutine;
         vdpTransferBlock (pabAddr, 10, pab, VdpRead);
         vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
         dsrOperation [getOperation (pab)] (pab);
-        dumpPabOperation (pab);
+        if getOperation (pab) in [E_Open, E_Close] then
+            dumpPabOperation (pab);
         vdpTransferBlock (pabAddr, 10, pab, VdpWrite)		// write back changes        
     end;
 
