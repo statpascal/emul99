@@ -27,6 +27,7 @@ var
     cartBanks, currentBank, pcodeGromCount: uint8;
     consoleRomFile, consoleGromFile: string;
     diskSimDsrPath, diskSimDirPath: string;
+    diskSimHostFiles: boolean;
     fdcDsrPath, pcodeDiskDsrPath: string;
     fdcDiskImage, pcodeDiskImage: array [TDiskDrive] of string;
     rs232DsrPath: string;
@@ -44,11 +45,11 @@ var
 
 procedure evaluateKey (key, value, path: string; var success: boolean);
     type
-        TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
+        TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, DiskSimText, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
                     SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, KeyIn, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
-             ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
+             ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'disksim_text', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
               'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', 'key_input', '');
     var
         n: int64;
@@ -90,7 +91,9 @@ procedure evaluateKey (key, value, path: string; var success: boolean);
             DiskSimDsr:
                  diskSimDsrPath := path;
             DiskSimDir:
-                 diskSimDirPath :=  path;
+                 diskSimDirPath := path;
+            DiskSimText:
+                 diskSimHostFiles := n <> 0;
             FdcDsr:
                 fdcDsrPath := path;
             FdcDisk1..FdcDisk3:
@@ -232,7 +235,7 @@ procedure setConfigData;
         if cartGrom <> '' then
             loadCartGROM (cartGrom);
         if (diskSimDsrPath <> '') and (diskSimDirPath <> '') then
-            initDiskSim (diskSimDsrPath, diskSimDirPath);
+            initDiskSim (diskSimDsrPath, diskSimDirPath, diskSimHostFiles);
         if pcodeDiskDsrPath <> '' then
             begin
                 initPcodeDisk (pcodeDiskDsrPath);

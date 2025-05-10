@@ -4,7 +4,7 @@ interface
 
 function readDiskSim (addr: uint16): uint16;
 
-procedure initDiskSim (dsrFileName, directory: string);
+procedure initDiskSim (dsrFileName, directory: string; diskSimHostFiles: boolean);
 
 procedure diskSimPowerUpRoutine;
 procedure diskSimDsrRoutine;
@@ -24,7 +24,7 @@ procedure diskSimSubNumberOfFiles;
 
 implementation
 
-uses memory, vdp, pab, types, tools, cfuncs, math, sysutils;
+uses memory, vdp, pab, types, tools, cfuncs, math, sysutils, fileop;
 
 const
     SectorSize = 256;
@@ -50,7 +50,8 @@ type
     
     TFileBuffer = record
         deviceName, fileName, simulatorFileName: string;
-        open: boolean;
+        open, plaintext: boolean;
+        plainTextFile: TFileHandle;
 
         recordType: TRecordType;
         dataType: TDataType;
@@ -72,8 +73,9 @@ var
     dsrRom: TDsrRom;
     files: array [1..MaxFiles] of TFileBuffer;
     fileDirectory: string;
+    useHostFiles: boolean;
 
-function makeHostFileName (var pab: TPab): string;
+function makeHostFileName (var pab: TPab; var isHost: boolean): string;
     const
         n = 2;
         s1: array [1..n] of char = ('/', '\');
@@ -85,6 +87,9 @@ function makeHostFileName (var pab: TPab): string;
         fileName: string;
     begin
         fileName := getFileName (pab);
+        isHost := upcase (copy (filename, 1, 3)) = '?W.';
+        if isHost then
+            filename := copy (filename, 4, length (filename));
         res := fileDirectory + '/';
         i := 1;
         for i := 1 to length (fileName) do
@@ -205,11 +210,13 @@ procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorCode);
 procedure diskSimDsrOpen (var pab: TPab);
 
     procedure initFileBuffer (var fileBuffer: TFileBuffer);
+        var
+            forcePlain: boolean;
         begin
             with fileBuffer do
                 begin
                     decodeNames (pab, deviceName, fileName);
-                    simulatorFileName := makeHostFileName (pab);
+                    simulatorFileName := makeHostFileName (pab, forcePlain);
                     open := true;
                     recordType := getRecordType (pab);
                     dataType := getDataType (pab);
@@ -222,7 +229,10 @@ procedure diskSimDsrOpen (var pab: TPab);
                     eofPosition := 0;
                     sectorPosition := 0;
                     currentSector := 0;
-                    fillChar (sectors, sizeof (sectors), $e5 * ord (recordType = E_Fixed))
+                    fillChar (sectors, sizeof (sectors), $e5 * ord (recordType = E_Fixed));
+                    
+                    plainText :=  forcePlain or useHostFiles and (datatype = E_Display) and (recordType = E_Variable);
+                        
                 end
         end;
         
@@ -253,7 +263,10 @@ procedure diskSimDsrOpen (var pab: TPab);
     procedure openOutput (var fileBuffer: TFileBuffer);
         begin
             createFile (fileBuffer, true);
-            loadTiFilesContent (fileBuffer)    (* Load and overwrite whatever is in the file *)
+            if fileBuffer.plainText then
+                fileBuffer.plainTextFile := fileOpen (fileBuffer.simulatorFileName, true, true, false, true)
+            else
+                loadTiFilesContent (fileBuffer)    (* Load and overwrite whatever is in the file *)
         end;
         
     procedure openAppend (var fileBuffer: TFileBuffer);
@@ -296,19 +309,22 @@ procedure diskSimDsrClose (var pab: TPab);
         filenr := findFile (pab, false, true);
         if filenr <> 0 then
             with files [filenr] do
-                begin
-                    if operationMode <> E_Input then
-                        begin
-                            if recordType = E_Variable then
-                                begin
-                                    sectors [maxSector][sectorPosition] := EofMarker; 
-                                    eofPosition := sectorposition
-                                end;
-                            if not saveTiFiles (files [filenr]) then
-                                setErrorCode (pab,  E_FileError)
-                        end;
-                    open := false
-                end
+                if plaintext then
+                    fileClose (plainTextFile)
+                else
+                    begin
+                        if operationMode <> E_Input then
+                            begin
+                                if recordType = E_Variable then
+                                    begin
+                                        sectors [maxSector][sectorPosition] := EofMarker; 
+                                        eofPosition := sectorposition
+                                    end;
+                                if not saveTiFiles (files [filenr]) then
+                                    setErrorCode (pab,  E_FileError)
+                            end;
+                        open := false
+                    end
     end;
     
 procedure diskSimDsrRead (var pab: TPab);
@@ -397,7 +413,18 @@ procedure diskSimDsrWrite (var pab: TPab);
         end;
                 
     procedure writeVariableRecord (var f: TFileBuffer);
+        var
+            buf: array [uint8] of char;
         begin
+            if f.plainText then
+                begin
+                    vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), buf, VdpRead);
+                    buf [getNumChars (pab)] := chr (10);
+                    fileWrite (f.plainTextFile, addr (buf), getNumChars (pab) + 1)
+                end
+            else 
+                begin
+
             if getNumChars (pab) + 1 >= SectorSize - f.sectorPosition then
                 if f.maxSector + 1 >= MaxSectors then
                     begin
@@ -413,6 +440,9 @@ procedure diskSimDsrWrite (var pab: TPab);
             f.sectors [f.maxSector][f.sectorPosition] := getNumChars (pab);
             vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), f.sectors [f.maxSector][f.sectorPosition + 1], VdpRead);
             inc (f.sectorPosition, succ (getNumChars (pab)))
+            
+            end
+            
         end;
 
     var
@@ -453,8 +483,9 @@ procedure diskSimDsrLoad (var pab: TPab);
         header: TTiFilesHeader;
         hasHeader: boolean;
         size, loaded: uint16;
+        dummy: boolean;
     begin
-        fn := makeHostFileName (pab);
+        fn := makeHostFileName (pab, dummy);
         setErrorCode (pab, E_NoError);
         fillChar (header, sizeof (header), 0);
         loadBlock (header, sizeof (header), 0, fn, false);
@@ -498,6 +529,7 @@ procedure diskSimDsrSave (var pab: TPab);
         buf: array [0..VdpRAMSize + sizeof (TTiFilesHeader)] of uint8;
         header: TTiFilesHeader absolute buf;
         sectors: uint16;
+        dummy: boolean;
     begin
         initTiFilesHeader (header, getFileName (pab));
         sectors := getRecordNumber (pab) div SectorSize;
@@ -511,7 +543,7 @@ procedure diskSimDsrSave (var pab: TPab);
         else
             begin
                 vdpTransferBlock (getBufferAddress (pab), getRecordNumber (pab), buf [sizeof (TTiFilesHeader)], VdpRead);
-                if saveBlock (buf, sizeof (TTiFilesHeader) + getRecordNumber (pab), makeHostFileName (pab))  <> sizeof (TTiFilesHeader) + getRecordNumber (pab) then
+                if saveBlock (buf, sizeof (TTiFilesHeader) + getRecordNumber (pab), makeHostFileName (pab, dummy))  <> sizeof (TTiFilesHeader) + getRecordNumber (pab) then
                     setErrorCode (pab, E_FileError)
             end
     end;
@@ -519,11 +551,12 @@ procedure diskSimDsrSave (var pab: TPab);
 procedure diskSimDsrDelete (var pab: TPab);
     var
         filenr: 0..MaxFiles;
+        dummy: boolean;
     begin
         filenr := findFile (pab, false, false);
         if filenr <> 0 then
             files [filenr].open := false;
-        deleteFile (makeHostFileName (pab))
+        deleteFile (makeHostFileName (pab, dummy))
     end;
     
 procedure diskSimDsrUnsupported (var pab: TPab);
@@ -537,6 +570,7 @@ procedure diskSimDsrStatus (var pab: TPab);
         filenr: 0..MaxFiles;
         header: TTiFilesHeader;
         status: uint8;
+        dummy: boolean;
         
     function checkFlag (tiFilesFlag: uint8): uint8;
         begin
@@ -546,7 +580,7 @@ procedure diskSimDsrStatus (var pab: TPab);
     begin
         filenr := findFile (pab, false, false);
         if filenr = 0 then
-            if loadTiFilesHeader (header, makeHostFileName (pab)) then
+            if loadTiFilesHeader (header, makeHostFileName (pab, dummy)) then
                 status := PabStatusFileProgram * checkFlag (TiFilesProgram) + PabStatusWriteProtected * checkFlag (TiFilesProtected) +
                           PabStatusFileInternal * checkFlag (TiFilesInternal) + PabStatusFileVariable * checkFlag (TiFilesVariable)
             else 
@@ -642,11 +676,12 @@ function readDiskSim (addr: uint16): uint16;
         readDiskSim := ntohs (dsrRom.w [addr shr 1])
     end;
 
-procedure initDiskSim (dsrFileName, directory: string);
+procedure initDiskSim (dsrFileName, directory: string; diskSimHostFiles: boolean);
     begin
         loadBlock (dsrRom, sizeof (dsrRom), 0, dsrFileName, true);
         initFileBuffers;
         fileDirectory := directory;
+        useHostFiles := diskSimHostFiles
     end;
 
 end.
