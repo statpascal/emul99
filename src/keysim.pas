@@ -82,9 +82,9 @@ procedure consoleKscanHook;
                 writeRegister (6, readRegister (6) or $2000);
                 simKey := 0;
                 RTLEventSetEvent (keyDone)
-            end
-        else if R0 shr 8 <> 255 then
-            writeln ('KEY press: ', R0 shr 8);
+            end;
+//        else if R0 shr 8 <> 255 then
+//            writeln ('KEY press: ', R0 shr 8);
             
         // perform overwritten movb 0, @>8375 at >0478
         val := readMemory ($8374); 
