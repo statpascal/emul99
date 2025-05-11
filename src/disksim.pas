@@ -187,7 +187,14 @@ procedure loadTiFiles (var fileBuffer: TFileBuffer; var errorCode: TErrorCode);
         header: TTiFilesHeader;
     begin
         if not loadTiFilesHeader (header, fileBuffer.simulatorFileName) then
-            errorCode := E_FileError
+            if fileExists (fileBuffer.simulatorFileName) and (fileBuffer.datatype = E_Display) and (fileBuffer.recordType = E_Variable) then
+                begin
+                    fileBuffer.plainText := true;
+                    errorCode := E_NoError;
+                    writeln ('Reading ', fileBuffer.simulatorFileName, ' as plain text file')
+                end
+            else
+                errorCode := E_FileError
         else if ((fileBuffer.recordType = E_Variable) <> (header.flags and TiFilesVariable <> 0)) or
                 ((fileBuffer.dataType = E_Internal) <> (header.flags and TiFilesInternal <> 0)) or
                 ((fileBuffer.recordLength <> 0) and (fileBuffer.recordLength <> header.recordLength)) or
@@ -230,9 +237,7 @@ procedure diskSimDsrOpen (var pab: TPab);
                     sectorPosition := 0;
                     currentSector := 0;
                     fillChar (sectors, sizeof (sectors), $e5 * ord (recordType = E_Fixed));
-                    
-                    plainText :=  forcePlain or useHostFiles and (datatype = E_Display) and (recordType = E_Variable);
-                        
+                    plainText :=  forcePlain or (operationMode = E_Output) and useHostFiles and (datatype = E_Display) and (recordType = E_Variable)
                 end
         end;
         
@@ -249,7 +254,16 @@ procedure diskSimDsrOpen (var pab: TPab);
         begin
             loadTiFiles (fileBuffer, errorCode);
             setErrorCode (pab, errorCode);
-            setRecordLength (pab, fileBuffer.recordLength)
+            if fileBuffer.plainText then
+                begin
+                    fileBuffer.plainTextFile := fileOpen (fileBuffer.simulatorFileName, false, false, false, false);
+                    if fileBuffer.plainTextFile = InvalidFileHandle then
+                        setErrorCode (pab, E_FileError)
+                    else if getRecordLength (pab) = 0 then
+                        setRecordLength (pab, 80)
+                end
+            else
+                setRecordLength (pab, fileBuffer.recordLength)
         end;
         
     procedure openUpdate (var fileBuffer: TFileBuffer);
@@ -350,25 +364,48 @@ procedure diskSimDsrRead (var pab: TPab);
     procedure readVariableRecord (var fileBuffer: TFileBuffer);
         var
             length: uint8;
+            buf: array [uint8] of char;
+            ch: char;
+            count: uint8;
         begin
             with fileBuffer do 
-                begin
-                    if sectors [currentSector, sectorPosition] = EofMarker then
-                        if currentSector >= maxSector then
+                if plainText then
+                    begin
+                        count := 0;
+                        write ('Reading: ');
+                        if fileRead (plainTextFile, addr (ch), 1) = 0 then
                             setErrorCode (pab, E_PastEOF)
                         else
+                            repeat
+                                if (ch <> chr (10)) and (ch <> chr (13)) and (count < getRecordLength (pab)) then
+                                    begin
+                                        buf [count] := ch;
+                                        inc (count);
+                                        write (ch)
+                                    end
+                            until (ch = chr (10)) or (fileRead (plainTextFile, addr (ch), 1) = 0);
+                        writeln;
+                        vdpTransferBlock (getBufferAddress (pab), count, buf, VdpWrite);
+                        setNumChars (pab, count)
+                    end
+                else
+                    begin
+                        if sectors [currentSector, sectorPosition] = EofMarker then
+                            if currentSector >= maxSector then
+                                setErrorCode (pab, E_PastEOF)
+                            else
+                                begin
+                                    inc (currentSector);
+                                    sectorPosition := 0
+                                end;
+                        if getErrorCode (pab) = E_NoError then
                             begin
-                                inc (currentSector);
-                                sectorPosition := 0
-                            end;
-                    if getErrorCode (pab) = E_NoError then
-                        begin
-                            length := sectors [currentSector, sectorPosition];
-                            vdpTransferBlock (getBufferAddress (pab), length, sectors [currentSector, sectorPosition + 1], VdpWrite);
-                            inc (sectorPosition, length + 1);
-                            setNumChars (pab, length)
-                        end
-                end
+                                length := sectors [currentSector, sectorPosition];
+                                vdpTransferBlock (getBufferAddress (pab), length, sectors [currentSector, sectorPosition + 1], VdpWrite);
+                                inc (sectorPosition, length + 1);
+                                setNumChars (pab, length)
+                            end
+                    end
         end;
             
     var
@@ -424,25 +461,22 @@ procedure diskSimDsrWrite (var pab: TPab);
                 end
             else 
                 begin
-
-            if getNumChars (pab) + 1 >= SectorSize - f.sectorPosition then
-                if f.maxSector + 1 >= MaxSectors then
-                    begin
-                        setErrorCode (pab, E_MemoryFull);
-                        exit
-                    end
-                else 
-                    begin
-                        f.sectors [f.maxSector, f.sectorPosition] := EofMarker;
-                        inc (f.maxSector);
-                        f.sectorPosition := 0
-                    end;
-            f.sectors [f.maxSector][f.sectorPosition] := getNumChars (pab);
-            vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), f.sectors [f.maxSector][f.sectorPosition + 1], VdpRead);
-            inc (f.sectorPosition, succ (getNumChars (pab)))
-            
+                    if getNumChars (pab) + 1 >= SectorSize - f.sectorPosition then
+                        if f.maxSector + 1 >= MaxSectors then
+                            begin
+                                setErrorCode (pab, E_MemoryFull);
+                                exit
+                            end
+                        else 
+                            begin
+                                f.sectors [f.maxSector, f.sectorPosition] := EofMarker;
+                                inc (f.maxSector);
+                                f.sectorPosition := 0
+                            end;
+                    f.sectors [f.maxSector][f.sectorPosition] := getNumChars (pab);
+                    vdpTransferBlock (getBufferAddress (pab), getNumChars (pab), f.sectors [f.maxSector][f.sectorPosition + 1], VdpRead);
+                    inc (f.sectorPosition, succ (getNumChars (pab)))
             end
-            
         end;
 
     var
@@ -465,11 +499,13 @@ procedure diskSimDsrRewind (var pab: TPab);
     begin
         filenr := findFile (pab, false, true);
         if filenr <> 0 then
-            with files [filenr] do
-                if files [filenr].operationMode = E_Append then
-                    setErrorCode (pab, E_FileError)
-                else
+            if files [filenr].operationMode = E_Append then
+                setErrorCode (pab, E_FileError)
+            else
+                with files [filenr] do
                     begin
+                        if plainText then
+                            fileSeek (plainTextFile, 0);
                         activeRecord := 0;
                         currentSector := 0;
                         sectorPosition := 0
@@ -587,18 +623,21 @@ procedure diskSimDsrStatus (var pab: TPab);
                 status := PabStatusFileNotFound
         else
             with files [filenr] do
-                begin
-                    status := PabStatusFileInternal * ord (dataType);
-                    if recordType = E_Variable then
-                        begin
-                            status := status or PabStatusFileVariable;
-                            if (currentSector > maxSector) or (sectors [currentSector, sectorPosition] = EofMarker) then
+                if plainText then
+                    status := PabStatusFileVariable or PabStatusEofReached * ord (fileEof (plainTextFile))
+                else
+                    begin
+                        status := PabStatusFileInternal * ord (dataType);
+                        if recordType = E_Variable then
+                            begin
+                                status := status or PabStatusFileVariable;
+                                if (currentSector > maxSector) or (sectors [currentSector, sectorPosition] = EofMarker) then
+                                    status := status or PabStatusEofReached
+                            end
+                        else
+                            if getRecordNumber (pab) > maxRecord then
                                 status := status or PabStatusEofReached
-                        end
-                    else
-                        if getRecordNumber (pab) > maxRecord then
-                            status := status or PabStatusEofReached
-                end;
+                    end;
         setStatus (pab, status)
     end;
     
@@ -612,8 +651,9 @@ procedure diskSimDsrRoutine;
         pabAddr := uint16 (readMemory ($8356) - (readMemory ($8354) and $ff) - 10);
         vdpTransferBlock (pabAddr, 10, pab, VdpRead);
         vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
+//        dumpPabOperation (pab);
         dsrOperation [getOperation (pab)] (pab);
-        if getOperation (pab) in [E_Open, E_Close] then
+//        if getOperation (pab) in [E_Open, E_Close] then
             dumpPabOperation (pab);
         vdpTransferBlock (pabAddr, 10, pab, VdpWrite)		// write back changes        
     end;

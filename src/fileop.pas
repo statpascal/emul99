@@ -13,7 +13,9 @@ type
 function fileOpen (fileName: string; writable, create, append, trunc: boolean): TFileHandle;
 function fileWrite (handle: TFileHandle; buf: pointer; size: int64): int64;
 function fileRead (handle: TFileHandle; buf: pointer; size: int64): int64;
+function filePos (handle: TFileHandle): int64;
 function fileSize (handle: TFileHandle): int64;
+function fileEof (handle: TFileHandle): boolean;
 function fileSeek (handle: TFileHandle; pos: int64): boolean;
 function filePollIn (handle: TFileHandle; waitMilliSecs: int32): boolean;
 function fileClose (handle: TFileHandle): boolean;
@@ -44,6 +46,11 @@ function fileRead (handle: TFileHandle; buf: pointer; size: int64): int64;
         fileRead := fdread (handle, buf, size)
     end;
     
+function filePos (handle: TFileHandle): int64;
+    begin
+        filePos := lseek (handle, 0, SEEK_CUR)
+    end;
+        
 function fileSize (handle: TFileHandle): int64;
     var
         currentPos: int64;
@@ -51,6 +58,11 @@ function fileSize (handle: TFileHandle): int64;
         currentPos := lseek (handle, 0, SEEK_CUR);
         fileSize := lseek (handle, 0, SEEK_END);
         lseek (handle, currentPos, SEEK_SET)
+    end;
+    
+function fileEof (handle: TFileHandle): boolean;
+    begin
+        fileEof := filePos (handle) = fileSize (handle)
     end;
     
 function fileSeek (handle: TFileHandle; pos: int64): boolean;
