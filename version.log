@@ -1,3 +1,6 @@
+Version 0.3 Beta 8
+- Corrected FIFO input for FCTN-S and FCTN-1
+
 Version 0.3 Beta 7
 - Optional saving of Dis/Var as plain text file on host
 

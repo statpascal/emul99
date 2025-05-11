@@ -25,8 +25,8 @@ procedure simulateKey (ch: uint8; shift, ctrl, fctn: boolean);
             (ch: 'A'; val: 124), (ch: 'C'; val:  96), (ch: 'F'; val: 123), (ch: 'G'; val: 125),
             (ch: 'I'; val:  63), (ch: 'O'; val:  39), (ch: 'P'; val:  34), (ch: 'R'; val:  91),
             (ch: 'T'; val:  93), (ch: 'U'; val:  95), (ch: 'W'; val: 126), (ch: 'Z'; val:  92),
-            (ch: 'S'; val:   9), (ch: 'D'; val:   9), (ch: 'X'; val:  10), (ch: 'E'; val:  11),
-            (ch: '0'; val: 188), (ch: '1'; val:   9), (ch: '2'; val:   4), (ch: '3'; val:   7),
+            (ch: 'S'; val:   8), (ch: 'D'; val:   9), (ch: 'X'; val:  10), (ch: 'E'; val:  11),
+            (ch: '0'; val: 188), (ch: '1'; val:   3), (ch: '2'; val:   4), (ch: '3'; val:   7),
             (ch: '4'; val:   2), (ch: '5'; val:  14), (ch: '6'; val:  12), (ch: '7'; val:   1),
             (ch: '8'; val:   6), (ch: '9'; val:  15), (ch: '='; val:   5));
     var
@@ -82,7 +82,9 @@ procedure consoleKscanHook;
                 writeRegister (6, readRegister (6) or $2000);
                 simKey := 0;
                 RTLEventSetEvent (keyDone)
-            end;
+            end
+        else if R0 shr 8 <> 255 then
+            writeln ('KEY press: ', R0 shr 8);
             
         // perform overwritten movb 0, @>8375 at >0478
         val := readMemory ($8374); 
