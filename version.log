@@ -1,22 +1,22 @@
-Version 0.9 Beta 10
+Version 0.2 Beta 10
 - Advisory file locking for output files on host
 
-Version 0.9 Beta 9
+Version 0.2 Beta 9
 - Reading of plain text files as Dis/Var
 
-Version 0.3 Beta 8
+Version 0.2 Beta 8
 - Corrected FIFO input for FCTN-S and FCTN-1
 
-Version 0.3 Beta 7
+Version 0.2 Beta 7
 - Optional saving of Dis/Var as plain text file on host
 
-Version 0.3 Beta 6
+Version 0.2 Beta 6
 - PAB logs for open/close
 
-Version 0.3 Beta 5
+Version 0.2 Beta 5
 - Allow multiple open of file in host directory PAB access
 
-Version 0.3 Beta 4
+Version 0.2 Beta 4
 - key_input working in "turbo mode"
 
 Version 0.2 Beta 3
