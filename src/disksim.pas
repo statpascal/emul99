@@ -278,7 +278,10 @@ procedure diskSimDsrOpen (var pab: TPab);
         begin
             createFile (fileBuffer, true);
             if fileBuffer.plainText then
-                fileBuffer.plainTextFile := fileOpen (fileBuffer.simulatorFileName, true, true, false, true)
+                begin
+                    fileBuffer.plainTextFile := fileOpen (fileBuffer.simulatorFileName, true, true, false, true);
+                    fileLock (fileBuffer.plainTextFile)
+                end
             else
                 loadTiFilesContent (fileBuffer)    (* Load and overwrite whatever is in the file *)
         end;

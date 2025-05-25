@@ -73,6 +73,11 @@ const
     POLLIN = 1;
     POLLOUT = 4;
     
+    LOCK_SH = 1;
+    LOCK_EX = 2;
+    LOCK_NB = 4;
+    LOCK_UN = 8;
+    
     AF_INET = 2;
     SOCK_STREAM = 1;
     SOCK_DGRAM = 2;
@@ -150,6 +155,8 @@ function mkfifo (pathname: pchar; mode: int32): int32; cdecl; external;
 function poll (fds: ptr_pollfd; nfds: int64; timeout: int32): int32; cdecl; external;
 function mmap (addr: pointer; length: int64; prot, flags, fd: int32; off_t: int64): pointer; cdecl; external;
 function munmap (addr: pointer; length: int64): int32; cdecl; external;
+function flock (fd, op: integer): integer; cdecl; external;
+
 procedure perror (s: pchar); cdecl; external;
 
 implementation

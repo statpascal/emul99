@@ -19,6 +19,7 @@ function fileEof (handle: TFileHandle): boolean;
 function fileSeek (handle: TFileHandle; pos: int64): boolean;
 function filePollIn (handle: TFileHandle; waitMilliSecs: int32): boolean;
 function fileClose (handle: TFileHandle): boolean;
+function fileLock (handle: TFileHandle): boolean;
 
 function fileMap (handle: TFileHandle; start, length: int64): pointer;
 function fileUnmap (p: pointer; length: int64): boolean;
@@ -84,6 +85,11 @@ function fileClose (handle: TFileHandle): boolean;
         fileClose := fdclose (handle) = 0
     end;
     
+function fileLock (handle: TFileHandle): boolean;
+    begin
+        fileLock := flock (handle, LOCK_EX) = 0
+    end;
+
 function fileMap (handle: TFileHandle; start, length: int64): pointer;
     begin
         fileMap := mmap (nil, length, PROT_READ or PROT_WRITE, MAP_SHARED, handle, start)

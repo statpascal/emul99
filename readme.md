@@ -217,11 +217,14 @@ XB.
 
 ## Disk access
 
-There are three ways to simulate disk access:
+There are several ways to simulate disk access:
 
 - The original DSR of the 90/180 KB TI disk controller
 - Files in TIFILES format in a configurable directory of the host
-- Special DSR for P-Code system (see below)
+- WebSocket interface of TiPi
+- Special DSR for P-Code system (see next section)
+
+### Uisk controller DSR
 
 The first option requires the original ROM of the disk controller; using the
 config entries "fdc_dsr" and "fdc_dsk1" to "fdc_dsk3" up to three disk
@@ -234,12 +237,15 @@ configuration.
     fdc_dsk2 = ../diskimages/test2.dsk
     fdc_dsk3 = ../diskimages/test3.dsk
 
+### Files on host system
+
 To store files in a host system directory, the config entries "disksim_dsr"
 and "disksim_dir" need to be specified.  The DSR in "roms/disksim.bin"
 provides DSK0 through DSK3.  
 
-    disksim_dsr = ../roms/disksim.bin
-    disksim_dir = ../diskfiles
+    disksim_dsr    = ../roms/disksim.bin
+    disksim_dir    = ../diskfiles
+    ; disksim_text = 1
 
 The host system DSR can be used together with the disk controller DSR: the
 latter one uses a lower CRU base resulting in only DSK0 pointing to the host
@@ -250,8 +256,41 @@ Note that the host system DSR does not provide sector based access to the disk o
 individual files (only PAB based operations are supported); in particular it
 is not possible to get a directory listing.
 
+Files are usually stored in TIFILES format, with several exceptions upon
+reading:
 
-## TiPi
+- Files used with load (PAB operation 5, OLD command in Basic) may omit the
+  TIFILES header
+- Plain text files can be loaded in DIS/VAR format; lines are truncated to
+  the length specified in the PAB.
+
+When saving DIS/VAR files, it is possible to omit the TIFILES header and
+write plain text files.
+
+- For single files by specifying the ?W. name prefix, e.g. using
+  DSK0.?W.FILENAME
+- For all files with the configuration option disksim_text=1
+
+With this option, it is not possible to append to an existing file.
+
+The emulator puts an exclusive advisory lock on the files it writes. Other
+programs needing to synchronize with its output can wait on this lock to
+ensure that a file has been closed. For example, while executing the following program
+
+    10 OPEN #1:"DSK0.?W.LOCKTEST", DISPLAY, VARIABLE 80, OUTPUT
+    20 FOR I=1 TO 500
+    30 PRINT #1:"This is line";I
+    40 NEXT I
+    50 CLOSE #1
+
+it is possible to wait for the file being closed  with the shell command
+
+    flock LOCKTEST echo "Got the lock"
+
+Opening and locking a file is not an atomic operation, so it is best to
+wait until some data has been written.
+
+### TiPi
 
 The TiPi hardware is simulated and can be used with the original DSR ROM (an
 assembled version is included in the "roms" directory).  On the Raspberry Pi

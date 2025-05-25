@@ -87,6 +87,7 @@ function saveBlock (var src; size: int64; fileName: string): int64;
             writeln ('File ', fileName, ': cannot open')
         else
             begin
+                fileLock (handle);
                 bytesWritten := fileWrite (handle, addr (src), size);
                 if bytesWritten <> size then
                     writeln  ('Problem saving ', fileName, ': only ', bytesWritten, ' of ', size, ' bytes written');
