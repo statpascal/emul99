@@ -224,7 +224,7 @@ There are several ways to simulate disk access:
 - WebSocket interface of TiPi
 - Special DSR for P-Code system (see next section)
 
-### Uisk controller DSR
+### Disk controller DSR
 
 The first option requires the original ROM of the disk controller; using the
 config entries "fdc_dsr" and "fdc_dsk1" to "fdc_dsk3" up to three disk

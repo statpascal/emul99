@@ -375,7 +375,6 @@ procedure diskSimDsrRead (var pab: TPab);
                 if plainText then
                     begin
                         count := 0;
-                        write ('Reading: ');
                         if fileRead (plainTextFile, addr (ch), 1) = 0 then
                             setErrorCode (pab, E_PastEOF)
                         else
@@ -383,11 +382,9 @@ procedure diskSimDsrRead (var pab: TPab);
                                 if (ch <> chr (10)) and (ch <> chr (13)) and (count < getRecordLength (pab)) then
                                     begin
                                         buf [count] := ch;
-                                        inc (count);
-                                        write (ch)
+                                        inc (count)
                                     end
                             until (ch = chr (10)) or (fileRead (plainTextFile, addr (ch), 1) = 0);
-                        writeln;
                         vdpTransferBlock (getBufferAddress (pab), count, buf, VdpWrite);
                         setNumChars (pab, count)
                     end
@@ -656,7 +653,7 @@ procedure diskSimDsrRoutine;
         vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
 //        dumpPabOperation (pab);
         dsrOperation [getOperation (pab)] (pab);
-//        if getOperation (pab) in [E_Open, E_Close] then
+        if getOperation (pab) in [E_Open, E_Close, E_Load, E_Save] then
             dumpPabOperation (pab);
         vdpTransferBlock (pabAddr, 10, pab, VdpWrite)		// write back changes        
     end;
