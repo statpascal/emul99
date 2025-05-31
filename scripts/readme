@@ -1,0 +1,8 @@
+The "scripts" directory contains the following:
+
+juwel7.sh
+
+A Bash script (Linux) to start Extented Basic or the Juwel7 Basic Compiler
+as post processing command in Stefan Bauch's TiCodEd. The complete 
+compilation process is automated and leads to a running program in about 
+10 seconds.
