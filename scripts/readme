@@ -1,8 +1,12 @@
 The "scripts" directory contains the following:
 
-juwel7.sh
+- juwel7.sh
 
 A Bash script (Linux) to start Extented Basic or the Juwel7 Basic Compiler
-as post processing command in Stefan Bauch's TiCodEd. The complete 
-compilation process is automated and leads to a running program in about 
-10 seconds.
+as post processing command in Stefan Bauch's TiCodEd.  The complete
+compilation process is automated and leads to a running program in about 10
+seconds.  For the selection menu of the Juwel7 package to work properly, the
+following line must be added to the LOAD program (pre-selecting the Compiler
+option):
+
+98 CALL PEEK(-7,R):: IF R<3 THEN CALL LOAD(-7,3)
