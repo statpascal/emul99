@@ -165,11 +165,12 @@ A line feed in the Terminal Emulator II module is generated with Ctrl+J.
 These mappings are defined in
 the file "ti99.pas" and can only be modified by editing the source file.
 
-Four function keys are used to change the execution speed of the simulated
+Five function keys are used to change the execution speed of the simulated
 system:
 
 | Key | Function |
 |-----|----------|
+| F4  | set frequency to 3 MHz |
 | F5  | restore CPU frequency to value in configuration file (default 3 MHz) |
 | F6  | set frequency to 1 GHz (resulting in maximum speed as current systems will not be able to actually achieve this) |
 | F7  | decrease CPU frequency by 1 MHz |

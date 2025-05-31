@@ -19,7 +19,7 @@ procedure setCpuFrequency (freq: int64);
 
 implementation
 
-uses memory, tms9900, fdccard, rs232card, disksim, tape, pcodecard, pcodedisk, tipi, tools, sysutils, types;
+uses memory, tms9900, fdccard, rs232card, disksim, tape, pcodecard, pcodedisk, tipi, tools, sysutils, types, math;
 
 var 
     pcode80: TPCode80Screen;
@@ -341,7 +341,7 @@ function getDefaultCpuFrequency: int64;
     
 procedure setCpuFrequency (freq: int64);
     begin
-        cpuFrequency := freq;
+        cpuFrequency := min (freq, 1000 * 1000 * 1000);
         cycleTime := (1000 * 1000 * 1000) div cpuFrequency
     end;
     

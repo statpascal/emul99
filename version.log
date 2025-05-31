@@ -1,3 +1,7 @@
+Version 0.2 Beta 11
+- Function key F4 sets CPU freq to 3 MHz
+- Post Processing script for TiCodEd to call Juwel7 Basic Compiler
+
 Version 0.2 Beta 10
 - Advisory file locking for output files on host
 

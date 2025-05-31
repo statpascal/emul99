@@ -5,7 +5,7 @@ uses cthreads, gtk3, cfuncs, sdl2, timer, memmap, sysutils, fileop,
 
 const
     KeyMapSize = 256;
-    VersionString = '0.2 Beta 10';
+    VersionString = '0.2 Beta 11';
     WindowTitle = 'Emul99';
 
 type
@@ -199,6 +199,8 @@ function windowKeyEvent (window: PGtkWidget; event: PTGdkEventKey; data: gpointe
         if event^.eventtype = GDK_KEY_PRESS then
             begin
                 case event^.keyval of
+                    GDK_KEY_F4:
+                        setCpuFrequency (3 * 1000 * 1000);
                     GDK_KEY_F5:
                         setCpuFrequency (getDefaultCpuFrequency);
                     GDK_KEY_F6:
