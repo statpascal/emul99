@@ -22,6 +22,19 @@ Emul99 provides the following features:
 
 ## Compiling Emul99
 
+Only the source code of the emulator is available; there is no binary
+distribution.  Two branches are present at Github: the "main" branch
+contains a reasonable stable version while the latest changes are in
+"develop" branch. To start, checkout the "main" branch with
+
+    git clone https://www.github.com/statpascal/emul99
+
+If you want to change to the develpment branch, the command 
+
+    git checkout develop
+
+can be used.
+
 To compile the emulator, a recent version of the Free Pascal Compiler
 (3.2.2 is recommended) and the GTK3, SDL2 and C library need to be
 installed. Examples for some systems are:
@@ -84,9 +97,9 @@ on the same disk images (see below).
 ## ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
-emulator. For a working setup, at least the console ROM and GROMs (combined
-into a single file and padded to 8 KB) are required. All config files in the
-bin directory include "common.cfg" which loads these ROMS.
+emulator.  For a working setup, at least the console ROM and GROMs (combined
+into a single file and padded to 8 KB) are required.  All config files in
+the bin directory include "common.cfg" which loads these ROMS.
 
     cpu_freq = 3000000
     console_rom = ../roms/994aROM.Bin
