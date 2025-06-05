@@ -2,7 +2,7 @@
 
 cd "$(dirname "$0")"/..
 
-WAIT_TIME=10
+WAIT_TIME=30
 USE_XAS99=true
 
 JUWEL_KEY_IN=/tmp/juwel_key_in
@@ -13,6 +13,8 @@ MERGE_FILE=DSK1.$1-M
 TXT_FILE_HOST=$DISKSIM_DIR/$1.TXT
 OBJ_FILE_HOST=$DISKSIM_DIR/$1.OBJ
 XB_FILE=$1
+
+export PATH=$PATH:/usr/local/bin
 
 if [ "$2" == "XB" ]; then
     KEY_IN=$XB_KEY_IN
@@ -88,6 +90,7 @@ start_emul99 () {
         echo "Starting emul99"
         rm -f $KEY_IN
         nohup bin/emul99 $CONFIG disksim_dir=$DISKSIM_DIR key_input=$KEY_IN >/dev/null &
+        until [ -p $KEY_IN ] ; do sleep 0.1; done
     fi
 }
 
@@ -132,10 +135,10 @@ handle_XB () {
 
 rm -f $TXT_FILE_HOST $OBJ_FILE_HOST
 start_emul99
-sleep 1
 maxspeed
-echo -n 22 > $KEY_IN
 sleep 1
+echo -n 22 > $KEY_IN
+sleep 2
 normspeed
 
 if [ $USE_XB == true ]; then
