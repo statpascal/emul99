@@ -2,8 +2,7 @@
 
 Emul99 is an emulator of the TI 99/4A home computer for Linux/MacOS
 that gives special focus on TI's UCSD P-code
-system. 
-It provides the following features:
+system.  It provides the following features:
 
 - Emulation of console with 32K extension/SAMS with 16 MByte
 - Hotkeys to change speed of simulated system (for compiling large programs)
@@ -237,7 +236,7 @@ There are several ways to simulate disk access:
 - The original DSR of the 90/180 KB TI disk controller
 - Files in TIFILES format in a configurable directory of the host
 - WebSocket interface of TiPi
-- Special DSR for P-Code system (see next section)
+- Special DSR for P-Code system
 
 ### Disk controller DSR
 
@@ -499,26 +498,21 @@ It can be sent to the file PRINTER with
 
 ## Implementation Notes
 
-The implementation is rather concise (about 5500 lines of Pascal source
-code without the UCSD disk manager) and uses libraries when possible. For
-example, one can set a sampling rate of 223722 with the SDL and implement
-sound output as the attenuator weighted sum of the toggling tone generators.
+The implementation is rather concise (about 5900 lines of Pascal source code
+without the UCSD disk manager).  A complete build of the emulator takes less
+than a second on a decent system, so it is easy to add debug output.  E.g. 
+a complete instruction trace can be activated by uncommenting a single line
+in "procedure executeInstruction" in file tms9900.pas
 
 CPU, VDP and the 9901 timer are interleaved and executed in a seperate
 thread; this thread will perform a sleep every millisecond to synchronize
-with real time.
+with real time. 
 
-The DSRs for the simulated devices (host directory and P-Code disk
-system) transform control to the emulator with an "XOP 0" instruction,
-specifying the requested operation as a dummy source address. The simulated
-TMS9900 dispatches these XOP calls in the file "xophandler.pas" when they
-occur in the DSR ROM address range. The high byte of the dummy source address
-equals the CRU base of the simulated device (the CRU bases are defined in
-types.pas)
-
-Instead of GTK3/Cairo, SDL2 could have been used for graphical output. Yet,
-as the emulator serves mainly as a test program for a Pascal compiler, the
-additional library is utilized to test its bindings.
+The DSRs for the simulated devices (host directory and P-Code disk system)
+as well as the keyboard hook for simulated input transform control to the
+emulator with an "XOP 0" instruction, specifying the requested operation as
+a dummy source address.  The simulated TMS9900 dispatches these XOP calls in
+the file "xophandler.pas"
 
 
 ## Known Bugs and Limitations
