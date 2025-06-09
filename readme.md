@@ -1,11 +1,9 @@
 # Emul99
 
-Emul99 is an emulator of the TI 99/4A home computer, implemented in the
-Pascal programming language and giving special focus on TI's UCSD P-code
-system. It uses GTK3/Cairo and SDL2 for graphics and sound and can be
-compiled with the Free Pascal Compiler (Delphi mode) under Linux and MacOS.
-
-Emul99 provides the following features:
+Emul99 is an emulator of the TI 99/4A home computer for Linux/MacOS
+that gives special focus on TI's UCSD P-code
+system. 
+It provides the following features:
 
 - Emulation of console with 32K extension/SAMS with 16 MByte
 - Hotkeys to change speed of simulated system (for compiling large programs)
@@ -14,16 +12,23 @@ Emul99 provides the following features:
 - Transfer tool for text files between host system and UCSD disk images
 - Several disk systems:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
-  * Program/data files in TIFILES format in host system directory
+  * Program/data files in TIFILES/plain text format in host system directory
   * DSR for P-code system with disk images of up to 16 MByte
 - TiPi access via its WebSocket interface
+- External simulation of keystrokes via FIFO
 - Cassette input/output using WAV files
 
 
 ## Compiling Emul99
 
 Only the source code of the emulator is available; there is no binary
-distribution.  Two branches are present at Github: the "main" branch
+distribution. Requirements for installation are:
+
+- Free Pascal Compiler (version 3.2.2 recommended)
+- GTK3 and SDL2
+- Original ROMs of the TI99 (not provided)
+
+Two branches are present at Github: the "main" branch
 contains a reasonable stable version while the latest changes are in
 "develop" branch. To start, checkout the "main" branch with
 
@@ -33,15 +38,11 @@ If you want to change to the develpment branch, the command
 
     git checkout develop
 
-can be used.
-
-To compile the emulator, a recent version of the Free Pascal Compiler
-(3.2.2 is recommended) and the GTK3, SDL2 and C library need to be
-installed. Examples for some systems are:
+can be used. The required build environment ca be installed as follows:
 
 - Debian/Raspberry Pi OS
 
-    apt-get install fpc libgtk-3-dev libsdl2-dev
+    sudo apt-get install fpc libgtk-3-dev libsdl2-dev
 
 - Ubuntu/Linux Mint
 
@@ -56,9 +57,9 @@ installed. Examples for some systems are:
 
 Executing the build script "compile-fpc.sh" generates the binaries "emul99"
 (the emulator) and "ucsddskman" (a disk image manager for UCSD text files)
-in the "bin" directory. The assembly of the DSR ROMs for the simulated
-devices and the dummy ROM is optional; these binaries are included in the
-distribution.
+in the "bin" directory.  As an alternative, a Lazarus project file is
+provided.  The assembly of the DSR ROMs for the simulated devices and the
+dummy ROM is optional; these binaries are included in the distribution.
 
 Changing to the "bin" directory and executing "emul99" starts the emulator
 with a simple dummy ROM image displaying a message.
