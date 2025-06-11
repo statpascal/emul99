@@ -56,10 +56,10 @@ If you want to change to the develpment branch, the command
 
 can be used. 
 
-Then execute the build the build script "compile-fpc.sh" which generates the
-binaries "emul99" (the emulator) and "ucsddskman" (a disk image manager for
-UCSD text files) in the "bin" directory.  As an alternative, a Lazarus
-project file is provided.  
+Then execute the build script "compile-fpc.sh" which generates the binaries
+"emul99" (the emulator) and "ucsddskman" (a disk image manager for UCSD text
+files) in the "bin" directory.  As an alternative, a Lazarus project file is
+provided.
 
 The assembly of the DSR ROMs for the simulated devices and the dummy ROM at
 the end of the build script is optional; these binaries are included in the
@@ -404,7 +404,7 @@ file in a disk image, it first needs to be removed.
 Overclocking the system (cpu_freq setting in the configuration file) might
 also be desirable.  The example configuration in ucsd-80.cfg uses a fivefold
 speed (15 MHz) which is close to making the keyboard unusable.  Using the
-hotkeys F4 through F8 (see above), the CPU frequence can be also be changed
+hotkeys F4 through F8 (see above), the CPU frequence can be changed
 temporarily.
 
 
