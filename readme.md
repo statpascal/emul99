@@ -5,15 +5,15 @@ that gives special focus on TI's UCSD P-code
 system.  It provides the following features:
 
 - Emulation of console with 32K extension/SAMS with 16 MByte
-- Hotkeys to change speed of simulated system (for compiling large programs)
-- Emulation of RS232 card
 - P-code card with optional 80 column/internal VDP dual screen
 - Transfer tool for text files between host system and UCSD disk images
+- Hotkeys to change speed of simulated system (for compiling large programs)
 - Several disk systems:
   * DS/SD floppy controller with original DSR ROM using 90/180 KByte sector images
   * Program/data files in TIFILES/plain text format in host system directory
   * DSR for P-code system with disk images of up to 16 MByte
 - TiPi access via its WebSocket interface
+- Emulation of RS232 card
 - External simulation of keystrokes via FIFO
 - Cassette input/output using WAV files
 
@@ -27,19 +27,9 @@ distribution. Requirements for installation are:
 - GTK3 and SDL2
 - Original ROMs of the TI99 (not provided)
 
-Two branches are present at Github: the "main" branch
-contains a reasonable stable version while the latest changes are in
-"develop" branch. To start, checkout the "main" branch with
+The required build environment can be installed as follows:
 
-    git clone https://www.github.com/statpascal/emul99
-
-If you want to change to the develpment branch, the command 
-
-    git checkout develop
-
-can be used. The required build environment ca be installed as follows:
-
-- Debian/Raspberry Pi OS
+- Debian/Raspberry Pi OS/Chromebook
 
     sudo apt-get install fpc libgtk-3-dev libsdl2-dev
 
@@ -54,11 +44,26 @@ can be used. The required build environment ca be installed as follows:
   The path to the installation directory (BREW_BASE) needs to be set to the
   base directory of Homebrew in the build script "compile-fpc.sh".
 
-Executing the build script "compile-fpc.sh" generates the binaries "emul99"
-(the emulator) and "ucsddskman" (a disk image manager for UCSD text files)
-in the "bin" directory.  As an alternative, a Lazarus project file is
-provided.  The assembly of the DSR ROMs for the simulated devices and the
-dummy ROM is optional; these binaries are included in the distribution.
+Two branches of the emulator are present at Github: the "main" branch
+contains a reasonable stable version while the latest changes are in the
+"develop" branch. To start, checkout the "main" branch with
+
+    git clone https://www.github.com/statpascal/emul99
+
+If you want to change to the develpment branch, the command 
+
+    git checkout develop
+
+can be used. 
+
+Then execute the build the build script "compile-fpc.sh" which generates the
+binaries "emul99" (the emulator) and "ucsddskman" (a disk image manager for
+UCSD text files) in the "bin" directory.  As an alternative, a Lazarus
+project file is provided.  
+
+The assembly of the DSR ROMs for the simulated devices and the dummy ROM at
+the end of the build script is optional; these binaries are included in the
+distribution.
 
 Changing to the "bin" directory and executing "emul99" starts the emulator
 with a simple dummy ROM image displaying a message.
@@ -74,9 +79,10 @@ The emulator is developed and tested using the following environments:
 ## Configuration
 
 The emulator is configured using text files which can be loaded by giving
-them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument is
-given, the default file "ti99.cfg" is used.  All options available are shown
-and described in "example.cfg".
+them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument
+is given, the default file "ti99.cfg" is used.  Configuration files for some
+cartridges and the UCSD system are povided as examples in the "bin"
+directory.  All options are shown and described in "example.cfg".
 
 Options may also be specified on the command line, overriding
 previous values (except P-code GROM files). E.g., to apply the "Disk Manager" to a
@@ -219,11 +225,11 @@ following codes:
 | 255 | ff  | quit emulator |
 
 The following example shows the feeding of a minimal program into XB,
-waiting for 1 second in the card selection and for 3 seconds after starting
+waiting for 1 second in the main menu and for 3 seconds after starting
 XB.
 
-    echo 1$'\xfb\x0a'2>KEY_IN	  # Wait 1s in menu screen
-    echo -n $'\xfb\x1e'>KEY_IN	  # Wait 3s for XB, no new line
+    echo -n 1$'\xfb\x0a'2>KEY_IN	# Wait 1s in menu screen
+    echo -n $'\xfb\x1e'>KEY_IN	  	# Wait 3s for XB, no new line
     echo 10 PRINT \"HELLO WORLD\">KEY_IN
     echo 20 END>KEY_IN
     echo RUN>KEY_IN
@@ -236,7 +242,7 @@ There are several ways to simulate disk access:
 - The original DSR of the 90/180 KB TI disk controller
 - Files in TIFILES format in a configurable directory of the host
 - WebSocket interface of TiPi
-- Special DSR for P-Code system
+- Special DSR for P-Code system (see next section)
 
 ### Disk controller DSR
 
@@ -324,6 +330,8 @@ probably not work.
 
 ## P-code simulation
 
+### Disk access in P-code
+
 The P-code system uses only sector based disk operations (subroutine >10 of
 the DSR) which can address a maximum of 65536 disk sectors with 256 bytes
 each. Correspondingly, the P-code system can utilize 32768 blocks with 512
@@ -359,6 +367,8 @@ well:
     fdc_dsk2 = ../diskimages/ucsd_pascal_editor_filer_1.dsk
     fdc_dsk3 = ../diskimages/ucsd_pascal_editor_filer_2.dsk
 
+### Screen options
+
 An internal 80x24 screen image is maintained at memory address 2000h.  The
 emulator provides a flag "pcode_screen80" to use this image instead of or
 in addition to the output created by the VDP (see ucsd-80.cfg) to display 80
@@ -369,10 +379,13 @@ columns of text:
     ; for dual screen display, use 
     ; pcode_screen80 = 2
 
-With SAMS support enabled, it is assumed that the mapping
-of the 3rd memory page (containing the screen buffer) uses the default value
-of the transparent mode (is is safe to temporarily use the page for other
-purposes).
+With SAMS support enabled, it is assumed that the mapping of the 3rd memory
+page (which contains the screen buffer) uses the default value of the
+transparent mode. It is safe to temporarily use the page for other
+purposes, but moving the screen buffer to another page will require
+patches in the function getPcodeScreenBuffer in the emulator source.
+
+### UCSD disk manager
 
 A simple tool (ucsddiskman) can list the contents of a UCSD disk image and
 copy text files between the host system and disk images. It provides the
@@ -386,9 +399,13 @@ following options:
 Files are only added after the last used block. To update an existing text
 file in a disk image, it first needs to be removed.
 
+### Overclocking
+
 Overclocking the system (cpu_freq setting in the configuration file) might
-also be desirable. The example configuration in ucsd-80.cfg uses a fivefold
-speed (15 MHz) which is close to making the keyboard unusable. 
+also be desirable.  The example configuration in ucsd-80.cfg uses a fivefold
+speed (15 MHz) which is close to making the keyboard unusable.  Using the
+hotkeys F4 through F8 (see above), the CPU frequence can be also be changed
+temporarily.
 
 
 ## Multiple Instances
@@ -541,12 +558,11 @@ the file "xophandler.pas"
 The emulator would not have been possible without Thierry Nouspikel's
 TI-99/4A Tech Pages (http://www.nouspikel.com/ti99/titechpages.htm). 
 Whenever something remained unclear, the implementations of Rasmus
-Moustgaard's JS99er (https://js99er.net), Mike Brent's Classic99
-(http://harmlesslion.com/software/classic99) and Marc Rousseau's TI-99/Sim
+Moustgaard's JS99er (https://github.com/Rasmus-M/js99er-angular), Mike Brent's Classic99
+(https://github.com/tursilion/classic99) and Marc Rousseau's TI-99/Sim
 (https://www.mrousseau.org/programs/ti99sim) were helpful. Many ideas, e.g. 
 implementing the 32K word address space of the TMS9900 as an array of
-read/write functions, were taken from JS99er while the wait states for
-the memory mapped devices are based upon Classic99.
+read/write functions, were taken from JS99er.
 
 
 ## License
