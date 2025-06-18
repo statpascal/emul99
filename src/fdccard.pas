@@ -144,16 +144,16 @@ function findReadWritePosition (cmd: uint16): TUint8Ptr;
     var
         res: TUint8Ptr;
     begin
-        writeln ('Disk:     ', activeDisk);
-        writeln ('Side:     ', selectedSide);
-        writeln ('Track:    ', activeTrack);
-        writeln ('Sector:   ', regs.sector);
+//        writeln ('Disk:     ', activeDisk);
+//        writeln ('Side:     ', selectedSide);
+//        writeln ('Track:    ', activeTrack);
+//        writeln ('Sector:   ', regs.sector);
         if activeTrack = regs.track then
             res := getDiskPointer (activeDisk, selectedSide, activeTrack, regs.sector)
         else
             res := nil;
-        writeln ('Offset:   ', system.hexStr (int64 (res) - int64 (disks [activeDisk]), 8));
-        writeln;
+//        writeln ('Offset:   ', system.hexStr (int64 (res) - int64 (disks [activeDisk]), 8));
+//        writeln;
         if res <> nil then
             begin
                 bytesLeft := SectorSize * ifthen (cmd and $10 <> 0, DiskSectors - regs.sector, 1);
@@ -216,7 +216,7 @@ procedure handleWriteTrack (cmd: uint8);
 procedure handleCommand (cmd: uint8);
     begin
         terminateActiveCommand;
-        writeln ('FDC cmd:  ', hexstr2 (cmd));
+//        writeln ('FDC cmd:  ', hexstr2 (cmd));
         if activeDisk <> 0 then
             if disks [activeDisk] <> nil then
                 case cmd of

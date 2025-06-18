@@ -234,8 +234,14 @@ function getWaitStates: uint8;
 procedure loadConsoleRom (filename: string);
     begin
         loadBlock (mem, MaxAddress, 0, filename, true);
-        mem [$0478 shr 1] := htons ($2C20);
-        mem [$047A shr 1] := htons ($0478)	// hook keyboard with XOP 0, @0478
+        if (mem [$0478 shr 1] = ntohs ($D800)) and (mem [$047A shr 1] = ntohs ($8375)) then
+            // keyboard hook: replace MOVB R0, @>8375 with XOP 0, @>0478
+            begin
+                mem [$0478 shr 1] := htons ($2C20);
+                mem [$047A shr 1] := htons ($0478)
+            end
+        else
+            writeln ('Warning: unexpected ROM - key input via FIFO does not work')
     end;
     
 procedure loadConsoleGroms (filename: string);

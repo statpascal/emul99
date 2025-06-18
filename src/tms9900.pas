@@ -214,7 +214,7 @@ procedure addSub (var status: uint16; a, b: uint16; var res1: uint16; isSub: boo
     var 
         res: uint16;
     begin
-        res := b + a * (1 - 2 * ord (isSub));
+        res := uint16 (b + a * (1 - 2 * ord (isSub)));
         // TODO: Evaluation of carry fails when using ref parameter res1 in boolean expression - compiler bug?
         status := getWordStatus (res) and (Status_LGT or Status_AGT or Status_EQ) 
                     or Status_C * ord ((res < b) or ((a = 0) and isSub))
@@ -252,7 +252,7 @@ function getGeneralAddress (T: uint8; reg: uint8; var addr: uint16; byteOp: bool
                     if reg = 0 then
                         res := addr
                     else 
-                        res := addr + readRegister (reg)
+                        res := uint16 (addr + readRegister (reg))
                 end;
             3:
                 begin

@@ -360,13 +360,17 @@ procedure initUnit;
     end;
 
 initialization
-    initUnit
+    begin
+        initUnit
+    end;
     
 finalization
-    if rs232Started then
-        begin
-            rs232Stopped := true;
-            waitForThreadTerminate (serialReadThreadId, 0)
-        end
+    begin
+        if rs232Started then
+            begin
+                rs232Stopped := true;
+                waitForThreadTerminate (serialReadThreadId, 0)
+            end
+    end;
 
 end.
