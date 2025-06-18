@@ -66,7 +66,9 @@ the end of the build script is optional; these binaries are included in the
 distribution.
 
 Changing to the "bin" directory and executing "emul99" starts the emulator
-with a simple dummy ROM image displaying a message.
+with a simple dummy ROM image displaying a message. At this point, the 
+emulator is running - but to do anything useful the original ROMs (see
+section ROM files below) need to be copied to the "roms" directory.
 
 The emulator is developed and tested using the following environments:
 
@@ -79,10 +81,14 @@ The emulator is developed and tested using the following environments:
 ## Configuration
 
 The emulator is configured using text files which can be loaded by giving
-them as command line arguments; e.g.  "emul99 exbasic.cfg".  If no argument
-is given, the default file "ti99.cfg" is used.  Configuration files for some
-cartridges and the UCSD system are povided as examples in the "bin"
-directory.  All options are shown and described in "example.cfg".
+them as command line arguments; e.g.  "emul99 exbasic.cfg".  These config
+files load cartridges, activate optional hardware and configure file
+names/directories for disk images.
+
+If no config file is given as argument, the default file "ti99.cfg" is used. 
+Configuration files for some cartridges and the UCSD system are povided as
+examples in the "bin" directory.  All options are shown and described in
+"example.cfg".
 
 Options may also be specified on the command line, overriding
 previous values (except P-code GROM files). E.g., to apply the "Disk Manager" to a
@@ -234,6 +240,9 @@ XB.
     echo 20 END>KEY_IN
     echo RUN>KEY_IN
 
+A more realistic example in "scripts/juwel.sh" shows how the emulator can be
+automated from Stefan Bauch's TiCodEd to compile, assemble and run a BASIC
+program.
 
 ## Disk access
 
