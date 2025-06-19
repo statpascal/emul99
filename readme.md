@@ -55,17 +55,17 @@ If you want to change to the develpment branch, the command
     git checkout develop
 
 can be used. The checkout creates the following directory structure in
-the working directory (which is subsequently used by the example)
+the working directory (which is subsequently used by the example):
 
 ```
 └── emul99
     ├── bin			Binaries and config files
-    ├── diskfiles		Disk files (TIFILES format)
+    ├── diskfiles		Disk files (TIFILES or plain text)
     ├── diskimages		Disk images (sector dumps)
     ├── modules			ROMs/GROMs of cartridges
     ├── roms			Console, P-code and DSR ROMs/GROMs
     ├── scripts			Helper scripts
-    └── src			Pascal source code
+    └── src			Pascal and assembler source code
         └── fpcunits
 ``` 
 
@@ -88,7 +88,7 @@ section ROM files below) need to be copied to the "roms" directory.
 ## Configuration
 
 The emulator is configured using text files which can be loaded by giving
-them as command line arguments; e.g.  "./emul99 exbasic.cfg".  These config
+them as command line arguments; e.g. `./emul99 exbasic.cfg`.  These config
 files load cartridges, activate optional hardware and configure file
 names/directories for disk images.
 
@@ -216,13 +216,16 @@ incomplete list is e.g. in the source file src/fpcunits/gtk3.pas.
 
     reset_key = 65299
 
+### Simulating key presses
+
 Key presses can be simulated by sending them to an optional named pipe that
 is configured with
 
     key_input = name
 
-Printable characters can be sent as is; in addition the emulator handles the
-following codes:
+The emulator will create the named pipe if it does not exist.  Printable
+characters can be sent as is; in addition the emulator handles the following
+codes:
 
 | Dez | Hex | Function |
 |---- |-----|----------|
@@ -244,7 +247,7 @@ waiting for 1 second in the main menu and for 3 seconds after starting
 XB.
 
     echo -n 1$'\xfb\x0a'2>KEY_IN	# Wait 1s in menu screen
-    echo -n $'\xfb\x1e'>KEY_IN	  	# Wait 3s for XB, no new line
+    echo -n $'\xfb\x1e'>KEY_IN	  	# Wait 3s for XB
     echo 10 PRINT \"HELLO WORLD\">KEY_IN
     echo 20 END>KEY_IN
     echo RUN>KEY_IN
