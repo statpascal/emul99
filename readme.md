@@ -57,17 +57,17 @@ If you want to change to the develpment branch, the command
 can be used. The checkout creates the following directory structure in
 the working directory (which is subsequently used by the example)
 
-    ```
-    └── emul99
-        ├── bin			Binaries and config files
-        ├── diskfiles		Disk files (TIFILES format)
-        ├── diskimages		Disk images (sector dumps)
-        ├── modules		ROMs/GROMs of cartridges
-        ├── roms		Console, P-code and DSR ROMs/GROMs
-        ├── scripts		Helper scripts
-        └── src			Pascal source code
-            └── fpcunits
-    ``` 
+```
+└── emul99
+    ├── bin			Binaries and config files
+    ├── diskfiles		Disk files (TIFILES format)
+    ├── diskimages		Disk images (sector dumps)
+    ├── modules			ROMs/GROMs of cartridges
+    ├── roms			Console, P-code and DSR ROMs/GROMs
+    ├── scripts			Helper scripts
+    └── src			Pascal source code
+        └── fpcunits
+``` 
 
 Change to the "emul99" directory and execute the build script
 "compile-fpc.sh" which generates the binaries "emul99" (the emulator) and
