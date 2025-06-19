@@ -37,16 +37,16 @@ The required build environment can be installed as follows:
 
     sudo apt install fp-compiler libsdl2-dev libgtk-3-dev build-essential
 
-- MacOS
+- MacOS (with HomeBrew)
 
     brew install fpc sdl2 gtk+3
 
-  The path to the installation directory (BREW_BASE) needs to be set to the
+  The path BREW_BASE needs to be set to the
   base directory of Homebrew in the build script "compile-fpc.sh".
 
-Two branches of the emulator are present at Github: the "main" branch
+Two branches of the emulator are present at Github: the *main* branch
 contains a reasonable stable version while the latest changes are in the
-"develop" branch. To start, checkout the "main" branch with
+*develop* branch. To start, checkout the "main" branch with
 
     git clone https://www.github.com/statpascal/emul99
 
@@ -69,20 +69,20 @@ the working directory (which is subsequently used by the example):
         └── fpcunits
 ``` 
 
-Change to the "emul99" directory and execute the build script
-"compile-fpc.sh" which generates the binaries "emul99" (the emulator) and
-"ucsddskman" (a disk image manager for UCSD text files) in the "bin"
+Change to the *emul99* directory and execute the build script
+*compile-fpc.sh* which generates the binaries *emul99* (the emulator) and
+*ucsddskman* (a disk image manager for UCSD text files) in the *bin*
 directory.  As an alternative, a Lazarus project file is provided in the
-"src" directory.
+*src* directory.
 
 The assembly of the DSR ROMs for the simulated devices and the dummy ROM at
 the end of the build script is optional; these binaries are included in the
 distribution.
 
-Changing to the "bin" directory and executing "emul99" starts the emulator
+Changing to the *bin* directory and executing *emul99* starts the emulator
 with a simple dummy ROM image displaying a message. At this point, the 
 emulator is running - but to do anything useful the original ROMs (see
-section ROM files below) need to be copied to the "roms" directory.
+section ROM files below) need to be copied to the *roms* directory.
 
 
 ## Configuration
@@ -92,21 +92,23 @@ them as command line arguments; e.g. `./emul99 exbasic.cfg`.  These config
 files load cartridges, activate optional hardware and configure file
 names/directories for disk images.
 
-If no config file is given as argument, the default file "ti99.cfg" is used. 
-Configuration files for some cartridges and the UCSD system are povided as
-examples in the "bin" directory.  All options are shown and described in
-"example.cfg".
+If no config file is given as argument, the default file *ti99.cfg* is used. 
+Example configuration files for some cartridges and the UCSD system are
+povided in the *bin* directory.  All options are shown and described in
+*example.cfg*.
 
-Options may also be specified on the command line, overriding
-previous values (except P-code GROM files). E.g., to apply the "Disk Manager" to a
-a disk different from the one given in the config file the command
+Options may also be specified on the command line, overriding previous
+values (except P-code GROM files).  E.g., to apply the *Disk Manager* to a a
+disk different from the one given in the config file the command
 
     bin/emul99 bin/diskman.cfg fdc_dsk1=diskimages/disk1.dsk
 
 may be used.
 
-Pathes given in config file are relative to the location of the config file while pathes
-provided on the command line are relative to the current working directory.
+Pathes given in config file are relative to the location of the config file
+while pathes provided on the command line are relative to the current
+working directory.  Absolute pathes (starting with a slash '/') may also be
+used.
 
 It is not possible to change any part of the configuration (e.g., disk
 images or cartridges) while the emulator is running. This can be mitigated
@@ -117,13 +119,13 @@ on the same disk images (see below).
 ## ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
-emulator.  The directory "roms" contains a file "roms.txt" showing the file
+emulator.  The directory *roms* contains a file *roms.txt* showing the file
 names, sizes and MD5 hashes as they are expected by the various
 configuration files.
 
 For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required.  All config files in
-the bin directory include "common.cfg" which loads these ROMS.
+the bin directory include *common.cfg* which loads these ROMS.
 
     cpu_freq = 3000000
     console_rom = ../roms/994aROM.Bin
@@ -137,9 +139,9 @@ Additional ROMs that can be utilized are
 - the ROMs/GROMs of the P-code card.  
 
 Multiple GROM bases within the console are not supported. Cartridge ROMs
-can be bank switched and inverted (option "cart_inverted"). 
+can be bank switched and inverted (option *cart_inverted*). 
 For a bank switched ROM, either multiple
-8 KB files (e.g., the card_rom entries in exbasic.cfg) or a single large
+8 KB files (e.g., the *card_rom* entries in *exbasic.cfg*) or a single large
 file may be specified.
 
 For example, to load a typical cartridge consisting of a ROM and GROM image,
@@ -163,7 +165,7 @@ just
 ## System Memory
 
 Without further options, only the console with 16 KByte VDP RAM and the 256
-byte scratch pad is simulated. The option "mem_ext" activates either a
+byte scratch pad is simulated. The option *mem_ext* activates either a
 standard 32 KByte extension with 
 
     mem_ext = 2
@@ -172,11 +174,11 @@ or a 16 MByte SAMS extension with
 
     mem_ext = 1
 
-The older key "mem_32k_ext" can also be used for compatibility with previous
+The older key *mem_32k_ext* can also be used for compatibility with previous
 versions of the emulator.
 
 When loading the MiniMemory module, its 4 KByte RAM needs to be activated
-seperately with "cart_minimem":
+seperately with *cart_minimem*:
 
     cart_rom = ../modules/MiniMemC.Bin
     cart_groms = ../modules/MiniMemG.Bin
@@ -197,7 +199,7 @@ Keys are mapped to a standard keyboard.
 
 A line feed in the Terminal Emulator II module is generated with Ctrl+J.
 These mappings are defined in
-the file "ti99.pas" and can only be modified by editing the source file.
+the file *ti99.pas* and can only be modified by editing the source file.
 
 Five function keys are used to change the execution speed of the simulated
 system:
@@ -210,9 +212,9 @@ system:
 | F7  | decrease CPU frequency by 1 MHz |
 | F8  | increase CPU frequency by 1 MHz |
 
-A reset key can be configured using the "reset_key" option; it defaults to
-the Pause/Break key. The "magic numbers" are the key codes of GTK3; a rather
-incomplete list is e.g. in the source file src/fpcunits/gtk3.pas.
+A reset key can be configured using the *reset_key* option; it defaults to
+the Pause/Break key. The magic numbers are the key codes of GTK3; a rather
+incomplete list is e.g. in the source file *src/fpcunits/gtk3.pas*.
 
     reset_key = 65299
 
@@ -252,7 +254,7 @@ XB.
     echo 20 END>KEY_IN
     echo RUN>KEY_IN
 
-A more realistic example in "scripts/juwel.sh" shows how the emulator can be
+A more realistic example in *scripts/juwel.sh* shows how the emulator can be
 automated from Stefan Bauch's TiCodEd to compile, assemble and run a BASIC
 program.
 
@@ -268,7 +270,7 @@ There are several ways to simulate disk access:
 ### Disk controller DSR
 
 The first option requires the original ROM of the disk controller; using the
-config entries "fdc_dsr" and "fdc_dsk1" to "fdc_dsk3" up to three disk
+config entries *fdc_dsr* and *fdc_dsk1* through *fdc_dsk3* up to three disk
 images (92160 bytes for SS/SD, 184320 bytes for DS/SD) can be loaded.  It
 provides DSK1 through DSK3 devices. The following example shows a typical
 configuration.
@@ -280,8 +282,8 @@ configuration.
 
 ### Files on host system
 
-To store files in a host system directory, the config entries "disksim_dsr"
-and "disksim_dir" need to be specified.  The DSR in "roms/disksim.bin"
+To store files in a host system directory, the config entries *disksim_dsr*
+and *disksim_dir* need to be specified.  The DSR in *roms/disksim.bin*
 provides DSK0 through DSK3.  
 
     disksim_dsr    = ../roms/disksim.bin
@@ -334,7 +336,7 @@ wait until some data has been written.
 ### TiPi
 
 The TiPi hardware is simulated and can be used with the original DSR ROM (an
-assembled version is included in the "roms" directory).  On the Raspberry Pi
+assembled version is included in the *roms* directory).  On the Raspberry Pi
 side, WebSocket emulation mode needs to be enabled; the file README.md in
 the emulation directory of the tipi installation provides further details. 
 IP and port of the WebSocket server are set in a config file as shown; see
@@ -372,7 +374,7 @@ The images files can be created with dd; e.g. use
     dd if=/dev/zero of=blank.disk bs=512 count=32768 
 
 to create a disk image of maximal size. A UCSD file system can then be
-added from within the P-code system with the "Zero" option of the Filer,
+added from within the P-code system with the *Zero* option of the Filer,
 which will ask for the number of blocks on the disk (with 32767 being the
 maximum).
 
@@ -391,7 +393,7 @@ well:
 ### Screen options
 
 An internal 80x24 screen image is maintained at memory address 2000h.  The
-emulator provides a flag "pcode_screen80" to use this image instead of or
+emulator provides a flag *pcode_screen80* to use this image instead of or
 in addition to the output created by the VDP (see ucsd-80.cfg) to display 80
 columns of text:
 
@@ -540,7 +542,7 @@ The implementation is rather concise (about 5900 lines of Pascal source code
 without the UCSD disk manager).  A complete build of the emulator takes less
 than a second on a decent system, so it is easy to add debug output.  E.g. 
 a complete instruction trace can be activated by uncommenting a single line
-in "procedure executeInstruction" in file tms9900.pas
+in *procedure executeInstruction* in file tms9900.pas
 
 CPU, VDP and the 9901 timer are interleaved and executed in a seperate
 thread; this thread will perform a sleep every millisecond to synchronize
@@ -548,9 +550,9 @@ with real time.
 
 The DSRs for the simulated devices (host directory and P-Code disk system)
 as well as the keyboard hook for simulated input transform control to the
-emulator with an "XOP 0" instruction, specifying the requested operation as
+emulator with an *XOP 0* instruction, specifying the requested operation as
 a dummy source address.  The simulated TMS9900 dispatches these XOP calls in
-the file "xophandler.pas"
+the file *xophandler.pas*
 
 The emulator is developed and tested using the following environments:
 
@@ -567,7 +569,7 @@ The emulator is developed and tested using the following environments:
   access and cannot read directory information. Software requiring this may
   use the original disk controller DSR.
 - TI's GROM address counter jumps to the beginning of the respective GROM when
-  6K is reached. This behaviour is implemented in "grom.pas" but may be
+  6K is reached. This behaviour is implemented in *grom.pas* but may be
   incompatible with larger 3rd party GROMs.
 - Comparing the performance of a BASIC program with that of a real machine, 
   the emulator is about 5% too fast. 
@@ -575,7 +577,7 @@ The emulator is developed and tested using the following environments:
   assumed that its settings remain unchanged during the sampling interval.
   Changes occuring during that interval should be recorded with a CPU
   timestamp and handled when generating output.
-- An infinite recursion of "X" operations crashes the emulator with a stack
+- An infinite recursion of *X* operations crashes the emulator with a stack
   overflow.
 - The emulation of the RS232 card provides only the functionality used by TI's DSR.
 
@@ -597,7 +599,7 @@ read/write functions, were taken from JS99er.
 Copyright 2022 - 2025 Michael Thomas
 
 Emul99 is licensed under the GNU General Public License version 2 - see
-the file "COPYING" in this directory for details.
+the file *COPYING* in this directory for details.
 
 The TiPi DSR ROM (file roms/tipi.bin) is public domain software released
 under the Unlicense.
