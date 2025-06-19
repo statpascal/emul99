@@ -54,12 +54,24 @@ If you want to change to the develpment branch, the command
 
     git checkout develop
 
-can be used. 
+can be used. The checkout creates the following directory structure in
+the working directory (which is subsequently used by the example)
+    .
+    └── emul99
+        ├── bin			Binaries and config files
+        ├── diskfiles		Disk files (TIFILES format)
+        ├── diskimages		Disk images (sector dumps)
+        ├── modules		ROMs/GROMs of cartridges
+        ├── roms		Console, P-code and DSR ROMs/GROMs
+        ├── scripts		Helper scripts
+        └── src			Pascal source code
+            └── fpcunits
 
-Then execute the build script "compile-fpc.sh" which generates the binaries
-"emul99" (the emulator) and "ucsddskman" (a disk image manager for UCSD text
-files) in the "bin" directory.  As an alternative, a Lazarus project file is
-provided.
+Change to the "emul99" directory and execute the build script
+"compile-fpc.sh" which generates the binaries "emul99" (the emulator) and
+"ucsddskman" (a disk image manager for UCSD text files) in the "bin"
+directory.  As an alternative, a Lazarus project file is provided in the
+"src" directory.
 
 The assembly of the DSR ROMs for the simulated devices and the dummy ROM at
 the end of the build script is optional; these binaries are included in the
@@ -70,18 +82,11 @@ with a simple dummy ROM image displaying a message. At this point, the
 emulator is running - but to do anything useful the original ROMs (see
 section ROM files below) need to be copied to the "roms" directory.
 
-The emulator is developed and tested using the following environments:
-
-- openSuse Tumbleweed (x64): main development system
-- Raspberry Pi OS (Debian bookworm) on Pi 4
-- Linux environment of ARM Chromebook (Debian bookworm)
-- MacOS 14 Sonoma (x64)
-
 
 ## Configuration
 
 The emulator is configured using text files which can be loaded by giving
-them as command line arguments; e.g.  "emul99 exbasic.cfg".  These config
+them as command line arguments; e.g.  "./emul99 exbasic.cfg".  These config
 files load cartridges, activate optional hardware and configure file
 names/directories for disk images.
 
@@ -97,6 +102,7 @@ a disk different from the one given in the config file the command
     bin/emul99 bin/diskman.cfg fdc_dsk1=diskimages/disk1.dsk
 
 may be used.
+
 Pathes given in config file are relative to the location of the config file while pathes
 provided on the command line are relative to the current working directory.
 
@@ -109,7 +115,11 @@ on the same disk images (see below).
 ## ROM files
 
 The original ROMs are copyrighted and cannot be distributed with the
-emulator.  For a working setup, at least the console ROM and GROMs (combined
+emulator.  The directory "roms" contains a file "roms.txt" showing the file
+names, sizes and MD5 hashes as they are expected by the various
+configuration files (the names follow 
+
+For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required.  All config files in
 the bin directory include "common.cfg" which loads these ROMS.
 
@@ -123,9 +133,6 @@ Additional ROMs that can be utilized are
 - the DSR of the TiPi (included in the package), 
 - the DSR of the RS232 card,
 - the ROMs/GROMs of the P-code card.  
-
-The directory "roms" contains a file "roms.txt" showing the file names and
-their sizes as they are expected by the various configuration files.
 
 Multiple GROM bases within the console are not supported. Cartridge ROMs
 can be bank switched and inverted (option "cart_inverted"). 
@@ -540,6 +547,12 @@ emulator with an "XOP 0" instruction, specifying the requested operation as
 a dummy source address.  The simulated TMS9900 dispatches these XOP calls in
 the file "xophandler.pas"
 
+The emulator is developed and tested using the following environments:
+
+- openSuse Tumbleweed (x64): main development system
+- Raspberry Pi OS (Debian bookworm) on Pi 4
+- Linux environment of ARM Chromebook (Debian bookworm)
+- MacOS 14 Sonoma (x64)
 
 ## Known Bugs and Limitations
 
