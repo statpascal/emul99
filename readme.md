@@ -119,7 +119,7 @@ on the same disk images (see below).
 The original ROMs are copyrighted and cannot be distributed with the
 emulator.  The directory "roms" contains a file "roms.txt" showing the file
 names, sizes and MD5 hashes as they are expected by the various
-configuration files (the names follow 
+configuration files.
 
 For a working setup, at least the console ROM and GROMs (combined
 into a single file and padded to 8 KB) are required.  All config files in
