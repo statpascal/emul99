@@ -42,11 +42,11 @@ The required build environment can be installed as follows:
     brew install fpc sdl2 gtk+3
 
   The path BREW_BASE needs to be set to the
-  base directory of Homebrew in the build script "compile-fpc.sh".
+  base directory of Homebrew in the build script *compile-fpc.sh*.
 
 Two branches of the emulator are present at Github: the *main* branch
 contains a reasonable stable version while the latest changes are in the
-*develop* branch. To start, checkout the "main" branch with
+*develop* branch. To start, checkout the *main* branch with
 
     git clone https://www.github.com/statpascal/emul99
 
@@ -80,9 +80,9 @@ the end of the build script is optional; these binaries are included in the
 distribution.
 
 Changing to the *bin* directory and executing *emul99* starts the emulator
-with a simple dummy ROM image displaying a message. At this point, the 
-emulator is running - but to do anything useful the original ROMs (see
-section ROM files below) need to be copied to the *roms* directory.
+with a simple dummy ROM displaying a message.  At this point, the emulator
+is running - but to do anything useful the original ROMs (see section ROM
+files below) need to be copied to the *roms* directory.
 
 
 ## Configuration
