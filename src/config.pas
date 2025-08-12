@@ -17,6 +17,10 @@ function getCycleTime: int64;
 function getDefaultCpuFrequency: int64;
 procedure setCpuFrequency (freq: int64);
 
+function getCycleCountStartAddr: uint16;
+function getCycleCountEndAddr: uint16;
+
+
 implementation
 
 uses memory, tms9900, fdccard, rs232card, disksim, tape, pcodecard, pcodedisk, tipi, tools, sysutils, types, math;
@@ -39,6 +43,8 @@ var
     useMiniMem: boolean;
     resetKey: integer;
     keyInFifo: string;
+    cycleCountStartAddr, cycleCountEndAddr: uint16;
+    cycleCountRange: string;
     
     pcodeRomFilenames: TPcodeRomFilenames;
     cpuFrequency, defaultCpuFrequency, cycleTime: int64;
@@ -46,11 +52,11 @@ var
 procedure evaluateKey (key, value, path: string; var success: boolean);
     type
         TKeyType = (CpuFreq, Mem32KExt, MemExt, ConsoleRom, ConsoleGroms, CartRom, CartGroms, DiskSimDsr, DiskSimDir, DiskSimText, FdcDsr, FdcDisk1, FdcDisk2, FdcDisk3, PcodeDsrLow, PCodeDsrHigh, PCodeGrom, PCodeScreen80, PcodeDiskDsr, PcodeDisk1, PcodeDisk2, PcodeDisk3, CartMiniMem, CartInverted, CassIn, CassOut, WindowScaleWidth, WindowScaleHeight, 
-                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, KeyIn, Invalid);
+                    SerialDsr, RS232Dsr, SerialPort1In, SerialPort2In, ParallelPort1In, SerialPort1Out, SerialPort2Out, ParallelPort1Out, TipiDsr, TipiAddr, ResetCode, KeyIn, CycleCount, Invalid);
     const
          keyTypeMap: array [TKeyType] of string = 
              ('cpu_freq', 'mem_32k_ext', 'mem_ext', 'console_rom', 'console_groms', 'cart_rom', 'cart_groms', 'disksim_dsr', 'disksim_dir', 'disksim_text', 'fdc_dsr', 'fdc_dsk1', 'fdc_dsk2', 'fdc_dsk3', 'pcode_dsrlow', 'pcode_dsrhigh', 'pcode_grom', 'pcode_screen80', 'pcodedisk_dsr', 'pcodedisk_dsk1', 'pcodedisk_dsk2', 'pcodedisk_dsk3', 'cart_minimem', 'cart_inverted', 'cass_in', 'cass_out', 'window_scale_width', 'window_scale_height', 
-              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', 'key_input', '');
+              'serial_dsr', 'rs232_dsr', 'RS232/1_in', 'RS232/2_in', 'PIO/1_in', 'RS232/1_out', 'RS232/2_out', 'PIO/1_out', 'tipi_dsr', 'tipi_addr', 'reset_key', 'key_input', 'cycle_count', '');
     var
         n: int64;
         code: uint16;
@@ -145,7 +151,9 @@ procedure evaluateKey (key, value, path: string; var success: boolean);
             ResetCode:
                 resetKey := n;
             KeyIn:
-                KeyInFifo := value;
+                KeyInFifo := path;
+            CycleCount:
+                cycleCountRange := value;
             Invalid:
                 success := false
         end;
@@ -269,6 +277,15 @@ procedure setConfigData;
             setCassetteInput (cassInPath);
         if cassOutPath <> '' then
             setCassetteoutput (cassOutPath);
+        if cycleCountRange <> '' then
+            begin
+                j := pos ('-', cycleCountRange);
+                if j <> 0 then 
+                    begin
+                        cycleCountStartAddr := hex2int (copy (cycleCountRange, 1, j - 1));
+                        cycleCountEndAddr := hex2int (copy (cycleCountRange, j  + 1, 4));
+                    end
+            end
     end;
 
 procedure loadConfig;
@@ -344,6 +361,15 @@ procedure setCpuFrequency (freq: int64);
         cpuFrequency := min (freq, 1000 * 1000 * 1000);
         cycleTime := (1000 * 1000 * 1000) div cpuFrequency
     end;
+
+function getCycleCountStartAddr: uint16;
+    begin
+        getCycleCountStartAddr := cycleCountStartAddr
+    end;
     
+function getCycleCountEndAddr: uint16;
+    begin
+        getCycleCountEndAddr := cycleCountEndAddr
+    end;
 
 end.

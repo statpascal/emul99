@@ -48,7 +48,7 @@ type
 var
     pc, wp, st: uint16;
     cpuReset, cpuStopped, cpuInterrupt: boolean;
-    cpuCycles: int64;
+    cpuCycles, cycleCount: int64;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
 
@@ -604,7 +604,10 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cpuCycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cpuCycles, instruction.cycles + getWaitStates);
-//        writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
+//	if (prevPC > $4000) and (prevPC < $6000) then
+//           writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
+        if (prevPC >= getCycleCountStartAddr) and (prevPC <= getCycleCountEndAddr) then
+            inc (cycleCount, cpuCycles - prevCycles);
     end;	
 
 procedure handleInterrupt (level: uint8);
@@ -645,6 +648,7 @@ procedure runCpu;
         cpuStopped := false;
         cpuReset := true;
     	cpuCycles := 0;
+    	cycleCount := 0;
         updateTiming;    	
     	repeat
     	    checkReset;
@@ -659,7 +663,9 @@ procedure runCpu;
   	    handleVDP (cpuCycles);
 	    if (st and Status_IntMask <> 0) and cpuInterrupt then 
   	        handleInterrupt (1);
-        until cpuStopped
+        until cpuStopped;
+        if getCycleCountEndAddr <> 0 then 
+            writeln ('CPU cycles in range ', hexstr (getCycleCountStartAddr) , '-', hexstr (getCycleCountEndAddr), ': ', cycleCount)
     end;
 
 procedure stopCpu;

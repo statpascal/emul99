@@ -95,12 +95,12 @@ function readMem (addr: uint16): uint16;
 	readMem := ntohs (getMemoryPtr16 (addr)^)
     end;
 
-procedure writePAD (addr, w: uint16);
+procedure writePad (addr, w: uint16);
     begin
 	writeMem (addr or $8300, w)
     end;
 
-function readPAD (addr: uint16): uint16;
+function readPad (addr: uint16): uint16;
     begin
 	readPAD := readMem (addr or $8300)
     end;
@@ -336,7 +336,7 @@ const
     RomHandler:  	     TMemoryHandler = (r: readMem;       w: writeNull;     rws:  0; wws:  0);
     NullHandler: 	     TMemoryHandler = (r: readNull;      w: writeNull;     rws:  4; wws:  4);
     RamHandler:		     TMemoryHandler = (r: readMem;       w: writeMem;      rws:  4; wws:  4);
-    ScratchPadHandler:	     TMemoryHandler = (r: readMem;       w: writeMem;      rws:  0; wws:  0);
+    ScratchPadHandler:	     TMemoryHandler = (r: readPad;       w: writePad;      rws:  0; wws:  0);
     DsrHandler:	             TMemoryHandler = (r: readDsr;       w: writeDsr;      rws:  4; wws:  4);
     CartHandler:	     TMemoryHandler = (r: readCart;      w: writeCart;     rws:  4; wws:  4);
     SoundWriteHandler:	     TMemoryHandler = (r: readNull;      w: writeSound;    rws:  4; wws: 32);

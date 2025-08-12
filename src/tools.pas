@@ -5,6 +5,7 @@ interface
 function hexstr (u: uint16): string;
 function hexstr2 (u: uint8): string;
 function decimalstr (v: int64): string;
+function hex2int (s: string): int64;
 
 function trim (s: string): string;
 
@@ -45,6 +46,27 @@ function decimalstr (v: int64): string;
     begin
         str (v, s);
         decimalstr := s
+    end;
+    
+function hex2int (s: string): int64;
+    var
+        v, i: int64;
+        done: boolean;
+    begin
+        v := 0;
+        i := 1;
+        done := false;
+        while (i <= length (s)) and not done do
+            begin
+                if s [i] in ['0'..'9'] then
+                    v := v * 16 + ord (s [i]) - ord ('0')
+                else if upcase (s [i]) in ['A'..'F'] then
+                    v := v * 16 + 10 + ord (upcase (s [i])) - ord ('A')
+                else
+                    done := true;
+                inc (i)
+            end;
+        hex2int := v
     end;
     
 function trim (s: string): string;

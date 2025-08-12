@@ -649,9 +649,10 @@ procedure diskSimDsrRoutine;
         pabAddr: uint16;
     begin
         pabAddr := uint16 (readMemory ($8356) - (readMemory ($8354) and $ff) - 10);
+        writeln ('PAB is at: ', pabAddr, ' length is: ', readMemory ($8354) and $ff);
         vdpTransferBlock (pabAddr, 10, pab, VdpRead);
         vdpTransferBlock (pabAddr + 10, getNameSize (pab), pab.name, VdpRead);
-//        dumpPabOperation (pab);
+        dumpPabOperation (pab);
         dsrOperation [getOperation (pab)] (pab);
 //        if getOperation (pab) in [E_Open, E_Close, E_Load, E_Save] then
 //            dumpPabOperation (pab);
