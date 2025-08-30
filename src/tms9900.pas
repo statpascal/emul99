@@ -97,6 +97,7 @@ procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat:
         
         if result.opcode in [Op_STCR, Op_LDCR] then
             begin
+                result.b := result.count <= 8;
                 if result.opcode = Op_STCR then
                     inc (result.cycles, 16 * ord ((result.count >= 9) or (result.count = 0)) + 2 * ord (result.count and 7 = 0))
                 else
