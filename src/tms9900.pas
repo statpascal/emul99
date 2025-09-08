@@ -657,7 +657,8 @@ procedure runCpu;
             executeInstruction (decodedInstruction [fetchInstruction]);
             if cpuCycles - lastSleepCycles > msCycles then 
                 begin
-    	            sleepUntil (time + 1000 * 1000);
+                    if msCycles <> 1000 * 1000 then
+      	                sleepUntil (time + 1000 * 1000);
     	            updateTiming
                 end;
   	    handleTimer (cpuCycles);

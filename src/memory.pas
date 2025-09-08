@@ -30,7 +30,7 @@ implementation
 uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, tipi;
 
 const
-    MaxCardBanks = 64;
+    MaxCardBanks = 128;
     SAMSPageSize = 4096;
     SAMSPageCount = 4096;
 

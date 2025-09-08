@@ -326,20 +326,22 @@ procedure diskSimDsrClose (var pab: TPab);
         filenr := findFile (pab, false, true);
         if filenr <> 0 then
             with files [filenr] do
-                if plaintext then
-                    fileClose (plainTextFile)
-                else
-                    begin
-                        if operationMode <> E_Input then
-                            begin
-                                if recordType = E_Variable then
-                                    begin
-                                        sectors [maxSector][sectorPosition] := EofMarker; 
-                                        eofPosition := sectorposition
-                                    end;
-                                if not saveTiFiles (files [filenr]) then
-                                    setErrorCode (pab,  E_FileError)
-                            end;
+                begin
+                    if plaintext then
+                        fileClose (plainTextFile)
+                    else
+                        begin
+                            if operationMode <> E_Input then
+                                begin
+                                    if recordType = E_Variable then
+                                        begin
+                                            sectors [maxSector][sectorPosition] := EofMarker; 
+                                            eofPosition := sectorposition
+                                        end;
+                                    if not saveTiFiles (files [filenr]) then
+                                        setErrorCode (pab,  E_FileError)
+                                end
+                        end;
                         open := false
                     end
     end;

@@ -1,3 +1,10 @@
+Version 0.2.1
+
+- fixed bug closing host system text files
+- bug fix in STCR/LDCR indirect incrementing
+- cycle counter option for code range
+- enlarged cartridge space to 128 banks
+
 Version 0.2
 
 merged from develop branch
