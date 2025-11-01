@@ -12,6 +12,7 @@ function readMemory (addr: uint16): uint16;
 
 function getMemoryPtr (s: uint16): TUint8Ptr;
 function getPcodeScreenBuffer: TUint8Ptr;
+function getActiveCartBank: integer;
 
 function getWaitStates: uint8;
 
@@ -30,7 +31,6 @@ implementation
 uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, tipi;
 
 const
-    MaxCardBanks = 128;
     SAMSPageSize = 4096;
     SAMSPageCount = 4096;
 
@@ -50,9 +50,9 @@ const
 var
     samsMem: array [0..SAMSPageCount - 1, 0..SAMSPageSize div 2 - 1] of uint16;
     mem: array [0..MaxAddress div 2] of uint16;	  (* only used for scratch pad/Mini Memory *)
-    cart: array [0..MaxCardBanks - 1, $3000..$3FFF] of uint16;
-    cartBanks: 1..MaxCardBanks;
-    activeCartBank: 0..MaxCardBanks - 1;
+    cart: array [0..MaxCartBanks - 1, $3000..$3FFF] of uint16;
+    cartBanks: 1..MaxCartBanks;
+    activeCartBank: 0..MaxCartBanks - 1;
     cartROMInverted: boolean;
     samsMappingMode, samsEnabled: boolean;
     
@@ -85,9 +85,14 @@ function getPcodeScreenBuffer: TUint8Ptr;
 //        getPcodeScreenBuffer := getMemoryPtr ($2000)
     end;
     
+function getActiveCartBank: integer;
+    begin
+        getActiveCartBank := activeCartBank
+    end;
+    
 procedure writeMem (addr, w: uint16);
     begin
-        getMemoryPtr16 (addr)^ := htons (w);
+        getMemoryPtr16 (addr)^ := htons (w)
     end;
 
 function readMem (addr: uint16): uint16;
@@ -145,13 +150,17 @@ function readCart (addr: uint16): uint16;
 procedure writeSAMSRegister (addr, w: uint16);
     begin
         w := swapBytes (w) and $0fff;
-//        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
+        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
         mapSAMS [true, addr and $1e shr 1] := w
     end;
     
 function readSAMSRegister (addr: uint16): uint16;
+    var
+        reg: uint16;
     begin
-        readSamsRegister := swapBytes (mapSAMS [true, addr and $1e shr 1])
+        reg := mapSAMS [true, addr and $1e shr 1] and $ff;
+        readSamsRegister := reg shl 8 or reg;
+        writeln ('SAMS: reg #', addr and $1e shr 1, ' read: ', result)
     end;
     
 procedure writeDsr (addr, val: uint16);
@@ -257,7 +266,7 @@ procedure loadCartROM (bank: uint8; filename: string);
         if (bank = 0) and (size > sizeof (cart [0])) then
             begin
                 if size > sizeof (cart) then
-                    errorExit ('Cannot load cartridge: please enlarge MaxCardBanks in file memory.pas');
+                    errorExit ('Cannot load cartridge: please enlarge MaxCartBanks in file memory.pas');
                 loadBlock (cart, size, 0, filename, true);
                 bank := (size - 1) div sizeof (cart [9])
             end

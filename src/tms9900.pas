@@ -14,7 +14,7 @@ procedure writeRegister (reg: uint8; val: uint16);
 
 implementation
 
-uses memory, tms9901, vdp, types, xophandler, config, tools, timer, math;
+uses memory, tms9901, vdp, types, xophandler, config, perfdata, tools, timer, math;
 
 const 
     Status_LGT     = $8000;
@@ -48,10 +48,10 @@ type
 var
     pc, wp, st: uint16;
     cpuReset, cpuStopped, cpuInterrupt: boolean;
-    cpuCycles, cycleCount: int64;
+    cpuCycles: int64;
     instructionString: array [TOpcode] of string;
     decodedInstruction: array [uint16] of TInstruction;
-
+    
 procedure prepareInstruction (instr: uint16; opcode: TOpcode; instructionFormat: TInstructionFormat; cycles: uint8; statusBits: uint16; var result: TInstruction);
     const 
         ExtraCycles: array [0..3] of uint8 = (0, 4, 8, 6);
@@ -592,7 +592,7 @@ procedure executeFormat9 (var instruction: TInstruction);
                 end
         end
     end;
-
+    
 procedure executeInstruction (var instruction: TInstruction);
     const
 	dispatch: array [TInstructionFormat] of procedure (var instruction: TInstruction) = (
@@ -607,8 +607,7 @@ procedure executeInstruction (var instruction: TInstruction);
 	inc (cpuCycles, instruction.cycles + getWaitStates);
 //	if (prevPC > $4000) and (prevPC < $6000) then
 //           writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
-        if (prevPC >= getCycleCountStartAddr) and (prevPC <= getCycleCountEndAddr) then
-            inc (cycleCount, cpuCycles - prevCycles);
+        recordPerfData (prevPc, cpuCycles - prevCycles)
     end;	
 
 procedure handleInterrupt (level: uint8);
@@ -649,7 +648,6 @@ procedure runCpu;
         cpuStopped := false;
         cpuReset := true;
     	cpuCycles := 0;
-    	cycleCount := 0;
         updateTiming;    	
     	repeat
     	    checkReset;
@@ -666,8 +664,7 @@ procedure runCpu;
 	    if (st and Status_IntMask <> 0) and cpuInterrupt then 
   	        handleInterrupt (1);
         until cpuStopped;
-        if getCycleCountEndAddr <> 0 then 
-            writeln ('CPU cycles in range ', hexstr (getCycleCountStartAddr) , '-', hexstr (getCycleCountEndAddr), ': ', cycleCount)
+        dumpPerfData
     end;
 
 procedure stopCpu;

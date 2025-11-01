@@ -4,6 +4,7 @@ interface
 
 const
     MaxAddress = 65535;
+    MaxCartBanks = 128;
     MaxCruAddress = 4191;
     NumberDrives = 3;
     

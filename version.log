@@ -1,3 +1,8 @@
+Version 0.2.2
+
+- corrected reading of SAMS registers
+- added option "perfdata" to dump instruction/cycle count
+
 Version 0.2.1
 
 - fixed bug closing host system text files
