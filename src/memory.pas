@@ -150,7 +150,7 @@ function readCart (addr: uint16): uint16;
 procedure writeSAMSRegister (addr, w: uint16);
     begin
         w := swapBytes (w) and $0fff;
-        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
+//        writeln ('SAMS: reg #', addr and $1e shr 1, ' <- ', w); 
         mapSAMS [true, addr and $1e shr 1] := w
     end;
     
@@ -160,7 +160,7 @@ function readSAMSRegister (addr: uint16): uint16;
     begin
         reg := mapSAMS [true, addr and $1e shr 1] and $ff;
         readSamsRegister := reg shl 8 or reg;
-        writeln ('SAMS: reg #', addr and $1e shr 1, ' read: ', result)
+//        writeln ('SAMS: reg #', addr and $1e shr 1, ' read: ', result)
     end;
     
 procedure writeDsr (addr, val: uint16);
