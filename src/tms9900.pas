@@ -605,8 +605,8 @@ procedure executeInstruction (var instruction: TInstruction);
         prevCycles := cpuCycles;
 	dispatch [instruction.instructionFormat] (instruction);
 	inc (cpuCycles, instruction.cycles + getWaitStates);
-//	if (prevPC > $4000) and (prevPC < $6000) then
-//           writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
+	if getTraceFlag then
+            writeln (cpuCycles - prevCycles:3, '  ', disassembleInstruction (instruction, prevPC));
         recordPerfData (prevPc, cpuCycles - prevCycles)
     end;	
 

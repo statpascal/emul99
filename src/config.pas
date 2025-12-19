@@ -17,6 +17,9 @@ function getCycleTime: int64;
 function getDefaultCpuFrequency: int64;
 procedure setCpuFrequency (freq: int64);
 
+procedure setTraceFlag (b: boolean);
+function getTraceFlag: boolean;
+
 
 implementation
 
@@ -40,9 +43,20 @@ var
     useMiniMem: boolean;
     resetKey: integer;
     keyInFifo: string;
+    traceFlag: boolean;
     
     pcodeRomFilenames: TPcodeRomFilenames;
     cpuFrequency, defaultCpuFrequency, cycleTime: int64;
+    
+procedure setTraceFlag (b: boolean);
+    begin
+        traceFlag := b
+    end;
+    
+function getTraceFlag: boolean;
+    begin
+        getTraceFlag := traceFlag
+    end;
 
 procedure evaluateKey (key, value, path: string; var success: boolean);
     type

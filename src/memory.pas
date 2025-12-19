@@ -28,7 +28,7 @@ procedure loadCartGROM (filename: string);
 
 implementation
 
-uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, tipi;
+uses tms9901, vdp, sound, grom, fdccard, rs232card, disksim, pcodecard, pcodedisk, tools, cfuncs, tipi, config;
 
 const
     SAMSPageSize = 4096;
@@ -89,6 +89,14 @@ function getActiveCartBank: integer;
     begin
         getActiveCartBank := activeCartBank
     end;
+    
+procedure writeDebug (addr, w: uint16);
+    begin
+        case addr of
+            $9000:
+                setTraceFlag (w <> 0)
+        end
+    end;    
     
 procedure writeMem (addr, w: uint16);
     begin
@@ -356,6 +364,7 @@ const
     GromWriteAddressHandler: TMemoryHandler = (r: readNull;      w: writeAddrGrom; rws:  4; wws: 22);
     GromReadDataHandler:     TMemoryHandler = (r: readDataGrom;  w: writeNull;     rws: 22; wws:  4);
     GromReadAddressHandler:  TMemoryHandler = (r: readAddrGrom;  w: writeNull;     rws: 17; wws:  4);
+    DebugHandler:	     TMemoryHandler = (r: readNull;      w: writeDebug;    rws:  0; wws:  0);
     
 procedure setMemoryMap (startAddr, endAddr: uint16; handlerEven, handlerOdd: TMemoryHandler); overload;
     var
@@ -395,6 +404,7 @@ begin
     setMemoryMap ($8400, $85fe, SoundWriteHandler);
     setMemoryMap ($8800, $8bfe, VdpReadDataHandler, VdpReadStatusHandler);
     setMemoryMap ($8c00, $8ffe, VdpWriteDataHandler, VdpWriteCommandHandler);
+    setMemoryMap ($9000, $9000, DebugHandler);
     setMemoryMap ($9800, $9bfe, GromReadDataHandler, GromReadAddressHandler);
     setMemoryMap ($9c00, $9ffe, NullHandler, GromWriteAddressHandler);
         
