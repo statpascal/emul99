@@ -169,22 +169,40 @@ procedure evaluateKey (key, value, path: string; var success: boolean);
     end;
 
 procedure loadConfigFile (fn: string; level: uint8); forward;
+
+function getInstallationPath: string;
+    var
+        s: string;
+        i: integer;
+    begin
+        s := ParamStr (0);
+        for i := 1 to 2 do
+            begin
+                s := extractFilePath (s);
+                if s <> '' then
+                    s := copy (s, 1, pred (length (s)))
+            end;
+        getInstallationPath := s
+    end;
     
 procedure evaluateConfigLine (dir, s: string; level: uint8);
     var 
         p: int64;
-        key, value, path: string;
+        key, value, path, instPath: string;
         success: boolean;
     begin
         p := pos ('=', s);
         success := false;
+        instPath := getInstallationPath;
         if p <> 0 then
             begin
                 key := trim (copy (s, 1, pred (p)));
                 value := trim (copy (s, succ (p), length (s) - p));
                 if key <> '' then 
                     begin
-                        if (value <> '') and (value [1] <> '/') then
+                        if (value <> '') and (value [1] = ':') then
+                            path := instPath + copy (value, 2, pred (length (value)))
+                        else if (value <> '') and (value [1] <> '/') then
                             path := dir + value
                         else
                             path := value;

@@ -1,3 +1,7 @@
+Version 0.2.3
+
+- added option to set file names relative to installation dir
+
 Version 0.2.2
 
 - corrected reading of SAMS registers

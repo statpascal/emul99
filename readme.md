@@ -31,7 +31,7 @@ The required build environment can be installed as follows:
 
 - Debian/Raspberry Pi OS/Chromebook
 
-    sudo apt-get install fpc libgtk-3-dev libsdl2-dev
+    sudo apt install fpc libgtk-3-dev libsdl2-dev
 
 - Ubuntu/Linux Mint
 
@@ -107,8 +107,17 @@ may be used.
 
 Pathes given in config file are relative to the location of the config file
 while pathes provided on the command line are relative to the current
-working directory.  Absolute pathes (starting with a slash '/') may also be
-used.
+working directory. Absolute pathes (starting with a slash '/') may also be
+used. Moreover, pathes starting with a colon ':' are relative to emul99 base 
+directory. The latter option is useful to config files outside the emul99
+file hierarchy:
+
+    include = :/bin/common.cfg
+    mem_ext = 2
+    fdc_dsr = :/roms/Disk.Bin 
+    fdc_dsk1 = disk.dsk 
+    disksim_dsr = :/roms/disksim.bin 
+    disksim_dir = .
 
 It is not possible to change any part of the configuration (e.g., disk
 images or cartridges) while the emulator is running. This can be mitigated
