@@ -544,6 +544,32 @@ It can be sent to the file PRINTER with
 
     LIST "RS232/2"
 
+## Profiling and Debugging
+
+The emulator can profile a session, counting the number of times any
+assembly instruction is executed and the cycles used for it. This is 
+activated with the configuration setting
+    
+    perfdata = filename
+
+Upon exiting the emulator, a text file in the following format is written to
+the given filename:
+
+```
+   Address      Bank     Count    Cycles
+
+      000E         0     30144    482304
+      0024         0         1        12
+      0028         0         1        12
+      002C         0         1        12
+      0030         0         1        12
+      0034         0         1        10
+      005C         0         1        36
+      005E         0         1        14
+      0060         0      1437     57480
+      0064         0      1437     57480
+```
+   
 
 ## Implementation Notes
 
