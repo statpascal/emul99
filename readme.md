@@ -109,7 +109,7 @@ Pathes given in config file are relative to the location of the config file
 while pathes provided on the command line are relative to the current
 working directory. Absolute pathes (starting with a slash '/') may also be
 used. Moreover, pathes starting with a colon ':' are relative to emul99 base 
-directory. The latter option is useful to config files outside the emul99
+directory. The latter option is useful for config files outside the emul99
 file hierarchy:
 
     include = :/bin/common.cfg
@@ -570,6 +570,12 @@ the given filename:
       0064         0      1437     57480
 ```
    
+The StatPascal compiler contains a tool evaluating these raw
+statistics and showing the time spent in individual subroutines.
+
+A disassembler trace of the executed machine instructions can be activated
+by writing a non-zero value to memory word >9000.
+
 
 ## Implementation Notes
 
