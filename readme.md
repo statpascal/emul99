@@ -16,8 +16,6 @@ system.  It provides the following features:
 - Emulation of RS232 card
 - External simulation of keystrokes via FIFO
 - Cassette input/output using WAV files
-- Simulated keyboard input is handled by hooking the KSCAN routine so
-  programs accessing the CRU directly will not get the simulated keys
 
 ## Compiling Emul99
 
@@ -622,6 +620,8 @@ The emulator is developed and tested using the following environments:
 - An infinite recursion of *X* operations crashes the emulator with a stack
   overflow.
 - The emulation of the RS232 card provides only the functionality used by TI's DSR.
+- Simulated keyboard input is handled by hooking the KSCAN routine so
+  programs accessing the CRU directly will not get the simulated keys
 
 
 ## Acknowledgements
